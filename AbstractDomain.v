@@ -31,13 +31,26 @@ Class transfer_function {ab: Type} (A: adom ab) :=
               In RegisterMap (gamma a') R'
   }.
 
-Definition AI_sound {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) (a_dom: list ab) :=
-  List.length prog = List.length a_dom ->
-  (forall l l' a', l < List.length prog ->
+Definition interpret {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :=
+   @nil ab.
+
+Theorem interpret_has_same_length {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :
+  List.length prog = List.length (interpret T prog).
+Proof.
+  Admitted.
+
+Theorem interpret_has_initial_state_top {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :
+  le top (List.nth 0 (interpret T prog) top) = true.
+Proof.
+  Admitted.
+
+Theorem interpret_compute_fixpoint {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :
+  forall l l' a', l < List.length prog ->
              l' < List.length prog ->
-             top = List.nth 0 a_dom top ->
-             List.In (a', l') (transfer (List.nth l prog (Const "X" 0)) (List.nth l a_dom top) l) ->
-             le a' (List.nth l' a_dom top) = true) ->
-  forall R l, reachable_states prog (R, l) ->
-         In RegisterMap (gamma (List.nth l a_dom top)) R
-  .
+             let a_dom := interpret T prog in
+             let inst := List.nth l prog (Const "X" 0) in
+             let a := List.nth l a_dom top in
+             List.In (a', l') (transfer inst a l) ->
+             le a' (List.nth l' a_dom top) = true.
+Proof.
+  Admitted.
