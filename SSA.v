@@ -56,14 +56,17 @@ Definition ssa_step (inst : SSA) (R : RegisterMap) (l : label) :=
 
 (* Small step semantics *)
 Inductive step : Program -> state -> state -> Prop :=
-| SingleStep : forall p R l s,
-    Some s = List.nth_error p l ->
-    step p (R, l) (ssa_step s R l).
+| SingleStep : forall p R l s R' l',
+    l < List.length p ->
+    l' < List.length p ->
+    s = List.nth l p (Const "X" 0) ->
+    (R', l') = ssa_step s R l ->
+    step p (R, l) (R', l').
 
 (* The transitive closure of small steps semantics *)
 Inductive multi_step : Program -> state -> state -> Prop :=
 | MultiRefl : forall p R l, multi_step p (R, l) (R, l)
-| MultiStep : forall p s s' s'', step p s s' -> multi_step p s' s'' -> multi_step p s s''.
+| MultiStep : forall p s s' s'', multi_step p s s' -> step p s' s'' -> multi_step p s s''.
 
 (* The reachable states *)
 Inductive reachable_states : Program -> state -> Prop :=
