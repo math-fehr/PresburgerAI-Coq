@@ -33,6 +33,52 @@ Class transfer_function {ab: Type} (A: adom ab) :=
               Ensembles.In RegisterMap (gamma a') R'
   }.
 
+(* replace a[label] with join a[label] a_join *)
+Fixpoint join_label {ab: Type} {A: adom ab} (T: transfer_function A) (a: list ab) (a_join: ab) (label: nat) :=
+  match (a, label) with
+  | (x::a', S label') => x::(join_label T a' a_join label')
+  | (x::a', O) => (join x a_join)::a'
+  | (nil, _) => nil
+  end.
+
+Theorem join_label_neq {ab: Type} {A: adom ab} (T: transfer_function A):
+  forall label a a_join l default,
+    l <> label -> List.nth l a default = List.nth l (join_label T a a_join label) default.
+Proof.
+  elim => [a a_join l default | n Hind a a_join l default Hneq].
+  - case a => [// | a0 l0].
+    case l => //.
+  - case a => [// | a0 l0].
+    case: l Hneq => [// | l' Hneq].
+    simpl.
+    apply Hind.
+    auto.
+Qed.
+
+Theorem join_label_eq {ab: Type} {A: adom ab} (T: transfer_function A):
+  forall label a a_join default,
+    List.length a > label ->
+    join (List.nth label a default) a_join = List.nth label (join_label T a a_join label) default.
+Proof.
+  elim => [a a_join default Hlength | n H a a_join default Hlength].
+  - case: a Hlength => [| //].
+    move => Hnillength.
+    simpl in Hnillength.
+    apply PeanoNat.Nat.nlt_0_r in Hnillength.
+    by case Hnillength.
+  - case: a Hlength => [ Hlength | x l Hlength].
+    + simpl in Hlength.
+      apply PeanoNat.Nat.nlt_0_r in Hlength.
+      by case Hlength.
+    + apply H.
+      apply Gt.gt_S_n.
+      by apply Hlength.
+Qed.
+
+
+Definition one_step {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) (a: list ab) (label: nat) :=
+  top :: nil.
+
 Definition interpret {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :=
   List.repeat top (List.length prog).
 
