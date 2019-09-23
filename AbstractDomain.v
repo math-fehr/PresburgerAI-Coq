@@ -15,10 +15,13 @@ Class adom (ab:Type) :=
     top : ab;
     join : ab -> ab -> ab;
 
+    le_refl: forall a, le a a;
+    le_trans: forall a1 a2 a3, le a1 a2 -> le a2 a3 -> le a1 a3;
     gamma : ab -> Ensemble RegisterMap;
     gamma_monotone : forall a1 a2, le a1 a2 = true -> Included RegisterMap (gamma a1) (gamma a2);
     gamma_top : forall x, Ensembles.In RegisterMap (gamma top) x;
-    join_sound : forall x y, Included RegisterMap (Union RegisterMap (gamma x) (gamma y)) (gamma (join x y))
+    join_sound_l : forall a1 a2, le a1 (join a1 a2);
+    join_sound_r : forall a1 a2, le a2 (join a1 a2);
   }.
 
 (* Transfer functions for our language *)
@@ -86,19 +89,55 @@ Proof.
     by apply eq_S, Hind.
 Qed.
 
+Theorem join_label_increase {ab: Type} {A: adom ab} (T: transfer_function A):
+  forall label a a_join default n,
+    le (List.nth n a default) (List.nth n (join_label T a a_join label) default).
+Proof.
+  move => label a a_join default n.
+  case (PeanoNat.Nat.eqb_spec n label) => [Heq | Hneq].
+  - case (PeanoNat.Nat.leb_spec (List.length a) label) => Hlength.
+    + rewrite -!nth_default_eq.
+      unfold nth_default.
+      rewrite -Heq in Hlength *.
+      eapply nth_error_None in Hlength.
+      rewrite Hlength.
+      eapply nth_error_None in Hlength.
+      rewrite (join_label_same_size T n _ a_join) in Hlength.
+      apply nth_error_None in Hlength.
+      rewrite Hlength.
+      apply le_refl.
+    + rewrite Heq in Hlength *.
+      apply (join_label_eq T label a a_join default) in Hlength.
+      rewrite -Hlength.
+      apply join_sound_l.
+  - apply (join_label_neq T label a a_join n default) in Hneq.
+    rewrite Hneq.
+    apply le_refl.
+Qed.
+
 Definition interpret_one_step_aux {ab: Type} {A: adom ab} (T: transfer_function A) (a: list ab) (transfers: list (ab*SSA.label)) :=
-    List.fold_left (fun a' p =>
+    List.fold_right (fun p a' =>
                         match p with
                           (a_join, l) => join_label T a' a_join l
                         end)
-                   transfers a.
+                   a transfers.
 
 Theorem interpret_one_step_aux_same_size {ab: Type} {A: adom ab} (T: transfer_function A):
   forall transfers a, List.length a = List.length (interpret_one_step_aux T a transfers).
 Proof.
   elim => [a //| [a_join l] transfers Hind a].
   simpl.
-  by rewrite -Hind -join_label_same_size.
+  by rewrite Hind -join_label_same_size.
+Qed.
+
+Theorem interpret_one_step_aux_increase {ab: Type} {A: adom ab} (T: transfer_function A):
+  forall transfers a n default, le (List.nth n a default) (List.nth n (interpret_one_step_aux T a transfers) default).
+Proof.
+  elim => [a n default| [a_join l0] l Hind a n default].
+  - apply le_refl.
+  - simpl.
+    apply (le_trans _ (nth n (interpret_one_step_aux T a l) default) _) => //.
+    apply join_label_increase.
 Qed.
 
 Definition interpret_one_step {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) (a: list ab) (label: nat) :=
