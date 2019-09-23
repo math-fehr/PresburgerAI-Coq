@@ -86,8 +86,38 @@ Proof.
     by apply eq_S, Hind.
 Qed.
 
-Definition one_step {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) (a: list ab) (label: nat) :=
-  top :: nil.
+Definition interpret_one_step_aux {ab: Type} {A: adom ab} (T: transfer_function A) (a: list ab) (transfers: list (ab*SSA.label)) :=
+    List.fold_left (fun a' p =>
+                        match p with
+                          (a_join, l) => join_label T a' a_join l
+                        end)
+                   transfers a.
+
+Theorem interpret_one_step_aux_same_size {ab: Type} {A: adom ab} (T: transfer_function A):
+  forall transfers a, List.length a = List.length (interpret_one_step_aux T a transfers).
+Proof.
+  elim => [a //| [a_join l] transfers Hind a].
+  simpl.
+  by rewrite -Hind -join_label_same_size.
+Qed.
+
+Definition interpret_one_step {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) (a: list ab) (label: nat) :=
+  match (List.nth_error prog label, List.nth_error a label) with
+  | (Some inst, Some a0) =>
+    let transfers := transfer inst a0 label in
+    interpret_one_step_aux T a transfers
+  | _ => a
+  end.
+
+Theorem interpret_one_step_same_size {ab: Type} {A: adom ab} (T: transfer_function A):
+  forall prog a label, List.length a = List.length (interpret_one_step T prog a label).
+Proof.
+  move => prog a label.
+  unfold interpret_one_step.
+  case (nth_error prog label) => [inst | //].
+  case (nth_error a label) => [a' | //].
+    by apply interpret_one_step_aux_same_size.
+Qed.
 
 Definition interpret {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :=
   List.repeat top (List.length prog).
