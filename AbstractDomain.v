@@ -148,6 +148,19 @@ Definition interpret_one_step {ab: Type} {A: adom ab} (T: transfer_function A) (
   | _ => a
   end.
 
+Theorem interpret_one_step_increase {ab: Type} {A: adom ab} (T: transfer_function A):
+  forall prog a label n default,
+    le (List.nth n a default) (List.nth n (interpret_one_step T prog a label) default).
+Proof.
+  move => prog a label n default.
+  unfold interpret_one_step.
+  case (nth_error prog label); last first => [| inst].
+    by apply le_refl.
+  case (nth_error a label); last first => [| a0].
+    by apply le_refl.
+  apply interpret_one_step_aux_increase.
+Qed.
+
 Theorem interpret_one_step_same_size {ab: Type} {A: adom ab} (T: transfer_function A):
   forall prog a label, List.length a = List.length (interpret_one_step T prog a label).
 Proof.
