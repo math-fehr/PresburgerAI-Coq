@@ -75,6 +75,16 @@ Proof.
       by apply Hlength.
 Qed.
 
+Theorem join_label_same_size {ab: Type} {A: adom ab} (T: transfer_function A):
+  forall label a a_join,
+    List.length a = List.length (join_label T a a_join label).
+Proof.
+  elim => [ a a_join | label' Hind a a_join].
+  - case a => //.
+  - case a => [//| a0 a'].
+    simpl.
+    by apply eq_S, Hind.
+Qed.
 
 Definition one_step {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) (a: list ab) (label: nat) :=
   top :: nil.
