@@ -2,6 +2,8 @@ Require Export PolyAI.TotalMap.
 Require Export Coq.Sets.Ensembles.
 Require Import PolyAI.SSA.
 Require Import Coq.Program.Equality.
+Require Import Coq.Lists.List.
+From Coq Require Import ssreflect ssrfun ssrbool.
 
 Require Import String.
 Open Scope string_scope.
@@ -15,7 +17,7 @@ Class adom (ab:Type) :=
 
     gamma : ab -> Ensemble RegisterMap;
     gamma_monotone : forall a1 a2, le a1 a2 = true -> Included RegisterMap (gamma a1) (gamma a2);
-    gamma_top : forall x, In RegisterMap (gamma top) x;
+    gamma_top : forall x, Ensembles.In RegisterMap (gamma top) x;
     join_sound : forall x y, Included RegisterMap (Union RegisterMap (gamma x) (gamma y)) (gamma (join x y))
   }.
 
@@ -24,16 +26,15 @@ Class transfer_function {ab: Type} (A: adom ab) :=
   {
     transfer : SSA -> ab -> label -> list (ab * label);
     transfer_sound :
-      forall prog R l R' l' a inst,
-        In RegisterMap (gamma a) R ->
+      forall prog R l R' l',
         step prog (R, l) (R', l') ->
-        inst = List.nth l prog (Const "X" 0) ->
-        exists a', List.In (a', l') (transfer inst a l) /\
-              In RegisterMap (gamma a') R'
+        forall a, Ensembles.In RegisterMap (gamma a) R ->
+        exists a', In (a', l') (transfer (List.nth l prog (Const "X" 0)) a l) /\
+              Ensembles.In RegisterMap (gamma a') R'
   }.
 
 Definition interpret {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :=
-   @nil ab.
+  List.repeat top (List.length prog).
 
 Theorem interpret_has_same_length {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :
   List.length prog = List.length (interpret T prog).
@@ -46,51 +47,46 @@ Proof.
   Admitted.
 
 Theorem interpret_compute_fixpoint {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :
-  forall l l' a', l < List.length prog ->
-             l' < List.length prog ->
-             let a_dom := interpret T prog in
-             let inst := List.nth l prog (Const "X" 0) in
-             let a := List.nth l a_dom top in
-             List.In (a', l') (transfer inst a l) ->
-             le a' (List.nth l' a_dom top) = true.
+  forall l, l < List.length prog ->
+       forall l', l' < List.length prog ->
+             forall a', List.In (a', l') (transfer (List.nth l prog (Const "X" 0)) (List.nth l (interpret T prog) top) l) ->
+                   le a' (List.nth l' (interpret T prog) top) = true.
 Proof.
-Admitted.
+  Admitted.
 
+Theorem interpret_step_sound {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :
+  forall R1 l1 R2 l2, step prog (R1, l1) (R2, l2) ->
+                 Ensembles.In RegisterMap (gamma (List.nth l1 (interpret T prog) top)) R1 ->
+                 Ensembles.In RegisterMap (gamma (List.nth l2 (interpret T prog) top)) R2.
+Proof.
+  move=> R1 l1 R2 l2 Hstep Hprevious.
+  inversion Hstep. subst.
+  move: (@transfer_sound ab A T prog R1 l1 R2 l2 Hstep _ Hprevious) => [a' [Ha'in HR2in]].
+  move: (interpret_compute_fixpoint T prog l1 H4 l2 H5 a' Ha'in) => Hsteps.
+  apply (@gamma_monotone ab A) in Hsteps.
+  apply Hsteps.
+  exact HR2in.
+Qed.
 
 Theorem interpret_sound {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :
   forall R l, l < List.length prog ->
          reachable_states prog (R, l) ->
-         In RegisterMap (gamma (List.nth l (interpret T prog) top)) R.
+         Ensembles.In RegisterMap (gamma (List.nth l (interpret T prog) top)) R.
 Proof.
-  intros R l Hinbounds Hreachable.
-  inversion Hreachable.
-  subst.
-  generalize_eqs H.
-  generalize dependent l.
-  generalize dependent R.
-  generalize dependent R0.
-  induction H.
-  - intros.
-    apply JMeq_eq in H. injection H. intros.
-    apply JMeq_eq in H0. injection H0. intros.
-    subst.
-    pose proof (interpret_has_initial_state_top T p).
-    apply gamma_monotone in H1.
-    apply H1.
-    apply gamma_top.
-  - intros.
-    apply JMeq_eq in H1. apply JMeq_eq in H2. subst.
-    destruct s'.
-    inversion H0. subst.
-    pose proof H6 as Hl0.
-    apply (IHmulti_step R0 r) in H6; auto;
-      try (apply Reachable with (R := R0); auto).
-    pose proof (transfer_sound p r l0 R l) as H1.
-    apply H1 with (inst := (List.nth l0 p (Const "X" 0))) in H6; auto.
-    destruct H6. destruct H2.
-    pose proof (interpret_compute_fixpoint T p l0 l x).
-    apply H4 in Hl0; auto.
-    apply gamma_monotone in Hl0.
-    apply Hl0.
-    exact H3.
+  move => R l Hinbounds Hreachable.
+  inversion Hreachable => {Hreachable}. subst.
+  move: {2}(_,_) (erefl (R0, 0)) => R00 R00eq.
+  move: {2}(_,_) (erefl (R, l)) => Rl Rleq.
+  rewrite R00eq Rleq in H.
+  elim: H R0 R l Rleq R00eq Hinbounds => [p R l|].
+  - move=> R0 R1 l0 [-> ->] [<- <-] l0_small.
+    move: (interpret_has_initial_state_top T p) => H0top.
+    apply gamma_monotone in H0top.
+    apply: H0top.
+    apply: gamma_top.
+  - move=> p [R0 l0] [R1 l1] [R2 l2] Hmsteps Hind Hstep R0' R2' l2' [H1 H2] [H3 H4] Hl_small.
+    move: H1 H2 H3 H4 => -> -> <- <- in Hmsteps Hind Hstep Hl_small *.
+    inversion Hstep. subst.
+    move: (Hind R0' R1 l1 eq_refl eq_refl H4) => {Hind}Hind.
+    apply: (interpret_step_sound T p R1 l1 R2 l2); auto.
 Qed.
