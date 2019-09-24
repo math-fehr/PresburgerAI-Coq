@@ -171,8 +171,88 @@ Proof.
     by apply interpret_one_step_aux_same_size.
 Qed.
 
-Definition interpret {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :=
-  List.repeat top (List.length prog).
+Definition interpret_one_pass {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) (a: list ab) :=
+  List.fold_right
+    (fun label a' => interpret_one_step T prog a' label)
+    a (seq 0 (List.length prog)).
+
+Lemma list_fold_right_interpret_one_step_increase {ab: Type} {A: adom ab} (T: transfer_function A) :
+  forall i j a prog n default, le (List.nth n a default)
+                           (List.nth n (List.fold_right
+                                          (fun label a' => interpret_one_step T prog a' label)
+                                          a (seq j i)) default).
+Proof.
+  elim => [j a prog n default | n Hind j a prog n0 default].
+  - by apply le_refl.
+  - simpl.
+    eapply le_trans.
+    + apply (Hind (S j) a prog n0 default).
+    + apply interpret_one_step_increase.
+Qed.
+
+Theorem interpret_one_pass_increase {ab: Type} {A: adom ab} (T: transfer_function A) :
+  forall prog a n default, le (List.nth n a default) (List.nth n (interpret_one_pass T prog a) default).
+Proof.
+  unfold interpret_one_pass.
+  move => prog a n default.
+  apply list_fold_right_interpret_one_step_increase.
+Qed.
+
+Fixpoint is_fixpoint_label_aux {ab: Type} {A: adom ab} (T: transfer_function A) (a: list ab) (transfer: list (ab*label)) :=
+  match transfer with
+  | nil => true
+  | (x, l)::transfer' => (le x (List.nth l a top)) && (is_fixpoint_label_aux T a transfer')
+  end.
+
+Theorem is_fixpoint_label_aux_spec {ab: Type} {A: adom ab} (T: transfer_function A) :
+  forall transfer a, is_fixpoint_label_aux T a transfer = true <->
+                Forall (fun p => match p with
+                              |(x,l) => le x (List.nth l a top)
+                              end) transfer.
+Proof.
+  elim => [a| [x l] a Hind a0].
+  - rewrite /= Forall_forall /=.
+    split => [H x bot // | //].
+  - split => [Hfix|].
+    + rewrite Forall_forall => [[x' l'] Hin].
+      rewrite /= in Hfix, Hin.
+      apply Bool.andb_true_iff in Hfix.
+      case Hin => {Hin} [[Heqx Heql] | Hin].
+      * rewrite -Heqx -Heql.
+        move: Hfix => [Hgoal _].
+          by apply Hgoal.
+      * move: Hfix => [_ Hfix].
+        apply Hind in Hfix.
+        move: Hfix.
+        rewrite Forall_forall => Hfix.
+        apply (Hfix (x', l')).
+          by exact Hin.
+    + move => Hforall /=.
+      apply Bool.andb_true_iff.
+      split.
+      * move: Hforall.
+        rewrite Forall_forall => Hforall.
+        apply (Hforall (x, l)) => /=.
+        left.
+        by [].
+      * apply Hind.
+        inversion Hforall.
+          by exact H2.
+Qed.
+
+
+Definition is_fixpoint_label {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) (a: list ab) (label: nat) :=
+  let inst = List.nth_error prog label in
+  let transfers := List.nth_error a label in
+  
+
+
+Definition interpret {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) (n_iter: nat) :=
+  let initial := List.repeat top (List.length prog) in
+  let result := List.fold_right
+    (fun _ a' => interpret_one_pass T prog a')
+    initial (List.repeat 0 n_iter) in
+  result.
 
 Theorem interpret_has_same_length {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :
   List.length prog = List.length (interpret T prog).
