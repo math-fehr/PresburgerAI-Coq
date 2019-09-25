@@ -1,6 +1,7 @@
-Require Import PolyAI.SSA.
+Require Export PolyAI.SSA.
 Require Export PolyAI.TotalMap.
 Require Export PolyAI.AbstractDomain.
+Require Export PolyAI.TransferFunction.
 Require Export Coq.Sets.Ensembles.
 Require Import Coq.Program.Equality.
 Require Import Coq.Lists.List.
@@ -251,8 +252,9 @@ Proof.
 Theorem interpret_compute_fixpoint {ab: Type} {A: adom ab} (T: transfer_function A) (prog: Program) :
   forall l, l < List.length prog ->
        forall l', l' < List.length prog ->
-             forall a', List.In (a', l') (transfer (List.nth l prog (Const "X" 0)) (List.nth l (interpret T prog) top) l) ->
-                   le a' (List.nth l' (interpret T prog) top) = true.
+             forall inst, Some inst = List.nth_error prog l ->
+                     forall a', List.In (a', l') (transfer inst (List.nth l (interpret T prog) top) l) ->
+                           le a' (List.nth l' (interpret T prog) top) = true.
 Proof.
   Admitted.
 
@@ -263,8 +265,8 @@ Theorem interpret_step_sound {ab: Type} {A: adom ab} (T: transfer_function A) (p
 Proof.
   move=> R1 l1 R2 l2 Hstep Hprevious.
   inversion Hstep. subst.
-  move: (@transfer_sound ab A T prog R1 l1 R2 l2 Hstep _ Hprevious) => [a' [Ha'in HR2in]].
-  move: (interpret_compute_fixpoint T prog l1 H4 l2 H5 a' Ha'in) => Hsteps.
+  move: (@transfer_sound ab A T prog R1 l1 R2 l2 Hstep _ H6 _ Hprevious) => [a' [Ha'in HR2in]].
+  move: (interpret_compute_fixpoint T prog l1 H4 l2 H5 s H6 a' Ha'in) => Hsteps.
   apply (@gamma_monotone ab A) in Hsteps.
   apply Hsteps.
   exact HR2in.

@@ -2,6 +2,9 @@ Require Import Coq.Bool.Bool.
 Require Import Coq.Strings.String.
 Require Import PolyAI.TotalMap.
 Require Import Coq.Arith.PeanoNat.
+Require Import Coq.Numbers.BinNums.
+Require Import Coq.ZArith.BinInt.
+
 
 Local Open Scope type_scope.
 
@@ -17,18 +20,19 @@ Definition variable := string.
 Definition label := nat.
 
 (* Every variable has a value, even the non defined ones *)
-Definition RegisterMap := total_map nat.
+Definition RegisterMap := total_map Z.
 (* The label is the program counter *)
 Definition state := RegisterMap * label.
 
 Local Open Scope string_scope.
-Local Open Scope nat_scope.
 
 (* Basics binary arithmetic opcodes *)
 Inductive BinArithOpCode :=
 | Add
 | Mul
 | Le.
+
+Local Open Scope Z_scope.
 
 (* The evaluation of a binary operation *)
 Definition bin_op_eval (R : RegisterMap) (op : BinArithOpCode) (v1 v2 : variable) :=
@@ -38,9 +42,11 @@ Definition bin_op_eval (R : RegisterMap) (op : BinArithOpCode) (v1 v2 : variable
   | Le => if (R v1) <=? (R v2) then 1 else 0
   end.
 
+Local Open Scope nat_scope.
+
 (* An SSA instruction *)
 Inductive SSA :=
-| Const : variable -> nat -> SSA
+| Const : variable -> Z -> SSA
 | BinOp : variable -> BinArithOpCode -> variable -> variable -> SSA.
 
 (* An SSA program *)
@@ -56,10 +62,10 @@ Definition ssa_step (inst : SSA) (R : RegisterMap) (l : label) :=
 
 (* Small step semantics *)
 Inductive step : Program -> state -> state -> Prop :=
-| SingleStep : forall p R l s R' l',
+| SingleStep (p: Program) (R R': RegisterMap) (l l': label) (s: SSA):
     l < List.length p ->
     l' < List.length p ->
-    s = List.nth l p (Const "X" 0) ->
+    Some s = List.nth_error p l ->
     (R', l') = ssa_step s R l ->
     step p (R, l) (R', l').
 

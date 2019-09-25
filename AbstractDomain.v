@@ -31,9 +31,9 @@ Class adom (ab:Type) :=
 
 Theorem gamma_presburger_monotone {s: Type} {P : PresburgerSet s} :
   forall p1 p2, is_subset p1 p2 = true ->
-           Included (string -> nat)
-                    (fun x => eval_point p1 x = true)
-                    (fun x => eval_point p2 x = true).
+           Included (total_map Z)
+                    (fun x => eval_set p1 x = true)
+                    (fun x => eval_set p2 x = true).
 Proof.
   move => p1 p2 /is_subset_spec Hsubset x Hin.
   rewrite /Ensembles.In in Hin *.
@@ -41,7 +41,7 @@ Proof.
 Qed.
 
 Theorem gamma_presburger_top {s: Type} {P : PresburgerSet s} :
-  forall x, Ensembles.In (string -> nat) (eval_point universe_set) x.
+  forall x, Ensembles.In (total_map Z) (eval_set universe_set) x.
 Proof.
   move => x.
   rewrite /Ensembles.In.
@@ -55,7 +55,7 @@ Instance PresburgerSetAD {s: Type} (P : PresburgerSet s) : adom s :=
     top := universe_set;
     join := union_set;
 
-    gamma := eval_point;
+    gamma := eval_set;
 
     le_refl := is_subset_refl;
     le_trans := is_subset_trans;

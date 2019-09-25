@@ -5,7 +5,6 @@ Require Import Coq.Lists.List.
 Require Import String.
 Open Scope string_scope.
 
-
 (* Transfer functions for our language *)
 Class transfer_function {ab: Type} (A: adom ab) :=
   {
@@ -13,9 +12,14 @@ Class transfer_function {ab: Type} (A: adom ab) :=
     transfer_sound :
       forall prog R l R' l',
         step prog (R, l) (R', l') ->
-        exists inst, Some inst = List.nth_error prog l /\
+        forall inst, Some inst = List.nth_error prog l ->
                 forall a, Ensembles.In RegisterMap (gamma a) R ->
                      exists a', In (a', l') (transfer inst a l) /\
                            Ensembles.In RegisterMap (gamma a') R'
   }.
 
+Definition transfer_presburger_set_const {S: Type} {P: PresburgerSet S} (s: S) (l: label) (var: string) (val: nat) :=
+  true.
+
+Definition transfer_presburger_set {S: Type} {P: PresburgerSet S} (inst: SSA) (s: S) (l: label) :=
+  (top, l+1)::nil.
