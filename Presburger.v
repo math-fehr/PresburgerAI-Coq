@@ -3,7 +3,7 @@ From Coq Require Import ssreflect ssrfun ssrbool.
 Require Import String.
 Open Scope string_scope.
 
-Class PolySetImpl (s: Type) :=
+Class PresburgerSet (s: Type) :=
   {
     eval_point : s -> (string -> nat) -> bool;
 
