@@ -1,4 +1,4 @@
-Require Import PolyAI.SSA.
+Require Export PolyAI.SSA.
 Require Export PolyAI.Presburger.
 Require Export Coq.Sets.Ensembles.
 Require Import Coq.Program.Equality.
@@ -29,7 +29,7 @@ Class adom (ab:Type) :=
 
 (* Instance for the polyhedral abstract domain *)
 
-Theorem gamma_presburger_monotone {s: Type} (P : PresburgerSet s) :
+Theorem gamma_presburger_monotone {s: Type} {P : PresburgerSet s} :
   forall p1 p2, is_subset p1 p2 = true ->
            Included (string -> nat)
                     (fun x => eval_point p1 x = true)
@@ -40,7 +40,7 @@ Proof.
   by apply Hsubset, Hin.
 Qed.
 
-Theorem gamma_presburger_top {s: Type} (P : PresburgerSet s) :
+Theorem gamma_presburger_top {s: Type} {P : PresburgerSet s} :
   forall x, Ensembles.In (string -> nat) (eval_point universe_set) x.
 Proof.
   move => x.
@@ -57,24 +57,10 @@ Instance PresburgerSetAD {s: Type} (P : PresburgerSet s) : adom s :=
 
     gamma := eval_point;
 
-    le_refl := is_subset_refl P;
-    le_trans := is_subset_trans P;
-    gamma_monotone := gamma_presburger_monotone P;
-    gamma_top := gamma_presburger_top P;
-    join_sound_l := is_subset_union_l P;
-    join_sound_r := is_subset_union_r P;
+    le_refl := is_subset_refl;
+    le_trans := is_subset_trans;
+    gamma_monotone := gamma_presburger_monotone;
+    gamma_top := gamma_presburger_top;
+    join_sound_l := is_subset_union_l;
+    join_sound_r := is_subset_union_r;
   }.
-
-
-(* Transfer functions for our language *)
-Class transfer_function {ab: Type} (A: adom ab) :=
-  {
-    transfer : SSA -> ab -> label -> list (ab * label);
-    transfer_sound :
-      forall prog R l R' l',
-        step prog (R, l) (R', l') ->
-        forall a, Ensembles.In RegisterMap (gamma a) R ->
-        exists a', In (a', l') (transfer (List.nth l prog (Const "X" 0)) a l) /\
-              Ensembles.In RegisterMap (gamma a') R'
-  }.
-

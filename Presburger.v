@@ -27,14 +27,14 @@ Class PresburgerSet (s: Type) :=
   }.
 
 
-Theorem is_subset_refl {s: Type} (P : PresburgerSet s) :
+Theorem is_subset_refl {s: Type} {P : PresburgerSet s} :
   forall p, is_subset p p = true.
 Proof.
   move => p.
   apply is_subset_spec => //.
 Qed.
 
-Theorem is_subset_trans {s: Type} (P : PresburgerSet s) :
+Theorem is_subset_trans {s: Type} {P : PresburgerSet s} :
   forall p1 p2 p3, is_subset p1 p2 = true ->
               is_subset p2 p3 = true ->
               is_subset p1 p3 = true.
@@ -44,7 +44,7 @@ Proof.
   by auto.
 Qed.
 
-Theorem is_subset_union_l {s: Type} (P: PresburgerSet s ) :
+Theorem is_subset_union_l {s: Type} {P: PresburgerSet s} :
   forall p1 p2, is_subset p1 (union_set p1 p2).
 Proof.
   move => p1 p2.
@@ -53,7 +53,7 @@ Proof.
   reflexivity.
 Qed.
 
-Theorem is_subset_union_r {s: Type} (P: PresburgerSet s ) :
+Theorem is_subset_union_r {s: Type} {P: PresburgerSet s} :
   forall p1 p2, is_subset p2 (union_set p1 p2).
 Proof.
   move => p1 p2.

@@ -1,0 +1,21 @@
+Require Export PolyAI.Presburger.
+Require Export PolyAI.AbstractDomain.
+Require Import PolyAI.SSA.
+Require Import Coq.Lists.List.
+Require Import String.
+Open Scope string_scope.
+
+
+(* Transfer functions for our language *)
+Class transfer_function {ab: Type} (A: adom ab) :=
+  {
+    transfer : SSA -> ab -> label -> list (ab * label);
+    transfer_sound :
+      forall prog R l R' l',
+        step prog (R, l) (R', l') ->
+        exists inst, Some inst = List.nth_error prog l /\
+                forall a, Ensembles.In RegisterMap (gamma a) R ->
+                     exists a', In (a', l') (transfer inst a l) /\
+                           Ensembles.In RegisterMap (gamma a') R'
+  }.
+
