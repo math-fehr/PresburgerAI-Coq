@@ -1,0 +1,116 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Module PolyAI.TotalMap</title>
+<meta name="description" content="Documentation of Coq module PolyAI.TotalMap" />
+<link href="coq2html.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript" src="coq2html.js"> </script>
+</head>
+
+<body onload="hideAll('proofscript')">
+<h1 class="title">Module PolyAI.TotalMap</h1>
+<div class="coq">
+<span class="id">From</span> <span class="id">Coq</span> <span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Arith.Arith.html">Arith.Arith</a></span>.<br/>
+<span class="id">From</span> <span class="id">Coq</span> <span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Bool.Bool.html">Bool.Bool</a></span>.<br/>
+<span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Strings.String.html">Coq.Strings.String</a></span>.<br/>
+<span class="id">From</span> <span class="id">Coq</span> <span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Logic.FunctionalExtensionality.html">Logic.FunctionalExtensionality</a></span>.<br/>
+<span class="id">From</span> <span class="id">Coq</span> <span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Lists.List.html">Lists.List</a></span>.<br/>
+<span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Logic.FunctionalExtensionality.html">Coq.Logic.FunctionalExtensionality</a></span>.<br/>
+<span class="kwd">Import</span> <span class="id">ListNotations</span>.<br/>
+<br/>
+<br/>
+<span class="kwd">Local</span> <span class="kwd">Open</span> <span class="kwd">Scope</span> <span class="id">string_scope</span>.<br/>
+<br/>
+<br/>
+<br/>
+<span class="kwd">Definition</span> <span class="id"><a name="total_map">total_map</a></span> (<span class="id">A</span> : <span class="kwd">Type</span>) := <span class="id"><a href="http://coq.inria.fr/library/Coq.Strings.String.html#string">string</a></span> -&gt; <span class="id"><a href="PolyAI.TotalMap.html#A">A</a></span>.<br/>
+<br/>
+<span class="kwd">Definition</span> <span class="id"><a name="t_empty">t_empty</a></span> {<span class="id">A</span> : <span class="kwd">Type</span>} (<span class="id">v</span> : <span class="id"><a href="PolyAI.TotalMap.html#A">A</a></span>) : <span class="id"><a href="PolyAI.TotalMap.html#total_map">total_map</a></span> <span class="id"><a href="PolyAI.TotalMap.html#A">A</a></span> :=<br/>
+&nbsp;&nbsp;(<span class="kwd">fun</span> <span class="id">_</span> =&gt; <span class="id"><a href="PolyAI.TotalMap.html#v">v</a></span>).<br/>
+<br/>
+<span class="kwd">Definition</span> <span class="id"><a name="t_update">t_update</a></span> {<span class="id">A</span> : <span class="kwd">Type</span>} (<span class="id">m</span> : <span class="id"><a href="PolyAI.TotalMap.html#total_map">total_map</a></span> <span class="id"><a href="PolyAI.TotalMap.html#A">A</a></span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id">x</span> : <span class="id"><a href="http://coq.inria.fr/library/Coq.Strings.String.html#string">string</a></span>) (<span class="id">v</span> : <span class="id"><a href="PolyAI.TotalMap.html#A">A</a></span>) :=<br/>
+&nbsp;&nbsp;<span class="kwd">fun</span> <span class="id">x</span>' =&gt; <span class="kwd">if</span> <span class="id"><a href="PolyAI.TotalMap.html#x">x</a></span> =? <span class="id">x</span>' <span class="kwd">then</span> <span class="id"><a href="PolyAI.TotalMap.html#v">v</a></span> <span class="kwd">else</span> <span class="id"><a href="PolyAI.TotalMap.html#m">m</a></span> <span class="id">x</span>'.<br/>
+<br/>
+<span class="kwd">Notation</span> "'<span class="id">_</span>' '!-&gt;' <span class="id">v</span>" := (<span class="id"><a href="PolyAI.TotalMap.html#t_empty">t_empty</a></span> <span class="id">v</span>)<br/>
+&nbsp;&nbsp;(<span class="tactic">at</span> <span class="id">level</span> 100, <span class="id">right</span> <span class="id">associativity</span>).<br/>
+<br/>
+<span class="kwd">Notation</span> "<span class="id">x</span> '!-&gt;' <span class="id">v</span> ';' <span class="id">m</span>" := (<span class="id"><a href="PolyAI.TotalMap.html#t_update">t_update</a></span> <span class="id">m</span> <span class="id">x</span> <span class="id">v</span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="tactic">at</span> <span class="id">level</span> 100, <span class="id">v</span> <span class="tactic">at</span> <span class="id">next</span> <span class="id">level</span>, <span class="id">right</span> <span class="id">associativity</span>).<br/>
+<br/>
+<span class="kwd">Lemma</span> <span class="id"><a name="t_apply_empty">t_apply_empty</a></span> : <span class="kwd">forall</span> (<span class="id">A</span> : <span class="kwd">Type</span>) (<span class="id">x</span> : <span class="id"><a href="http://coq.inria.fr/library/Coq.Strings.String.html#string">string</a></span>) (<span class="id">v</span> : <span class="id"><a href="PolyAI.TotalMap.html#A">A</a></span>),<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id">_</span> !-&gt; <span class="id"><a href="PolyAI.TotalMap.html#v">v</a></span>) <span class="id"><a href="PolyAI.TotalMap.html#x">x</a></span> = <span class="id"><a href="PolyAI.TotalMap.html#v">v</a></span>.<br/>
+<div class="toggleproof" onclick="toggleDisplay('proof24')">Proof.</div>
+<div class="proofscript" id="proof24">
+&nbsp;&nbsp;<span class="tactic">auto</span>.<br/>
+Qed.</div>
+<br/>
+<span class="kwd">Lemma</span> <span class="id"><a name="t_update_eq">t_update_eq</a></span> : <span class="kwd">forall</span> (<span class="id">A</span> : <span class="kwd">Type</span>) (<span class="id">m</span> : <span class="id"><a href="PolyAI.TotalMap.html#total_map">total_map</a></span> <span class="id"><a href="PolyAI.TotalMap.html#A">A</a></span>) <span class="id">x</span> <span class="id">v</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id"><a href="PolyAI.TotalMap.html#x">x</a></span> !-&gt; <span class="id"><a href="PolyAI.TotalMap.html#v">v</a></span> ; <span class="id"><a href="PolyAI.TotalMap.html#m">m</a></span>) <span class="id"><a href="PolyAI.TotalMap.html#x">x</a></span> = <span class="id"><a href="PolyAI.TotalMap.html#v">v</a></span>.<br/>
+<div class="toggleproof" onclick="toggleDisplay('proof25')">Proof.</div>
+<div class="proofscript" id="proof25">
+&nbsp;&nbsp;<span class="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">unfold</span> <span class="id"><a href="PolyAI.TotalMap.html#t_update">t_update</a></span>.<br/>
+&nbsp;&nbsp;<span class="tactic">rewrite</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Strings.String.html#eqb_refl">eqb_refl</a></span>.<br/>
+&nbsp;&nbsp;<span class="tactic">reflexivity</span>.<br/>
+Qed.</div>
+<br/>
+<span class="kwd">Theorem</span> <span class="id"><a name="t_update_neq">t_update_neq</a></span> : <span class="kwd">forall</span> (<span class="id">A</span> : <span class="kwd">Type</span>) (<span class="id">m</span> : <span class="id"><a href="PolyAI.TotalMap.html#total_map">total_map</a></span> <span class="id"><a href="PolyAI.TotalMap.html#A">A</a></span>) <span class="id">x1</span> <span class="id">x2</span> <span class="id">v</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id"><a href="PolyAI.TotalMap.html#x1">x1</a></span> &lt;&gt; <span class="id"><a href="PolyAI.TotalMap.html#x2">x2</a></span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id"><a href="PolyAI.TotalMap.html#x1">x1</a></span> !-&gt; <span class="id"><a href="PolyAI.TotalMap.html#v">v</a></span> ; <span class="id"><a href="PolyAI.TotalMap.html#m">m</a></span>) <span class="id"><a href="PolyAI.TotalMap.html#x2">x2</a></span> = <span class="id"><a href="PolyAI.TotalMap.html#m">m</a></span> <span class="id"><a href="PolyAI.TotalMap.html#x2">x2</a></span>.<br/>
+<div class="toggleproof" onclick="toggleDisplay('proof26')">Proof.</div>
+<div class="proofscript" id="proof26">
+&nbsp;&nbsp;<span class="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">unfold</span> <span class="id"><a href="PolyAI.TotalMap.html#t_update">t_update</a></span>.<br/>
+&nbsp;&nbsp;<span class="tactic">rewrite</span> &lt;- <span class="id"><a href="http://coq.inria.fr/library/Coq.Strings.String.html#eqb_neq">eqb_neq</a></span> <span class="kwd">in</span> <span class="id">H</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">rewrite</span> <span class="id">H</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">reflexivity</span>.<br/>
+Qed.</div>
+<br/>
+<span class="kwd">Lemma</span> <span class="id"><a name="t_update_shadow">t_update_shadow</a></span> : <span class="kwd">forall</span> (<span class="id">A</span> : <span class="kwd">Type</span>) (<span class="id">m</span> : <span class="id"><a href="PolyAI.TotalMap.html#total_map">total_map</a></span> <span class="id"><a href="PolyAI.TotalMap.html#A">A</a></span>) <span class="id">x</span> <span class="id">v1</span> <span class="id">v2</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id"><a href="PolyAI.TotalMap.html#x">x</a></span> !-&gt; <span class="id"><a href="PolyAI.TotalMap.html#v2">v2</a></span> ; <span class="id"><a href="PolyAI.TotalMap.html#x">x</a></span> !-&gt; <span class="id"><a href="PolyAI.TotalMap.html#v1">v1</a></span> ; <span class="id"><a href="PolyAI.TotalMap.html#m">m</a></span>) = (<span class="id"><a href="PolyAI.TotalMap.html#x">x</a></span> !-&gt; <span class="id"><a href="PolyAI.TotalMap.html#v2">v2</a></span> ; <span class="id"><a href="PolyAI.TotalMap.html#m">m</a></span>).<br/>
+<div class="toggleproof" onclick="toggleDisplay('proof27')">Proof.</div>
+<div class="proofscript" id="proof27">
+&nbsp;&nbsp;<span class="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">unfold</span> <span class="id"><a href="PolyAI.TotalMap.html#t_update">t_update</a></span>.<br/>
+&nbsp;&nbsp;<span class="tactic">extensionality</span> <span class="id">x</span>'.<br/>
+&nbsp;&nbsp;<span class="tactic">destruct</span> (<span class="id">x</span> =? <span class="id">x</span>'); <span class="tactic">auto</span>.<br/>
+Qed.</div>
+<br/>
+<span class="kwd">Theorem</span> <span class="id"><a name="t_update_same">t_update_same</a></span> : <span class="kwd">forall</span> (<span class="id">A</span> : <span class="kwd">Type</span>) (<span class="id">m</span> : <span class="id"><a href="PolyAI.TotalMap.html#total_map">total_map</a></span> <span class="id"><a href="PolyAI.TotalMap.html#A">A</a></span>) <span class="id">x</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id"><a href="PolyAI.TotalMap.html#x">x</a></span> !-&gt; <span class="id"><a href="PolyAI.TotalMap.html#m">m</a></span> <span class="id"><a href="PolyAI.TotalMap.html#x">x</a></span> ; <span class="id"><a href="PolyAI.TotalMap.html#m">m</a></span>) = <span class="id"><a href="PolyAI.TotalMap.html#m">m</a></span>.<br/>
+<div class="toggleproof" onclick="toggleDisplay('proof28')">Proof.</div>
+<div class="proofscript" id="proof28">
+&nbsp;&nbsp;<span class="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">unfold</span> <span class="id"><a href="PolyAI.TotalMap.html#t_update">t_update</a></span>.<br/>
+&nbsp;&nbsp;<span class="tactic">extensionality</span> <span class="id">x</span>'.<br/>
+&nbsp;&nbsp;<span class="tactic">destruct</span> (<span class="id"><a href="http://coq.inria.fr/library/Coq.Strings.String.html#eqb_spec">eqb_spec</a></span> <span class="id">x</span> <span class="id">x</span>'); <span class="tactic">auto</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">rewrite</span> <span class="id">e</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">auto</span>.<br/>
+Qed.</div>
+<br/>
+<span class="kwd">Theorem</span> <span class="id"><a name="t_update_permute">t_update_permute</a></span> : <span class="kwd">forall</span> (<span class="id">A</span> : <span class="kwd">Type</span>) (<span class="id">m</span> : <span class="id"><a href="PolyAI.TotalMap.html#total_map">total_map</a></span> <span class="id"><a href="PolyAI.TotalMap.html#A">A</a></span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="id">v1</span> <span class="id">v2</span> <span class="id">x1</span> <span class="id">x2</span>,<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id"><a href="PolyAI.TotalMap.html#x2">x2</a></span> &lt;&gt; <span class="id"><a href="PolyAI.TotalMap.html#x1">x1</a></span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id"><a href="PolyAI.TotalMap.html#x1">x1</a></span> !-&gt; <span class="id"><a href="PolyAI.TotalMap.html#v1">v1</a></span> ; <span class="id"><a href="PolyAI.TotalMap.html#x2">x2</a></span> !-&gt; <span class="id"><a href="PolyAI.TotalMap.html#v2">v2</a></span> ; <span class="id"><a href="PolyAI.TotalMap.html#m">m</a></span>)<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;=<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id"><a href="PolyAI.TotalMap.html#x2">x2</a></span> !-&gt; <span class="id"><a href="PolyAI.TotalMap.html#v2">v2</a></span> ; <span class="id"><a href="PolyAI.TotalMap.html#x1">x1</a></span> !-&gt; <span class="id"><a href="PolyAI.TotalMap.html#v1">v1</a></span> ; <span class="id"><a href="PolyAI.TotalMap.html#m">m</a></span>).<br/>
+<div class="toggleproof" onclick="toggleDisplay('proof29')">Proof.</div>
+<div class="proofscript" id="proof29">
+&nbsp;&nbsp;<span class="tactic">intros</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">unfold</span> <span class="id"><a href="PolyAI.TotalMap.html#t_update">t_update</a></span>.<br/>
+&nbsp;&nbsp;<span class="tactic">extensionality</span> <span class="id">x</span>'.<br/>
+&nbsp;&nbsp;<span class="tactic">destruct</span> (<span class="id"><a href="http://coq.inria.fr/library/Coq.Strings.String.html#eqb_spec">eqb_spec</a></span> <span class="id">x1</span> <span class="id">x</span>'); <span class="tactic">auto</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">rewrite</span> <span class="id">e</span> <span class="kwd">in</span> <span class="id">H</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">rewrite</span> &lt;- <span class="id"><a href="http://coq.inria.fr/library/Coq.Strings.String.html#eqb_neq">eqb_neq</a></span> <span class="kwd">in</span> <span class="id">H</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">rewrite</span> <span class="id">H</span>.<br/>
+&nbsp;&nbsp;<span class="tactic">auto</span>.<br/>
+Qed.</div>
+
+</div>
+<div class="footer"><hr/>Generated by <a href="https://github.com/xavierleroy/coq2html/">coq2html</a></div>
+</body>
+</html>

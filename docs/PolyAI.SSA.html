@@ -1,0 +1,82 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Module PolyAI.SSA</title>
+<meta name="description" content="Documentation of Coq module PolyAI.SSA" />
+<link href="coq2html.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript" src="coq2html.js"> </script>
+</head>
+
+<body onload="hideAll('proofscript')">
+<h1 class="title">Module PolyAI.SSA</h1>
+<div class="coq">
+<span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Bool.Bool.html">Coq.Bool.Bool</a></span>.<br/>
+<span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Strings.String.html">Coq.Strings.String</a></span>.<br/>
+<span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="PolyAI.TotalMap.html">PolyAI.TotalMap</a></span>.<br/>
+<span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Arith.PeanoNat.html">Coq.Arith.PeanoNat</a></span>.<br/>
+<span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Numbers.BinNums.html">Coq.Numbers.BinNums</a></span>.<br/>
+<span class="kwd">Require</span> <span class="kwd">Import</span> <span class="id"><a href="http://coq.inria.fr/library/Coq.ZArith.BinInt.html">Coq.ZArith.BinInt</a></span>.<br/>
+<br/>
+<br/>
+<span class="kwd">Local</span> <span class="kwd">Open</span> <span class="kwd">Scope</span> <span class="id">type_scope</span>.<br/>
+<br/>
+<br/>
+<span class="kwd">Definition</span> <span class="id"><a name="variable">variable</a></span> := <span class="id"><a href="http://coq.inria.fr/library/Coq.Strings.String.html#string">string</a></span>.<br/>
+<span class="kwd">Definition</span> <span class="id"><a name="label">label</a></span> := <span class="id"><a href="http://coq.inria.fr/library/Coq.Init.Datatypes.html#nat">nat</a></span>.<br/>
+<br/>
+<span class="kwd">Definition</span> <span class="id"><a name="RegisterMap">RegisterMap</a></span> := <span class="id"><a href="PolyAI.TotalMap.html#total_map">total_map</a></span> <span class="id"><a href="http://coq.inria.fr/library/Coq.Numbers.BinNums.html#Z">Z</a></span>.<br/>
+<span class="kwd">Definition</span> <span class="id"><a name="state">state</a></span> := <span class="id"><a href="PolyAI.SSA.html#RegisterMap">RegisterMap</a></span> * <span class="id"><a href="PolyAI.SSA.html#label">label</a></span>.<br/>
+<br/>
+<span class="kwd">Local</span> <span class="kwd">Open</span> <span class="kwd">Scope</span> <span class="id">string_scope</span>.<br/>
+<br/>
+<span class="kwd">Inductive</span> <span class="id"><a name="BinArithOpCode">BinArithOpCode</a></span> :=<br/>
+| <span class="id"><a name="OpAdd">OpAdd</a></span><br/>
+| <span class="id"><a name="OpMul">OpMul</a></span><br/>
+| <span class="id"><a name="OpLe">OpLe</a></span>.<br/>
+<br/>
+<span class="kwd">Local</span> <span class="kwd">Open</span> <span class="kwd">Scope</span> <span class="id">Z_scope</span>.<br/>
+<br/>
+<span class="kwd">Definition</span> <span class="id"><a name="bin_op_eval">bin_op_eval</a></span> (<span class="id">R</span> : <span class="id"><a href="PolyAI.SSA.html#RegisterMap">RegisterMap</a></span>) (<span class="id">op</span> : <span class="id"><a href="PolyAI.SSA.html#BinArithOpCode">BinArithOpCode</a></span>) (<span class="id">v1</span> <span class="id">v2</span> : <span class="id"><a href="PolyAI.SSA.html#variable">variable</a></span>) :=<br/>
+&nbsp;&nbsp;<span class="kwd">match</span> <span class="id"><a href="PolyAI.SSA.html#op">op</a></span> <span class="kwd">with</span><br/>
+&nbsp;&nbsp;| <span class="id"><a href="PolyAI.SSA.html#OpAdd">OpAdd</a></span> =&gt; (<span class="id"><a href="PolyAI.SSA.html#R">R</a></span> <span class="id"><a href="PolyAI.SSA.html#v1">v1</a></span>) + (<span class="id"><a href="PolyAI.SSA.html#R">R</a></span> <span class="id"><a href="PolyAI.SSA.html#v2">v2</a></span>)<br/>
+&nbsp;&nbsp;| <span class="id"><a href="PolyAI.SSA.html#OpMul">OpMul</a></span> =&gt; (<span class="id"><a href="PolyAI.SSA.html#R">R</a></span> <span class="id"><a href="PolyAI.SSA.html#v1">v1</a></span>) * (<span class="id"><a href="PolyAI.SSA.html#R">R</a></span> <span class="id"><a href="PolyAI.SSA.html#v2">v2</a></span>)<br/>
+&nbsp;&nbsp;| <span class="id"><a href="PolyAI.SSA.html#OpLe">OpLe</a></span> =&gt; <span class="kwd">if</span> (<span class="id"><a href="PolyAI.SSA.html#R">R</a></span> <span class="id"><a href="PolyAI.SSA.html#v1">v1</a></span>) &lt;=? (<span class="id"><a href="PolyAI.SSA.html#R">R</a></span> <span class="id"><a href="PolyAI.SSA.html#v2">v2</a></span>) <span class="kwd">then</span> 1 <span class="kwd">else</span> 0<br/>
+&nbsp;&nbsp;<span class="kwd">end</span>.<br/>
+<br/>
+<span class="kwd">Local</span> <span class="kwd">Open</span> <span class="kwd">Scope</span> <span class="id">nat_scope</span>.<br/>
+<br/>
+<span class="kwd">Inductive</span> <span class="id"><a name="SSA">SSA</a></span> :=<br/>
+| <span class="id"><a name="Const">Const</a></span> (<span class="id">v</span>: <span class="id"><a href="PolyAI.SSA.html#variable">variable</a></span>) (<span class="id">c</span>: <span class="id"><a href="http://coq.inria.fr/library/Coq.Numbers.BinNums.html#Z">Z</a></span>)<br/>
+| <span class="id"><a name="BinOp">BinOp</a></span> (<span class="id">v</span>: <span class="id"><a href="PolyAI.SSA.html#variable">variable</a></span>) (<span class="id">b</span>: <span class="id"><a href="PolyAI.SSA.html#BinArithOpCode">BinArithOpCode</a></span>) (<span class="id">op1</span> <span class="id">op2</span>: <span class="id"><a href="PolyAI.SSA.html#variable">variable</a></span>): <span class="id"><a href="PolyAI.SSA.html#v">v</a></span> &lt;&gt; <span class="id"><a href="PolyAI.SSA.html#op1">op1</a></span> -&gt; <span class="id"><a href="PolyAI.SSA.html#v">v</a></span> &lt;&gt; <span class="id"><a href="PolyAI.SSA.html#op2">op2</a></span> -&gt; <span class="id"><a href="PolyAI.SSA.html#SSA">SSA</a></span>.<br/>
+<br/>
+<span class="kwd">Definition</span> <span class="kwd">Program</span> :=<br/>
+&nbsp;&nbsp;<span class="id"><a href="http://coq.inria.fr/library/Coq.Init.Datatypes.html#list">list</a></span> <span class="id"><a href="PolyAI.SSA.html#SSA">SSA</a></span>.<br/>
+<br/>
+<span class="kwd">Definition</span> <span class="id"><a name="ssa_step">ssa_step</a></span> (<span class="id">inst</span> : <span class="id"><a href="PolyAI.SSA.html#SSA">SSA</a></span>) (<span class="id">R</span> : <span class="id"><a href="PolyAI.SSA.html#RegisterMap">RegisterMap</a></span>) (<span class="id">l</span> : <span class="id"><a href="PolyAI.SSA.html#label">label</a></span>) :=<br/>
+&nbsp;&nbsp;<span class="kwd">match</span> <span class="id"><a href="PolyAI.SSA.html#inst">inst</a></span> <span class="kwd">with</span><br/>
+&nbsp;&nbsp;| <span class="id"><a href="PolyAI.SSA.html#Const">Const</a></span> <span class="id">v</span> <span class="id">x</span> =&gt; (<span class="id"><a href="PolyAI.TotalMap.html#t_update">t_update</a></span> <span class="id"><a href="PolyAI.SSA.html#R">R</a></span> <span class="id">v</span> <span class="id">x</span>, <span class="id"><a href="PolyAI.SSA.html#l">l</a></span> + 1)<br/>
+&nbsp;&nbsp;| <span class="id"><a href="PolyAI.SSA.html#BinOp">BinOp</a></span> <span class="id">v</span> <span class="id">op</span> <span class="id">x1</span> <span class="id">x2</span> <span class="id">_</span> <span class="id">_</span> =&gt; (<span class="id"><a href="PolyAI.TotalMap.html#t_update">t_update</a></span> <span class="id"><a href="PolyAI.SSA.html#R">R</a></span> <span class="id">v</span> (<span class="id"><a href="PolyAI.SSA.html#bin_op_eval">bin_op_eval</a></span> <span class="id"><a href="PolyAI.SSA.html#R">R</a></span> <span class="id">op</span> <span class="id">x1</span> <span class="id">x2</span>), <span class="id"><a href="PolyAI.SSA.html#l">l</a></span> + 1)<br/>
+&nbsp;&nbsp;<span class="kwd">end</span>.<br/>
+<br/>
+<span class="kwd">Inductive</span> <span class="id"><a name="step">step</a></span> : <span class="kwd">Program</span> -&gt; <span class="id"><a href="PolyAI.SSA.html#state">state</a></span> -&gt; <span class="id"><a href="PolyAI.SSA.html#state">state</a></span> -&gt; <span class="kwd">Prop</span> :=<br/>
+| <span class="id"><a name="SingleStep">SingleStep</a></span> (<span class="id">p</span>: <span class="kwd">Program</span>) (<span class="id">R</span> <span class="id">R</span>': <span class="id"><a href="PolyAI.SSA.html#RegisterMap">RegisterMap</a></span>) (<span class="id">l</span> <span class="id">l</span>': <span class="id"><a href="PolyAI.SSA.html#label">label</a></span>) (<span class="id">s</span>: <span class="id"><a href="PolyAI.SSA.html#SSA">SSA</a></span>):<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id"><a href="PolyAI.SSA.html#l">l</a></span> &lt; <span class="id"><a href="http://coq.inria.fr/library/Coq.Lists.List.html#length">List.length</a></span> <span class="id"><a href="PolyAI.SSA.html#p">p</a></span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id">l</span>' &lt; <span class="id"><a href="http://coq.inria.fr/library/Coq.Lists.List.html#length">List.length</a></span> <span class="id"><a href="PolyAI.SSA.html#p">p</a></span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id"><a href="http://coq.inria.fr/library/Coq.Init.Datatypes.html#Some">Some</a></span> <span class="id"><a href="PolyAI.SSA.html#s">s</a></span> = <span class="id"><a href="http://coq.inria.fr/library/Coq.Lists.List.html#nth_error">List.nth_error</a></span> <span class="id"><a href="PolyAI.SSA.html#p">p</a></span> <span class="id"><a href="PolyAI.SSA.html#l">l</a></span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="id">R</span>', <span class="id">l</span>') = <span class="id"><a href="PolyAI.SSA.html#ssa_step">ssa_step</a></span> <span class="id"><a href="PolyAI.SSA.html#s">s</a></span> <span class="id"><a href="PolyAI.SSA.html#R">R</a></span> <span class="id"><a href="PolyAI.SSA.html#l">l</a></span> -&gt;<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="id"><a href="PolyAI.SSA.html#step">step</a></span> <span class="id"><a href="PolyAI.SSA.html#p">p</a></span> (<span class="id"><a href="PolyAI.SSA.html#R">R</a></span>, <span class="id"><a href="PolyAI.SSA.html#l">l</a></span>) (<span class="id">R</span>', <span class="id">l</span>').<br/>
+<br/>
+<span class="kwd">Inductive</span> <span class="id"><a name="multi_step">multi_step</a></span> : <span class="kwd">Program</span> -&gt; <span class="id"><a href="PolyAI.SSA.html#state">state</a></span> -&gt; <span class="id"><a href="PolyAI.SSA.html#state">state</a></span> -&gt; <span class="kwd">Prop</span> :=<br/>
+| <span class="id"><a name="MultiRefl">MultiRefl</a></span> : <span class="kwd">forall</span> <span class="id">p</span> <span class="id">R</span> <span class="id">l</span>, <span class="id"><a href="PolyAI.SSA.html#multi_step">multi_step</a></span> <span class="id"><a href="PolyAI.SSA.html#p">p</a></span> (<span class="id"><a href="PolyAI.SSA.html#R">R</a></span>, <span class="id"><a href="PolyAI.SSA.html#l">l</a></span>) (<span class="id"><a href="PolyAI.SSA.html#R">R</a></span>, <span class="id"><a href="PolyAI.SSA.html#l">l</a></span>)<br/>
+| <span class="id"><a name="MultiStep">MultiStep</a></span> : <span class="kwd">forall</span> <span class="id">p</span> <span class="id">s</span> <span class="id">s</span>' <span class="id">s</span>'', <span class="id"><a href="PolyAI.SSA.html#multi_step">multi_step</a></span> <span class="id"><a href="PolyAI.SSA.html#p">p</a></span> <span class="id"><a href="PolyAI.SSA.html#s">s</a></span> <span class="id">s</span>' -&gt; <span class="id"><a href="PolyAI.SSA.html#step">step</a></span> <span class="id"><a href="PolyAI.SSA.html#p">p</a></span> <span class="id">s</span>' <span class="id">s</span>'' -&gt; <span class="id"><a href="PolyAI.SSA.html#multi_step">multi_step</a></span> <span class="id"><a href="PolyAI.SSA.html#p">p</a></span> <span class="id"><a href="PolyAI.SSA.html#s">s</a></span> <span class="id">s</span>''.<br/>
+<br/>
+<span class="kwd">Inductive</span> <span class="id"><a name="reachable_states">reachable_states</a></span> : <span class="kwd">Program</span> -&gt; <span class="id"><a href="PolyAI.SSA.html#state">state</a></span> -&gt; <span class="kwd">Prop</span> :=<br/>
+| <span class="id"><a name="Reachable">Reachable</a></span> : <span class="kwd">forall</span> <span class="id">p</span> <span class="id">R</span> <span class="id">s</span>', <span class="id"><a href="PolyAI.SSA.html#multi_step">multi_step</a></span> <span class="id"><a href="PolyAI.SSA.html#p">p</a></span> (<span class="id"><a href="PolyAI.SSA.html#R">R</a></span>, 0) <span class="id">s</span>' -&gt; <span class="id"><a href="PolyAI.SSA.html#reachable_states">reachable_states</a></span> <span class="id"><a href="PolyAI.SSA.html#p">p</a></span> <span class="id">s</span>'.<br/>
+
+</div>
+<div class="footer"><hr/>Generated by <a href="https://github.com/xavierleroy/coq2html/">coq2html</a></div>
+</body>
+</html>
