@@ -28,26 +28,26 @@ Local Open Scope string_scope.
 
 (* Basics binary arithmetic opcodes *)
 Inductive BinArithOpCode :=
-| Add
-| Mul
-| Le.
+| OpAdd
+| OpMul
+| OpLe.
 
 Local Open Scope Z_scope.
 
 (* The evaluation of a binary operation *)
 Definition bin_op_eval (R : RegisterMap) (op : BinArithOpCode) (v1 v2 : variable) :=
   match op with
-  | Add => (R v1) + (R v2)
-  | Mul => (R v1) * (R v2)
-  | Le => if (R v1) <=? (R v2) then 1 else 0
+  | OpAdd => (R v1) + (R v2)
+  | OpMul => (R v1) * (R v2)
+  | OpLe => if (R v1) <=? (R v2) then 1 else 0
   end.
 
 Local Open Scope nat_scope.
 
 (* An SSA instruction *)
 Inductive SSA :=
-| Const : variable -> Z -> SSA
-| BinOp : variable -> BinArithOpCode -> variable -> variable -> SSA.
+| Const (v: variable) (c: Z)
+| BinOp (v: variable) (b: BinArithOpCode) (op1 op2: variable): v <> op1 -> v <> op2 -> SSA.
 
 (* An SSA program *)
 Definition Program :=
@@ -57,7 +57,7 @@ Definition Program :=
 Definition ssa_step (inst : SSA) (R : RegisterMap) (l : label) :=
   match inst with
   | Const v x => (t_update R v x, l + 1)
-  | BinOp v op x1 x2 => (t_update R v (bin_op_eval R op x1 x2), l + 1)
+  | BinOp v op x1 x2 _ _ => (t_update R v (bin_op_eval R op x1 x2), l + 1)
   end.
 
 (* Small step semantics *)

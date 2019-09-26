@@ -7,29 +7,47 @@ Require Import String.
 Local Open Scope string_scope.
 Local Open Scope Z_scope.
 
-Inductive Aff :=
+Inductive PwAff :=
 | AConst (c: Z)
 | AVar (v: string)
-| APlus (a1 a2: Aff)
-| AMinus (a1 a2: Aff)
-| AMul (c: Z) (a: Aff).
+| APlus (a1 a2: PwAff)
+| AMinus (a1 a2: PwAff)
+| AMul (c: Z) (a: PwAff)
+| AEq (a1 a2: PwAff)
+| ANeq (a1 a2: PwAff)
+| ALe (a1 a2: PwAff)
+| ALt (a1 a2: PwAff)
+| AGe (a1 a2: PwAff)
+| AGt (a1 a2: PwAff).
 
-Fixpoint eval_aff (a: Aff) (m: total_map Z) :=
+Definition indicator (b: bool) :=
+  match b with
+  | true => 1
+  | false => 0
+  end.
+
+Fixpoint eval_aff (a: PwAff) (m: total_map Z) :=
   match a with
   | AConst c => c
   | AVar v => m v
   | APlus a1 a2 => (eval_aff a1 m) + (eval_aff a2 m)
   | AMinus a1 a2 => (eval_aff a1 m) - (eval_aff a2 m)
   | AMul c a => c * (eval_aff a m)
+  | AEq a1 a2 => indicator ((eval_aff a1 m) =? (eval_aff a2 m))
+  | ANeq a1 a2 => indicator (negb ((eval_aff a1 m) =? (eval_aff a2 m)))
+  | ALe a1 a2 => indicator ((eval_aff a1 m) <=? (eval_aff a2 m))
+  | ALt a1 a2 => indicator ((eval_aff a1 m) <? (eval_aff a2 m))
+  | AGe a1 a2 => indicator ((eval_aff a1 m) >=? (eval_aff a2 m))
+  | AGt a1 a2 => indicator ((eval_aff a1 m) >? (eval_aff a2 m))
   end.
 
 Inductive Constraint :=
-| CEq (a1 a2: Aff)
-| CNeq (a1 a2: Aff)
-| CLe (a1 a2: Aff)
-| CLt (a1 a2: Aff)
-| CGe (a1 a2: Aff)
-| CGt (a1 a2: Aff).
+| CEq (a1 a2: PwAff)
+| CNeq (a1 a2: PwAff)
+| CLe (a1 a2: PwAff)
+| CLt (a1 a2: PwAff)
+| CGe (a1 a2: PwAff)
+| CGt (a1 a2: PwAff).
 
 Definition eval_constraint (c: Constraint) (m: total_map Z) :=
   match c with
@@ -65,6 +83,10 @@ Class PresburgerSet (s: Type) :=
 
     set_from_constraint : Constraint -> s;
     set_from_constraint_spec : forall c x, eval_set (set_from_constraint c) x = eval_constraint c x;
+
+    set_project_out : s -> string -> s;
+    set_project_out_spec : forall p d x, eval_set (set_project_out p d) x = true <->
+                                    exists v, eval_set p (d !-> v; x) = true;
   }.
 
 

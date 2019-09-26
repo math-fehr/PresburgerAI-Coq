@@ -41,7 +41,7 @@ Proof.
 Qed.
 
 Theorem gamma_presburger_top {s: Type} {P : PresburgerSet s} :
-  forall x, Ensembles.In (total_map Z) (eval_set universe_set) x.
+  forall x, Ensembles.In (total_map Z) (fun x => eval_set universe_set x = true) x.
 Proof.
   move => x.
   rewrite /Ensembles.In.
@@ -55,7 +55,7 @@ Instance PresburgerSetAD {s: Type} (P : PresburgerSet s) : adom s :=
     top := universe_set;
     join := union_set;
 
-    gamma := eval_set;
+    gamma := fun p x => eval_set p x = true;
 
     le_refl := is_subset_refl;
     le_trans := is_subset_trans;
