@@ -19,6 +19,10 @@ Class transfer_function {ab: Type} (A: adom ab) :=
                            Ensembles.In RegisterMap (gamma a') R'
   }.
 
+(* We define in the rest of the file the transfer functions for the presburger abstract domain *)
+
+
+(* Transfer function for constant instruction *)
 Definition transfer_presburger_set_const {S: Type} {P: PresburgerSet S} (s: S) (l: label) (v: string) (c: Z) :=
   let constraint := CEq (AVar v) (AConst c) in
   let s := set_project_out s v in
@@ -66,6 +70,7 @@ Proof.
     by apply Hgoal.
 Qed.
 
+(* Transfer function for binary arithmetic operation *)
 Definition binop_to_pwaff (v: variable) (opc: BinArithOpCode) (op1 op2: variable) :=
   match opc with
   | OpAdd => APlus (AVar op1) (AVar op2)
@@ -128,6 +133,7 @@ Proof.
 Qed.
 
 
+(* The final transfer function *)
 Definition transfer_presburger_set {S: Type} {P: PresburgerSet S} (inst: SSA) (s: S) (l: label) :=
   match inst with
   | Const v c => (transfer_presburger_set_const s l v c)::nil
