@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.com/bollu/PresburgerAI-Coq.svg?branch=master)](https://travis-ci.com/bollu/PresburgerAI-Coq)
 
-**[documentation link](https://math-fehr.github.io/PresburgerAI-Coq)**
+**[documentation link](https://math-fehr.github.io/PresburgerAI-Coq/)**
 
 # Building
 
