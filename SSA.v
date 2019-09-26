@@ -25,6 +25,7 @@ Definition RegisterMap := total_map Z.
 Definition state := RegisterMap * label.
 
 Local Open Scope string_scope.
+Local Open Scope list_scope.
 
 (* Basics binary arithmetic opcodes *)
 Inductive BinArithOpCode :=
@@ -47,17 +48,25 @@ Local Open Scope nat_scope.
 (* An SSA instruction *)
 Inductive SSA :=
 | Const (v: variable) (c: Z)
-| BinOp (v: variable) (b: BinArithOpCode) (op1 op2: variable): v <> op1 -> v <> op2 -> SSA.
+| BinOp (v: variable) (b: BinArithOpCode) (op1 op2: variable): v <> op1 -> v <> op2 -> SSA
+| Br (l: label) (params: list (variable * variable)).
 
 (* An SSA program *)
 Definition Program :=
   list SSA.
+
+Fixpoint affect_variables (R: RegisterMap) (vars: list (variable * variable)) :=
+  match vars with
+  | nil => R
+  | (param, value)::vars' => affect_variables (t_update R param (R value)) vars'
+  end.
 
 (* Do one step given an instruction *)
 Definition ssa_step (inst : SSA) (R : RegisterMap) (l : label) :=
   match inst with
   | Const v x => (t_update R v x, l + 1)
   | BinOp v op x1 x2 _ _ => (t_update R v (bin_op_eval R op x1 x2), l + 1)
+  | Br l' params => (affect_variables R params, l')
   end.
 
 (* Small step semantics *)
