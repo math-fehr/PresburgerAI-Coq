@@ -1,5 +1,5 @@
 FROM coqorg/coq:latest
-RUN git clone https://github.com/math-fehr/PresburgerAI-Coq.git ai
+RUN git clone https://github.com/math-fehr/PresburgerAI-Coq.git --branch dockerfile-and-coqdoc ai
 # need opam to setup paths to OPAM
 RUN (opam env --shell=sh > opam-init.sh)
 RUN (. ./opam-init.sh; cd ai; coq_makefile -f _CoqProject -o Makefile)
