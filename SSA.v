@@ -43,13 +43,12 @@ Definition bin_op_eval (R : RegisterMap) (op : BinArithOpCode) (v1 v2 : variable
   | OpLe => if (R v1) <=? (R v2) then 1 else 0
   end.
 
-Local Open Scope nat_scope.
-
 (* An SSA instruction *)
 Inductive SSA :=
 | Const (v: variable) (c: Z)
 | BinOp (v: variable) (b: BinArithOpCode) (op1 op2: variable): v <> op1 -> v <> op2 -> SSA
-| Br (l: label) (params: list (variable * variable)).
+| Br (l: label) (params: list (variable * variable))
+| BrC (c: variable) (l1: label) (params1: list (variable * variable)) (l2: label) (params2: list (variable * variable)).
 
 (* An SSA program *)
 Definition Program :=
@@ -64,10 +63,17 @@ Fixpoint affect_variables (R: RegisterMap) (vars: list (variable * variable)) :=
 (* Do one step given an instruction *)
 Definition ssa_step (inst : SSA) (R : RegisterMap) (l : label) :=
   match inst with
-  | Const v x => (t_update R v x, l + 1)
-  | BinOp v op x1 x2 _ _ => (t_update R v (bin_op_eval R op x1 x2), l + 1)
+  | Const v x => (t_update R v x, Nat.add l 1)
+  | BinOp v op x1 x2 _ _ => (t_update R v (bin_op_eval R op x1 x2), Nat.add l 1)
   | Br l' params => (affect_variables R params, l')
+  | BrC c l1 params1 l2 params2 =>
+    if R c =? 0 then
+      (affect_variables R params2, l2)
+    else
+      (affect_variables R params1, l1)
   end.
+
+Local Open Scope nat_scope.
 
 (* Small step semantics *)
 Inductive step : Program -> state -> state -> Prop :=
