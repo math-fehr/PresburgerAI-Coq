@@ -125,7 +125,7 @@ Proof.
   by apply orbT.
 Qed.
 
-Theorem constraint_one_variable_correct {s: Type} {P: PresburgerSet s} :
+Theorem constraint_eq_one_variable_correct {s: Type} {P: PresburgerSet s} :
   forall m p x, eval_set p m = eval_set (intersect_set (set_from_constraint (CEq (AVar x) (AConst (m x)))) p) m.
 Proof.
   move => m p x.
@@ -133,3 +133,13 @@ Proof.
     by rewrite /= Z.eqb_refl //.
 Qed.
 
+Theorem constraint_neq_one_variable_correct {s: Type} {P: PresburgerSet s} :
+  forall m x v, m x <> v ->
+           forall p, eval_set p m = eval_set (intersect_set (set_from_constraint (CNeq (AVar x) (AConst v))) p) m.
+Proof.
+  move => m x v Hne p.
+  rewrite intersect_set_spec set_from_constraint_spec /=.
+  move: Hne.
+  rewrite -Z.eqb_neq => Hne.
+  rewrite Hne //.
+Qed.
