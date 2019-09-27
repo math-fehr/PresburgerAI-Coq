@@ -124,3 +124,12 @@ Proof.
   rewrite union_set_spec Hp2.
   by apply orbT.
 Qed.
+
+Theorem constraint_one_variable_correct {s: Type} {P: PresburgerSet s} :
+  forall m p x, eval_set p m = eval_set (intersect_set (set_from_constraint (CEq (AVar x) (AConst (m x)))) p) m.
+Proof.
+  move => m p x.
+  rewrite intersect_set_spec set_from_constraint_spec.
+    by rewrite /= Z.eqb_refl //.
+Qed.
+
