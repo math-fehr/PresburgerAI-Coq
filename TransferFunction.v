@@ -23,16 +23,15 @@ Class transfer_function {ab: Type} (A: adom ab) :=
 
 
 (* Transfer function for constant instruction *)
-Definition transfer_presburger_set_const {S: Type} {P: PresburgerSet S} (s: S) (l: label) (v: string) (c: Z) :=
-  let constraint := CEq (AVar v) (AConst c) in
+Definition transfer_presburger_set_const {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} (s: PSet) (l: label) (v: string) (c: Z) :=
+  let c_set := eq_set (pw_aff_from_aff (AVar v)) (pw_aff_from_aff (AConst c)) in
   let s := set_project_out s v in
-  let c_set := set_from_constraint constraint in
   let new_set := intersect_set c_set s in
   (new_set, l+1).
 
-Lemma transfer_presburger_set_const_sound_aux {S: Type} (P: PresburgerSet S) :
+Lemma transfer_presburger_set_const_sound_aux {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
   forall v c R l R' l', (R', l') = ssa_step (Const v c) R l ->
-                   forall a, Ensembles.In RegisterMap (@gamma S (PresburgerSetAD P) a) R ->
+                   forall a, Ensembles.In RegisterMap (gamma a) R ->
                         let (a', l') := (transfer_presburger_set_const a l v c) in
                               Ensembles.In RegisterMap (gamma a') R'.
 Proof.
@@ -40,14 +39,14 @@ Proof.
   rewrite /Ensembles.In /transfer_presburger_set_const /gamma /= in Hingamma *.
   rewrite intersect_set_spec Bool.andb_true_iff.
   split.
-    - by rewrite set_from_constraint_spec /= HR' t_update_eq Z.eqb_refl //.
-    - rewrite set_project_out_spec.
-      exists (R v).
-      rewrite HR' t_update_shadow t_update_same.
-        by exact Hingamma.
+  - by rewrite eq_set_spec !pw_aff_from_aff_spec /= HR' t_update_eq Z.eqb_refl.
+  - rewrite set_project_out_spec.
+    exists (R v).
+    rewrite HR' t_update_shadow t_update_same.
+      by exact Hingamma.
 Qed.
 
-Theorem transfer_presburger_set_const_sound {S: Type} (P: PresburgerSet S) :
+Theorem transfer_presburger_set_const_sound {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
   forall v c prog R l R' l',
     step prog (R, l) (R', l') ->
     Some (Const v c) = List.nth_error prog l ->
@@ -71,26 +70,25 @@ Proof.
 Qed.
 
 (* Transfer function for binary arithmetic operation *)
-Definition binop_to_pwaff (v: variable) (opc: BinArithOpCode) (op1 op2: variable) :=
+Definition binop_to_pwaff {PSet PwAff: Type } {P: PresburgerImpl PSet PwAff} (v: variable) (opc: BinArithOpCode) (op1 op2: variable) :=
   match opc with
-  | OpAdd => APlus (AVar op1) (AVar op2)
-  | OpMul => AVar v
-  | OpLe => ALe (AVar op1) (AVar op2)
+  | OpAdd => pw_aff_from_aff (APlus (AVar op1) (AVar op2))
+  | OpMul => pw_aff_from_aff (AVar v)
+  | OpLe => indicator_function (le_set (pw_aff_from_aff (AVar op1)) (pw_aff_from_aff (AVar op2)))
   end.
 
-Definition transfer_presburger_set_binop {S: Type} {P: PresburgerSet S} (s: S) (l: label) (v: variable) (opc: BinArithOpCode) (op1 op2: variable) :=
+Definition transfer_presburger_set_binop {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} (s: PSet) (l: label) (v: variable) (opc: BinArithOpCode) (op1 op2: variable) :=
   let pwaff := binop_to_pwaff v opc op1 op2 in
-  let constraint := CEq (AVar v) pwaff in
+  let c_set := eq_set (pw_aff_from_aff (AVar v)) pwaff in
   let s := set_project_out s v in
-  let c_set := set_from_constraint constraint in
   let new_set := intersect_set c_set s in
   (new_set, l+1).
 
 
-Lemma transfer_presburger_set_binop_sound_aux {S: Type} (P: PresburgerSet S) :
+Lemma transfer_presburger_set_binop_sound_aux {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
   forall v opc op1 op2 Hop1 Hop2 R l R' l',
     (R', l') = ssa_step (BinOp v opc op1 op2 Hop1 Hop2) R l ->
-    forall a, Ensembles.In RegisterMap (@gamma S (PresburgerSetAD P) a) R ->
+    forall a, Ensembles.In RegisterMap (gamma a) R ->
          let (a', l') := (transfer_presburger_set_binop a l v opc op1 op2) in
          Ensembles.In RegisterMap (gamma a') R'.
 Proof.
@@ -98,18 +96,22 @@ Proof.
   rewrite /Ensembles.In /transfer_presburger_set_const /gamma /= in Hingamma *.
   rewrite intersect_set_spec Bool.andb_true_iff.
   split.
-  - rewrite set_from_constraint_spec /= HR' t_update_eq.
-    case opc;
-      try ((repeat (rewrite /= t_update_neq => [// |]);
-            rewrite Z.eqb_refl //)).
-    + rewrite /= t_update_eq Z.eqb_refl //.
+  - rewrite eq_set_spec pw_aff_from_aff_spec HR' /= t_update_eq.
+    case opc.
+    + rewrite /= !pw_aff_from_aff_spec.
+      repeat (rewrite /= t_update_neq => [// |]).
+      by rewrite Z.eqb_refl.
+    + by rewrite /= pw_aff_from_aff_spec /= t_update_eq Z.eqb_refl.
+    + rewrite /= indicator_function_spec le_set_spec !pw_aff_from_aff_spec.
+      repeat (rewrite /= t_update_neq => [// |]).
+      by case (R op1 <=? R op2)%Z.
   - rewrite set_project_out_spec.
     exists (R v).
     rewrite HR' t_update_shadow t_update_same.
       by exact Hingamma.
 Qed.
 
-Theorem transfer_presburger_set_binop_sound {S: Type} (P: PresburgerSet S) :
+Theorem transfer_presburger_set_binop_sound {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
   forall v opc op1 op2 Hop1 Hop2 prog R l R' l',
     step prog (R, l) (R', l') ->
     Some (BinOp v opc op1 op2 Hop1 Hop2) = List.nth_error prog l ->
@@ -133,26 +135,25 @@ Proof.
 Qed.
 
 (* Transfer function for unconditional branch instruction *)
-Fixpoint presburger_affect_variables {S: Type} {P: PresburgerSet S} (s: S) (params: list (variable * variable)) :=
+Fixpoint presburger_affect_variables {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} (s: PSet) (params: list (variable * variable)) :=
   match params with
   | nil => s
   | (param, value)::params' =>
     if string_dec param value then
       presburger_affect_variables s params'
     else
-      let constraint := CEq (AVar param) (AVar value) in
+      let c_set := eq_set (pw_aff_from_aff (AVar param)) (pw_aff_from_aff (AVar value)) in
       let s := set_project_out s param in
-      let c_set := set_from_constraint constraint in
       let new_s := intersect_set c_set s in
       presburger_affect_variables new_s params'
   end.
 
-Definition transfer_presburger_set_branch {S: Type} {P: PresburgerSet S} (s: S) (l: label) (params: list (variable * variable)) :=
+Definition transfer_presburger_set_branch {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} (s: PSet) (l: label) (params: list (variable * variable)) :=
   (presburger_affect_variables s params, l).
 
-Lemma presburger_affect_variables_sound {S: Type} (P: PresburgerSet S) :
+Lemma presburger_affect_variables_sound {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
   forall R s,
-    Ensembles.In RegisterMap (@gamma S (PresburgerSetAD P) s) R ->
+    Ensembles.In RegisterMap (gamma s) R ->
     forall params, Ensembles.In RegisterMap (gamma (presburger_affect_variables s params)) (affect_variables R params).
 Proof.
   move => R s HR params.
@@ -165,7 +166,7 @@ Proof.
     + apply Hind.
       rewrite /= /Ensembles.In intersect_set_spec Bool.andb_true_iff.
       split.
-      * rewrite set_from_constraint_spec /= t_update_eq t_update_neq
+      * rewrite eq_set_spec !pw_aff_from_aff_spec /= t_update_eq t_update_neq
         => [/Hne // |].
           by rewrite Z.eqb_refl //.
       * rewrite set_project_out_spec.
@@ -173,10 +174,10 @@ Proof.
         by rewrite t_update_shadow t_update_same //.
 Qed.
 
-Lemma transfer_presburger_set_branch_sound_aux {S: Type} (P: PresburgerSet S) :
+Lemma transfer_presburger_set_branch_sound_aux {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
   forall l_ params R l R' l',
     (R', l') = ssa_step (Br l_ params) R l ->
-    forall a, Ensembles.In RegisterMap (@gamma S (PresburgerSetAD P) a) R ->
+    forall a, Ensembles.In RegisterMap (gamma a) R ->
          let (a', l') := (transfer_presburger_set_branch a l_ params) in
          Ensembles.In RegisterMap (gamma a') R'.
 Proof.
@@ -185,7 +186,7 @@ Proof.
   by apply presburger_affect_variables_sound, HR.
 Qed.
 
-Theorem transfer_presburger_set_branch_sound {S: Type} (P: PresburgerSet S) :
+Theorem transfer_presburger_set_branch_sound {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
   forall l_ params prog R l R' l',
     step prog (R, l) (R', l') ->
     Some (Br l_ params) = List.nth_error prog l ->
@@ -209,19 +210,17 @@ Proof.
 Qed.
 
 (* Transfer function for conditional branch instruction *)
-Definition transfer_presburger_set_branch_cond {S: Type} {P: PresburgerSet S} (s: S) (c: variable) (l1 : label) (params1: list (variable * variable)) (l2: label) (params2: list (variable * variable)) :=
-  let constraint_true := CNeq (AVar c) (AConst 0) in
-  let set_true := set_from_constraint constraint_true in
+Definition transfer_presburger_set_branch_cond {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} (s: PSet) (c: variable) (l1 : label) (params1: list (variable * variable)) (l2: label) (params2: list (variable * variable)) :=
+  let set_true := ne_set (pw_aff_from_aff (AVar c)) (pw_aff_from_aff (AConst 0))in
   let set_true' := intersect_set s set_true in
   let new_set_true := presburger_affect_variables set_true' params1 in
-  let constraint_false := CEq (AVar c) (AConst 0) in
-  let set_false := set_from_constraint constraint_false in
+  let set_false := eq_set (pw_aff_from_aff (AVar c)) (pw_aff_from_aff (AConst 0)) in
   let set_false' := intersect_set s set_false in
   let new_set_false := presburger_affect_variables set_false' params2 in
   (new_set_true, l1)::(new_set_false, l2)::nil.
 
 
-Theorem transfer_presburger_set_branch_cond_sound {S: Type} (P: PresburgerSet S) :
+Theorem transfer_presburger_set_branch_cond_sound {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
   forall c l1 params1 l2 params2 prog R l R' l',
     step prog (R, l) (R', l') ->
     Some (BrC c l1 params1 l2 params2) = List.nth_error prog l ->
@@ -260,7 +259,7 @@ Qed.
 
 
 (* The final transfer function *)
-Definition transfer_presburger_set {S: Type} {P: PresburgerSet S} (inst: SSA) (s: S) (l: label) :=
+Definition transfer_presburger_set {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} (inst: SSA) (s: PSet) (l: label) :=
   match inst with
   | Const v c => (transfer_presburger_set_const s l v c)::nil
   | BinOp v opc op1 op2 op1_ne_v op2_ne_v => (transfer_presburger_set_binop s l v opc op1 op2)::nil
@@ -268,11 +267,11 @@ Definition transfer_presburger_set {S: Type} {P: PresburgerSet S} (inst: SSA) (s
   | BrC c l1 params1 l2 params2 => transfer_presburger_set_branch_cond s c l1 params1 l2 params2
   end.
 
-Theorem transfer_presburger_set_sound {S: Type} (P: PresburgerSet S) :
+Theorem transfer_presburger_set_sound {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
   forall prog R l R' l',
     step prog (R, l) (R', l') ->
     forall inst, Some inst = List.nth_error prog l ->
-            forall a, Ensembles.In (total_map Z) (@gamma S (PresburgerSetAD P) a) R ->
+            forall a, Ensembles.In (total_map Z) (gamma a) R ->
                  exists a', In (a', l') (transfer_presburger_set inst a l) /\
                        Ensembles.In (total_map Z) (gamma a') R'.
 Proof.

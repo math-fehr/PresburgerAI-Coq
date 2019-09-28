@@ -29,7 +29,7 @@ Class adom (ab:Type) :=
 
 (* Instance for the polyhedral abstract domain *)
 
-Theorem gamma_presburger_monotone {s: Type} {P : PresburgerSet s} :
+Theorem gamma_presburger_monotone {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} :
   forall p1 p2, is_subset p1 p2 = true ->
            Included (total_map Z)
                     (fun x => eval_set p1 x = true)
@@ -40,7 +40,7 @@ Proof.
   by apply Hsubset, Hin.
 Qed.
 
-Theorem gamma_presburger_top {s: Type} {P : PresburgerSet s} :
+Theorem gamma_presburger_top {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} :
   forall x, Ensembles.In (total_map Z) (fun x => eval_set universe_set x = true) x.
 Proof.
   move => x.
@@ -48,7 +48,7 @@ Proof.
   apply universe_set_spec.
 Qed.
 
-Instance PresburgerSetAD {s: Type} (P : PresburgerSet s) : adom s :=
+Instance PresburgerSetAD {PSet PwAff: Type} (P : PresburgerImpl PSet PwAff) : adom PSet :=
   {
     le := is_subset;
     bot := empty_set;
