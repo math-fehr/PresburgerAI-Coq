@@ -62,8 +62,11 @@ Class PresburgerImpl (PSet PwAff: Type) :=
     pw_aff_from_aff_spec : forall a x, eval_pw_aff (pw_aff_from_aff a) x = Some (eval_aff a x);
 
     intersect_domain : PwAff -> PSet -> PwAff;
-    intersect_domain_spec_in : forall p s x, eval_set s x = true -> eval_pw_aff (intersect_domain p s) x = eval_pw_aff p x;
-    intersect_domain_spec_out : forall p s x, eval_set s x = false -> eval_pw_aff (intersect_domain p s) x = None;
+    intersect_domain_spec : forall p s x, eval_pw_aff (intersect_domain p s) x =
+                                     if eval_set s x then
+                                       eval_pw_aff p x
+                                     else
+                                       None;
 
     union_pw_aff : PwAff -> PwAff -> PwAff;
     union_pw_aff_spec : forall p1 p2 x, eval_pw_aff (union_pw_aff p1 p2) x = match eval_pw_aff p1 x with
@@ -96,12 +99,21 @@ Class PresburgerImpl (PSet PwAff: Type) :=
                                                                            Some 0;
   }.
 
+Ltac simpl_eval_presburger :=
+  repeat (
+      rewrite ?empty_set_spec ?universe_set_spec ?union_set_spec
+              ?intersect_set_spec ?is_subset_spec ?set_project_out_spec
+              ?pw_aff_from_aff_spec ?intersect_domain_spec ?union_pw_aff_spec
+              ?eq_set_spec ?ne_set_spec ?le_set_spec ?indicator_function_spec;
+      simpl_totalmap_Z
+    ).
+
 
 Theorem is_subset_refl {PSet PwAff : Type} {P : PresburgerImpl PSet PwAff} :
   forall p, is_subset p p = true.
 Proof.
   move => p.
-  apply is_subset_spec => //.
+  by simpl_eval_presburger.
 Qed.
 
 Theorem is_subset_trans {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} :
@@ -109,26 +121,27 @@ Theorem is_subset_trans {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} :
               is_subset p2 p3 = true ->
               is_subset p1 p3 = true.
 Proof.
-  move => p1 p2 p3 /is_subset_spec H12 /is_subset_spec H23.
-  apply is_subset_spec.
+  move => p1 p2 p3.
+  simpl_eval_presburger.
   by auto.
 Qed.
 
 Theorem is_subset_union_l {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
-  forall p1 p2, is_subset p1 (union_set p1 p2).
+  forall p1 p2, is_subset p1 (union_set p1 p2) = true.
 Proof.
   move => p1 p2.
-  apply is_subset_spec => x Hp1.
-  rewrite union_set_spec Hp1.
-  reflexivity.
+  simpl_eval_presburger => x Hp1.
+  simpl_eval_presburger.
+  by rewrite Hp1.
 Qed.
 
 Theorem is_subset_union_r {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
-  forall p1 p2, is_subset p2 (union_set p1 p2).
+  forall p1 p2, is_subset p2 (union_set p1 p2) = true.
 Proof.
   move => p1 p2.
-  apply is_subset_spec => x Hp2.
-  rewrite union_set_spec Hp2.
+  simpl_eval_presburger => x Hp2.
+  simpl_eval_presburger.
+  rewrite Hp2.
   by apply orbT.
 Qed.
 
@@ -136,7 +149,7 @@ Theorem constraint_eq_one_variable_correct {PSet PwAff: Type} {P: PresburgerImpl
   forall m p x, eval_set p m = eval_set (intersect_set (eq_set (pw_aff_from_aff (AVar x)) (pw_aff_from_aff (AConst (m x)))) p) m.
 Proof.
   move => m p x.
-  by rewrite intersect_set_spec eq_set_spec !pw_aff_from_aff_spec /= Z.eqb_refl.
+  by simpl_eval_presburger.
 Qed.
 
 Theorem constraint_neq_one_variable_correct {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
@@ -144,5 +157,6 @@ Theorem constraint_neq_one_variable_correct {PSet PwAff: Type} {P: PresburgerImp
            forall p, eval_set p m = eval_set (intersect_set (ne_set (pw_aff_from_aff (AVar x)) (pw_aff_from_aff (AConst v))) p) m.
 Proof.
   move => m x v /Z.eqb_neq Hne p.
-  by rewrite intersect_set_spec ne_set_spec !pw_aff_from_aff_spec Hne.
+  simpl_eval_presburger.
+  by rewrite Hne.
 Qed.

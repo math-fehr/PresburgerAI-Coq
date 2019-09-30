@@ -37,14 +37,16 @@ Lemma transfer_presburger_set_const_sound_aux {PSet PwAff: Type} (P: PresburgerI
 Proof.
   move=> v c R l R' l' [HR' Hl'] a Hingamma.
   rewrite /Ensembles.In /transfer_presburger_set_const /gamma /= in Hingamma *.
-  rewrite intersect_set_spec Bool.andb_true_iff.
+  simpl_eval_presburger.
+  rewrite Bool.andb_true_iff HR'.
   split.
-  - by rewrite eq_set_spec !pw_aff_from_aff_spec /= HR' t_update_eq Z.eqb_refl.
-  - rewrite set_project_out_spec.
+  - by simpl_totalmap_Z.
+  - simpl_eval_presburger.
     exists (R v).
-    rewrite HR' t_update_shadow t_update_same.
+    simpl_totalmap_Z.
       by exact Hingamma.
 Qed.
+
 
 Theorem transfer_presburger_set_const_sound {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
   forall v c prog R l R' l',
@@ -94,20 +96,21 @@ Lemma transfer_presburger_set_binop_sound_aux {PSet PwAff: Type} (P: PresburgerI
 Proof.
   move=> v opc op1 op2 Hop1 Hop2 R l R' l' [HR' Hl'] a Hingamma.
   rewrite /Ensembles.In /transfer_presburger_set_const /gamma /= in Hingamma *.
-  rewrite intersect_set_spec Bool.andb_true_iff.
+  simpl_eval_presburger.
+  rewrite Bool.andb_true_iff HR'.
   split.
-  - rewrite eq_set_spec pw_aff_from_aff_spec HR' /= t_update_eq.
+  - simpl_totalmap_Z.
     case opc.
-    + rewrite /= !pw_aff_from_aff_spec.
+    + simpl_eval_presburger.
       repeat (rewrite /= t_update_neq => [// |]).
       by rewrite Z.eqb_refl.
-    + by rewrite /= pw_aff_from_aff_spec /= t_update_eq Z.eqb_refl.
-    + rewrite /= indicator_function_spec le_set_spec !pw_aff_from_aff_spec.
+    + by simpl_eval_presburger.
+    + simpl_eval_presburger.
       repeat (rewrite /= t_update_neq => [// |]).
       by case (R op1 <=? R op2)%Z.
-  - rewrite set_project_out_spec.
+  - simpl_eval_presburger.
     exists (R v).
-    rewrite HR' t_update_shadow t_update_same.
+    simpl_totalmap_Z.
       by exact Hingamma.
 Qed.
 
@@ -161,17 +164,20 @@ Proof.
   - by [].
   - move => [param value] l Hind R s HR /=.
     case (string_dec param value) => [Heq /= | Hne /=].
-    + rewrite Heq t_update_same.
+    + rewrite Heq.
+      simpl_totalmap_Z.
       by apply Hind, HR.
     + apply Hind.
-      rewrite /= /Ensembles.In intersect_set_spec Bool.andb_true_iff.
+      rewrite /= /Ensembles.In.
+      simpl_eval_presburger.
+      rewrite Bool.andb_true_iff.
       split.
-      * rewrite eq_set_spec !pw_aff_from_aff_spec /= t_update_eq t_update_neq
-        => [/Hne // |].
+      * simpl_eval_presburger.
+        rewrite t_update_neq => [/Hne // |].
           by rewrite Z.eqb_refl //.
-      * rewrite set_project_out_spec.
+      * simpl_eval_presburger.
         exists (R param).
-        by rewrite t_update_shadow t_update_same //.
+        by simpl_totalmap_Z.
 Qed.
 
 Lemma transfer_presburger_set_branch_sound_aux {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :

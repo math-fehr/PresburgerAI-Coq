@@ -2,7 +2,6 @@ Require Export PolyAI.SSA.
 Require Export PolyAI.Presburger.
 Require Export Coq.Sets.Ensembles.
 Require Import Coq.Program.Equality.
-Require Import Coq.Lists.List.
 From Coq Require Import ssreflect ssrfun ssrbool.
 
 Require Import String.
@@ -45,7 +44,7 @@ Theorem gamma_presburger_top {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} 
 Proof.
   move => x.
   rewrite /Ensembles.In.
-  apply universe_set_spec.
+  by simpl_eval_presburger.
 Qed.
 
 Instance PresburgerSetAD {PSet PwAff: Type} (P : PresburgerImpl PSet PwAff) : adom PSet :=

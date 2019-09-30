@@ -2,9 +2,8 @@ From Coq Require Import Arith.Arith.
 From Coq Require Import Bool.Bool.
 Require Import Coq.Strings.String.
 From Coq Require Import Logic.FunctionalExtensionality.
-From Coq Require Import Lists.List.
 Require Import Coq.Logic.FunctionalExtensionality.
-Import ListNotations.
+From Coq Require Import ssreflect ssrfun ssrbool.
 
 (* This code was taken from the programming language fundations book
  and was modified a bit *)
@@ -96,3 +95,13 @@ Proof.
   rewrite H.
   auto.
 Qed.
+
+Require Import Coq.ZArith.BinInt.
+
+Ltac simpl_totalmap :=
+  repeat (
+      rewrite ?t_apply_empty ?t_update_eq ?t_update_shadow ?t_update_same /=
+    ).
+
+Ltac simpl_totalmap_Z :=
+  repeat ( simpl_totalmap; rewrite ?Z.eqb_refl ).
