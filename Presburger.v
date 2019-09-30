@@ -99,16 +99,6 @@ Class PresburgerImpl (PSet PwAff: Type) :=
                                                                            Some 0;
   }.
 
-Ltac simpl_eval_presburger :=
-  repeat (
-      rewrite ?empty_set_spec ?universe_set_spec ?union_set_spec
-              ?intersect_set_spec ?is_subset_spec ?set_project_out_spec
-              ?pw_aff_from_aff_spec ?intersect_domain_spec ?union_pw_aff_spec
-              ?eq_set_spec ?ne_set_spec ?le_set_spec ?indicator_function_spec;
-      simpl_totalmap_Z
-    ).
-
-
 Theorem is_subset_refl {PSet PwAff : Type} {P : PresburgerImpl PSet PwAff} :
   forall p, is_subset p p = true.
 Proof.
@@ -160,3 +150,13 @@ Proof.
   simpl_eval_presburger.
   by rewrite Hne.
 Qed.
+
+Ltac simpl_eval_presburger :=
+  repeat (
+      rewrite ?empty_set_spec ?universe_set_spec ?union_set_spec
+              ?intersect_set_spec ?is_subset_spec ?set_project_out_spec
+              ?pw_aff_from_aff_spec ?intersect_domain_spec ?union_pw_aff_spec
+              ?eq_set_spec ?ne_set_spec ?le_set_spec ?indicator_function_spec
+              ?is_subset_refl ?is_subset_union_l ?is_subset_union_r;
+      simpl_totalmap_Z
+    ).
