@@ -17,90 +17,78 @@ Local Open Scope string_scope.
 (*  |_|\___/ \__\__,_|_|_|  |_|\__,_| .__/ *)
 (*                                  |_|    *)
 
+Inductive total_map (A: Type) :=
+| TEmpty (v: A)
+| TUpdate (m: total_map A) (x: string) (v: A)
+.
 
-Definition total_map (A : Type) := string -> A.
+Fixpoint eval_map {A: Type} (m: total_map A) (x: string) :=
+  match m with
+  | TEmpty _ v => v
+  | TUpdate _ m' x' v => if x' =? x then v else eval_map m' x
+  end.
 
-Definition t_empty {A : Type} (v : A) : total_map A :=
-  (fun _ => v).
+Definition t_empty {A: Type} (v: A) :=
+  TEmpty _ v.
 
-Definition t_update {A : Type} (m : total_map A)
-                    (x : string) (v : A) :=
-  fun x' => if x =? x' then v else m x'.
-
-Notation "'_' '!->' v" := (t_empty v)
+Notation "'_' '!->' v" := (TEmpty _ v)
   (at level 100, right associativity).
 
-Notation "x '!->' v ';' m" := (t_update m x v)
+Notation "x '!->' v ';' m" := (TUpdate _ m x v)
                               (at level 100, v at next level, right associativity).
 
 Lemma t_apply_empty : forall (A : Type) (x : string) (v : A),
-    (_ !-> v) x = v.
+    eval_map (_ !-> v) x = v.
 Proof.
-  auto.
+  by [].
 Qed.
 
 Lemma t_update_eq : forall (A : Type) (m : total_map A) x v,
-    (x !-> v ; m) x = v.
+    eval_map (x !-> v ; m) x = v.
 Proof.
-  intros.
-  unfold t_update.
-  rewrite eqb_refl.
-  reflexivity.
+  move => A m x v /=.
+  by rewrite eqb_refl.
 Qed.
 
 Theorem t_update_neq : forall (A : Type) (m : total_map A) x1 x2 v,
     x1 <> x2 ->
-    (x1 !-> v ; m) x2 = m x2.
+    eval_map (x1 !-> v ; m) x2 = eval_map m x2.
 Proof.
-  intros.
-  unfold t_update.
-  rewrite <- eqb_neq in H.
-  rewrite H.
-  reflexivity.
+  by move => A m x1 x2 v /eqb_neq /= ->.
 Qed.
 
 Lemma t_update_shadow : forall (A : Type) (m : total_map A) x v1 v2,
-    (x !-> v2 ; x !-> v1 ; m) = (x !-> v2 ; m).
+    forall x', eval_map (x !-> v2 ; x !-> v1 ; m) x' = eval_map (x !-> v2 ; m) x'.
 Proof.
-  intros.
-  unfold t_update.
-  extensionality x'.
-  destruct (x =? x'); auto.
+  move => A m x v1 v2 x' /=.
+  by case (x =? x').
 Qed.
 
 Theorem t_update_same : forall (A : Type) (m : total_map A) x,
-    (x !-> m x ; m) = m.
+    forall x', eval_map (x !-> eval_map m x ; m) x' = eval_map m x'.
 Proof.
-  intros.
-  unfold t_update.
-  extensionality x'.
-  destruct (eqb_spec x x'); auto.
-  rewrite e.
-  auto.
+  move => A m x x' /=.
+  by case (eqb_spec x x') => [<- | _].
 Qed.
 
 Theorem t_update_permute : forall (A : Type) (m : total_map A)
                                   v1 v2 x1 x2,
     x2 <> x1 ->
-    (x1 !-> v1 ; x2 !-> v2 ; m)
-    =
-    (x2 !-> v2 ; x1 !-> v1 ; m).
+    forall x', eval_map (x1 !-> v1 ; x2 !-> v2 ; m) x' =
+          eval_map (x2 !-> v2 ; x1 !-> v1 ; m) x'.
 Proof.
-  intros.
-  unfold t_update.
-  extensionality x'.
-  destruct (eqb_spec x1 x'); auto.
-  rewrite e in H.
-  rewrite <- eqb_neq in H.
-  rewrite H.
-  auto.
+  move => A m v1 v2 x1 x2 /eqb_neq Hne x'.
+  case (eqb_spec x1 x') => [ <- /= | ].
+  - by rewrite eqb_refl Hne.
+  - move=> /eqb_neq Hne' /=.
+    by rewrite Hne'.
 Qed.
 
 Require Import Coq.ZArith.BinInt.
 
 Ltac simpl_totalmap :=
   repeat (
-      rewrite ?t_apply_empty ?t_update_eq ?t_update_shadow ?t_update_same /=
+      rewrite ?t_apply_empty ?t_update_eq ?t_update_shadow ?t_update_same ?eqb_refl%string /=
     ).
 
 Ltac simpl_totalmap_Z :=

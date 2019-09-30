@@ -3,7 +3,7 @@ From PolyAI Require Export AbstractDomain.
 Require Export Coq.Lists.List.
 Open Scope string_scope.
 
-pr(* Transfer functions for our language *)
+(* Transfer functions for our language *)
 Class transfer_function {ab: Type} (A: adom ab) :=
   {
     transfer : SSA -> ab -> label -> list (ab * label);

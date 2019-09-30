@@ -35,9 +35,9 @@ Local Open Scope Z_scope.
 (* The evaluation of a binary operation *)
 Definition bin_op_eval (R : RegisterMap) (op : BinArithOpCode) (v1 v2 : variable) :=
   match op with
-  | OpAdd => (R v1) + (R v2)
-  | OpMul => (R v1) * (R v2)
-  | OpLe => if (R v1) <=? (R v2) then 1 else 0
+  | OpAdd => (eval_map R v1) + (eval_map R v2)
+  | OpMul => (eval_map R v1) * (eval_map R v2)
+  | OpLe => if (eval_map R v1) <=? (eval_map R v2) then 1 else 0
   end.
 
 (* An SSA instruction *)
@@ -54,17 +54,17 @@ Definition Program :=
 Fixpoint affect_variables (R: RegisterMap) (vars: list (variable * variable)) :=
   match vars with
   | nil => R
-  | (param, value)::vars' => affect_variables (t_update R param (R value)) vars'
+  | (param, value)::vars' => affect_variables (param !-> eval_map R value; R) vars'
   end.
 
 (* Do one step given an instruction *)
 Definition ssa_step (inst : SSA) (R : RegisterMap) (l : label) :=
   match inst with
-  | Const v x => (t_update R v x, Nat.add l 1)
-  | BinOp v op x1 x2 _ _ => (t_update R v (bin_op_eval R op x1 x2), Nat.add l 1)
+  | Const v x => (v !-> x; R , Nat.add l 1)
+  | BinOp v op x1 x2 _ _ => (v !-> bin_op_eval R op x1 x2 ; R, Nat.add l 1)
   | Br l' params => (affect_variables R params, l')
   | BrC c l1 params1 l2 params2 =>
-    if R c =? 0 then
+    if eval_map R c =? 0 then
       (affect_variables R params2, l2)
     else
       (affect_variables R params1, l1)

@@ -23,9 +23,9 @@ Proof.
   split.
   - by simpl_totalmap_Z.
   - simpl_eval_presburger.
-    exists (R v).
-    simpl_totalmap_Z.
-      by exact Hingamma.
+    exists (eval_map R v).
+    rewrite (eval_set_same _ R) => [x | //].
+    by simpl_totalmap_Z.
 Qed.
 
 
@@ -75,7 +75,7 @@ Lemma transfer_presburger_set_binop_sound_aux {PSet PwAff: Type} (P: PresburgerI
          let (a', l') := (transfer_presburger_set_binop a l v opc op1 op2) in
          Ensembles.In RegisterMap (gamma a') R'.
 Proof.
-  move=> v opc op1 op2 Hop1 Hop2 R l R' l' [HR' Hl'] a Hingamma.
+  move=> v opc op1 op2 /eqb_neq Hop1 /eqb_neq Hop2 R l R' l' [HR' Hl'] a Hingamma.
   rewrite /Ensembles.In /transfer_presburger_set_const /gamma /= in Hingamma *.
   simpl_eval_presburger.
   rewrite Bool.andb_true_iff HR'.
@@ -83,16 +83,15 @@ Proof.
   - simpl_totalmap_Z.
     case opc.
     + simpl_eval_presburger.
-      repeat (rewrite /= t_update_neq => [// |]).
-      by rewrite Z.eqb_refl.
+      by rewrite Hop1 Hop2 Z.eqb_refl.
     + by simpl_eval_presburger.
     + simpl_eval_presburger.
-      repeat (rewrite /= t_update_neq => [// |]).
-      by case (R op1 <=? R op2)%Z.
+      rewrite Hop1 Hop2.
+      by case (eval_map R op1 <=? eval_map R op2)%Z.
   - simpl_eval_presburger.
-    exists (R v).
-    simpl_totalmap_Z.
-      by exact Hingamma.
+    exists (eval_map R v).
+    rewrite (eval_set_same _ R) => [x | //].
+    by simpl_totalmap_Z.
 Qed.
 
 Theorem transfer_presburger_set_binop_sound {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
@@ -144,20 +143,22 @@ Proof.
   elim: params R s HR.
   - by [].
   - move => [param value] l Hind R s HR /=.
-    case (string_dec param value) => [Heq /= | Hne /=].
+    case (string_dec param value) => [Heq /= | /eqb_neq Hne /=].
     + rewrite Heq.
-      simpl_totalmap_Z.
-      by apply Hind, HR.
+      apply Hind.
+      rewrite /Ensembles.In /gamma /= (eval_set_same _ R) => [x | //].
+      by simpl_totalmap_Z.
     + apply Hind.
       rewrite /= /Ensembles.In.
       simpl_eval_presburger.
       rewrite Bool.andb_true_iff.
       split.
       * simpl_eval_presburger.
-        rewrite t_update_neq => [/Hne // |].
-          by rewrite Z.eqb_refl //.
+        rewrite Hne.
+        by simpl_totalmap_Z.
       * simpl_eval_presburger.
-        exists (R param).
+        exists (eval_map R param).
+        rewrite (eval_set_same _ R) => [x | //].
         by simpl_totalmap_Z.
 Qed.
 
@@ -220,7 +221,7 @@ Proof.
   rewrite -Hinst in H6.
   move: H6 => [H6].
   rewrite H6 /= in H7.
-  case (R c =? 0)%Z eqn:HRC in H7.
+  case (eval_map R c =? 0)%Z eqn:HRC in H7.
   - eexists. simpl. split.
     + right. left. move: H7 => [HR' Hl'].
       by rewrite Hl' //.
