@@ -1,9 +1,6 @@
-Require Import Coq.Bool.Bool.
-Require Import Coq.Strings.String.
 Require Import PolyAI.TotalMap.
+From Coq Require Export Bool.Bool Strings.String Numbers.BinNums ZArith.BinInt.
 Require Import Coq.Arith.PeanoNat.
-Require Import Coq.Numbers.BinNums.
-Require Import Coq.ZArith.BinInt.
 
 
 Local Open Scope type_scope.

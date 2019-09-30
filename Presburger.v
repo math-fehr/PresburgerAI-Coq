@@ -103,7 +103,7 @@ Theorem is_subset_refl {PSet PwAff : Type} {P : PresburgerImpl PSet PwAff} :
   forall p, is_subset p p = true.
 Proof.
   move => p.
-  by simpl_eval_presburger.
+  by rewrite is_subset_spec.
 Qed.
 
 Theorem is_subset_trans {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} :
@@ -112,7 +112,7 @@ Theorem is_subset_trans {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} :
               is_subset p1 p3 = true.
 Proof.
   move => p1 p2 p3.
-  simpl_eval_presburger.
+  rewrite !is_subset_spec.
   by auto.
 Qed.
 
@@ -120,20 +120,27 @@ Theorem is_subset_union_l {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
   forall p1 p2, is_subset p1 (union_set p1 p2) = true.
 Proof.
   move => p1 p2.
-  simpl_eval_presburger => x Hp1.
-  simpl_eval_presburger.
-  by rewrite Hp1.
+  rewrite is_subset_spec => x Hp1.
+  by rewrite union_set_spec Hp1.
 Qed.
 
 Theorem is_subset_union_r {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
   forall p1 p2, is_subset p2 (union_set p1 p2) = true.
 Proof.
   move => p1 p2.
-  simpl_eval_presburger => x Hp2.
-  simpl_eval_presburger.
-  rewrite Hp2.
-  by apply orbT.
+  rewrite is_subset_spec => x Hp2.
+  by rewrite union_set_spec Hp2 orbT.
 Qed.
+
+Ltac simpl_eval_presburger :=
+  repeat (
+      rewrite ?empty_set_spec ?universe_set_spec ?union_set_spec
+              ?intersect_set_spec ?is_subset_spec ?set_project_out_spec
+              ?pw_aff_from_aff_spec ?intersect_domain_spec ?union_pw_aff_spec
+              ?eq_set_spec ?ne_set_spec ?le_set_spec ?indicator_function_spec
+              ?is_subset_refl ?is_subset_union_l ?is_subset_union_r;
+      simpl_totalmap_Z
+    ).
 
 Theorem constraint_eq_one_variable_correct {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
   forall m p x, eval_set p m = eval_set (intersect_set (eq_set (pw_aff_from_aff (AVar x)) (pw_aff_from_aff (AConst (m x)))) p) m.
@@ -151,12 +158,3 @@ Proof.
   by rewrite Hne.
 Qed.
 
-Ltac simpl_eval_presburger :=
-  repeat (
-      rewrite ?empty_set_spec ?universe_set_spec ?union_set_spec
-              ?intersect_set_spec ?is_subset_spec ?set_project_out_spec
-              ?pw_aff_from_aff_spec ?intersect_domain_spec ?union_pw_aff_spec
-              ?eq_set_spec ?ne_set_spec ?le_set_spec ?indicator_function_spec
-              ?is_subset_refl ?is_subset_union_l ?is_subset_union_r;
-      simpl_totalmap_Z
-    ).
