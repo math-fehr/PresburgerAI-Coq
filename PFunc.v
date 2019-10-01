@@ -16,17 +16,17 @@ Definition le_V (v1 v2: V) :=
   | _ => false
   end.
 
-Class PFunc (pf: Type) :=
+Class PFuncImpl (PFunc: Type) :=
   {
-    eval_pfunc : pf -> (string -> V) -> V;
+    eval_pfunc : PFunc -> (string -> V) -> V;
 
-    constant_pfunc : V -> pf;
+    constant_pfunc : V -> PFunc;
     constant_pfunc_spec : forall v x, eval_pfunc (constant_pfunc v) x = v;
 
-    le_pfunc : pf -> pf -> bool;
+    le_pfunc : PFunc -> PFunc -> bool;
     le_pfunc_spec: forall p1 p2, le_pfunc p1 p2 <-> forall x, le_V (eval_pfunc p1 x) (eval_pfunc p2 x);
 
-    join_pfunc : pf -> pf -> pf;
+    join_pfunc : PFunc -> PFunc -> PFunc;
     join_pfunc_spec_l : forall p1 p2, le_pfunc p1 (join_pfunc p1 p2);
     join_pfunc_spec_r : forall p1 p2, le_pfunc p2 (join_pfunc p1 p2);
   }.
