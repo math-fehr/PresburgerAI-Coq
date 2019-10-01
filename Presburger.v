@@ -134,13 +134,28 @@ Proof.
   by rewrite union_set_spec Hp2 orbT.
 Qed.
 
+Theorem eval_set_same_shadow {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
+  forall p m v x1 x2, eval_set p (v !-> x1; v !-> x2; m) = eval_set p (v !-> x1; m).
+  move => p m v x1 x2.
+  apply eval_set_same => v'.
+  by apply t_update_shadow.
+Qed.
+
+Theorem eval_set_same_same {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
+  forall p m v , eval_set p (v !-> eval_map m v; m) = eval_set p m.
+  move => p m v.
+  apply eval_set_same => v'.
+  by apply t_update_same.
+Qed.
+
 Ltac simpl_eval_presburger :=
   repeat (
       rewrite ?empty_set_spec ?universe_set_spec ?union_set_spec
               ?intersect_set_spec ?is_subset_spec ?set_project_out_spec
               ?pw_aff_from_aff_spec ?intersect_domain_spec ?union_pw_aff_spec
               ?eq_set_spec ?ne_set_spec ?le_set_spec ?indicator_function_spec
-              ?is_subset_refl ?is_subset_union_l ?is_subset_union_r;
+              ?is_subset_refl ?is_subset_union_l ?is_subset_union_r
+              ?eval_set_same_shadow ?eval_set_same_same;
       simpl_totalmap_Z
     ).
 

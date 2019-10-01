@@ -1,14 +1,13 @@
-From Coq Require Import Arith.Arith.
-From Coq Require Import Bool.Bool.
-Require Import Coq.Strings.String.
-From Coq Require Import Logic.FunctionalExtensionality.
-Require Import Coq.Logic.FunctionalExtensionality.
 From Coq Require Import ssreflect ssrfun ssrbool.
+Local Set Warnings "-notation-overridden".
+From mathcomp Require Import ssreflect.ssrnat.
+From Coq Require Export Arith.Arith Bool.Bool Strings.String.
 
 (* This code was taken from the programming language fundations book
  and was modified a bit *)
 
 Local Open Scope string_scope.
+Local Open Scope list_scope.
 
 (* _____     _        _ __  __             *)
 (*|_   _|__ | |_ __ _| |  \/  | __ _ _ __  *)
@@ -22,14 +21,11 @@ Inductive total_map (A: Type) :=
 | TUpdate (m: total_map A) (x: string) (v: A)
 .
 
-Fixpoint eval_map {A: Type} (m: total_map A) (x: string) :=
+Fixpoint eval_map {A: Type} (m: @total_map A) (x: string) :=
   match m with
-  | TEmpty _ v => v
-  | TUpdate _ m' x' v => if x' =? x then v else eval_map m' x
+  | TEmpty v => v
+  | TUpdate m' x' v => if x' =? x then v else eval_map m' x
   end.
-
-Definition t_empty {A: Type} (v: A) :=
-  TEmpty _ v.
 
 Notation "'_' '!->' v" := (TEmpty _ v)
   (at level 100, right associativity).
@@ -43,28 +39,28 @@ Proof.
   by [].
 Qed.
 
-Lemma t_update_eq : forall (A : Type) (m : total_map A) x v,
+Lemma t_update_eq : forall (A : Type) (m : total_map A) (x: string) (v: A),
     eval_map (x !-> v ; m) x = v.
 Proof.
   move => A m x v /=.
   by rewrite eqb_refl.
 Qed.
 
-Theorem t_update_neq : forall (A : Type) (m : total_map A) x1 x2 v,
+Theorem t_update_neq : forall (A : Type) (m : total_map A) (x1 x2: string) (v: A),
     x1 <> x2 ->
     eval_map (x1 !-> v ; m) x2 = eval_map m x2.
 Proof.
   by move => A m x1 x2 v /eqb_neq /= ->.
 Qed.
 
-Lemma t_update_shadow : forall (A : Type) (m : total_map A) x v1 v2,
+Lemma t_update_shadow : forall (A : Type) (m : total_map A) (x: string) (v1 v2: A),
     forall x', eval_map (x !-> v2 ; x !-> v1 ; m) x' = eval_map (x !-> v2 ; m) x'.
 Proof.
   move => A m x v1 v2 x' /=.
   by case (x =? x').
 Qed.
 
-Theorem t_update_same : forall (A : Type) (m : total_map A) x,
+Theorem t_update_same : forall (A : Type) (m : total_map A) (x: string),
     forall x', eval_map (x !-> eval_map m x ; m) x' = eval_map m x'.
 Proof.
   move => A m x x' /=.
@@ -72,7 +68,7 @@ Proof.
 Qed.
 
 Theorem t_update_permute : forall (A : Type) (m : total_map A)
-                                  v1 v2 x1 x2,
+                                  (v1 v2: A) (x1 x2: string),
     x2 <> x1 ->
     forall x', eval_map (x1 !-> v1 ; x2 !-> v2 ; m) x' =
           eval_map (x2 !-> v2 ; x1 !-> v1 ; m) x'.
@@ -93,3 +89,211 @@ Ltac simpl_totalmap :=
 
 Ltac simpl_totalmap_Z :=
   repeat ( simpl_totalmap; rewrite ?Z.eqb_refl ).
+
+Fixpoint pointwise_bin_op_aux {A: Type} (m1: total_map A) (x2: A) (f: A -> A -> A) :=
+  match m1 with
+  | TEmpty x1 => (_ !-> f x1 x2)
+  | TUpdate m1' v x1 => let new_m := pointwise_bin_op_aux m1' x2 f in
+                       (v !-> f x1 x2; new_m)
+  end.
+
+Lemma pointwise_bin_op_aux_spec {A: Type} :
+  forall m1 (x2: A) f s, eval_map (pointwise_bin_op_aux m1 x2 f) s = f (eval_map m1 s) x2.
+Proof.
+  elim => [// | m H s x1 x2 f s' /=].
+  rewrite H.
+    by case (eqb_spec s s').
+Qed.
+
+Fixpoint pointwise_bin_op {A: Type} (m1 m2: total_map A) (f: A -> A -> A) :=
+  match m2 with
+  | TEmpty x2 => pointwise_bin_op_aux m1 x2 f
+  | TUpdate m2' v x2 => let new_m := pointwise_bin_op m1 m2' f in
+                       (v !-> (f (eval_map m1 v) x2); new_m)
+  end.
+
+Theorem pointwise_bin_op_spec {A: Type} :
+  forall (m1 m2 : @total_map A) f x, eval_map (pointwise_bin_op m1 m2 f) x = f (eval_map m1 x) (eval_map m2 x).
+Proof.
+  move => m1 m2.
+  elim: m2 m1 => [v m1 f x | m Hind x v m1 f x0 /=].
+  - by apply pointwise_bin_op_aux_spec.
+  - rewrite Hind.
+    case (eqb_spec x x0) => [ -> // | //].
+Qed.
+
+Fixpoint list_string_in (l: list string) (s: string) :=
+  match l with
+  | nil => false
+  | s'::l' => (s =? s')%string || list_string_in l' s
+  end.
+
+Theorem list_string_in_spec : forall l s, reflect (List.In s l) (list_string_in l s).
+Proof.
+  elim => [s // | a l Hind s /=].
+  - apply: (iffP idP) => [// | Hne // ].
+  - apply: (iffP idP) => [ /orP[/eqb_spec Heq | HIn] | [-> | HIn]].
+    + by left.
+    + right. by apply /Hind.
+    + apply /orP. left. by apply eqb_refl.
+    + apply /orP. right. by apply /Hind.
+Qed.
+
+Local Open Scope string_scope.
+
+Lemma ne_length_impl_ne :
+  forall s1 s2, length s1 <> length s2 -> s1 <> s2.
+Proof.
+  move => s1 s2 HLength Heq.
+  rewrite Heq in HLength.
+    by case HLength.
+Qed.
+
+Lemma string_append_length :
+  forall s1 s2, length (s1 ++ s2) = length s1 + length s2.
+Proof.
+  elim => [s2 // | a s1 Hind s2 /=].
+    by rewrite Hind.
+Qed.
+
+Fixpoint repeat_string (n: nat) :=
+  match n with
+  | O => ""
+  | S n' => "X" ++ (repeat_string n')
+  end.
+
+Lemma repeat_string_length :
+  forall n, length (repeat_string n) = n.
+Proof.
+  elim => [// | n Hind /=].
+    by rewrite Hind.
+Qed.
+
+Fixpoint construct_not_in_list (l: list string) :=
+  match l with
+  | nil => "X"
+  | a::l' => (repeat_string (length a)) ++ (construct_not_in_list l')
+  end.
+
+Lemma construct_not_in_list_length :
+  forall l, 0 < length (construct_not_in_list l).
+Proof.
+  elim => [// | a l Hind /=].
+  rewrite string_append_length.
+    by apply ltn_addl.
+Qed.
+
+Theorem construct_not_in_list_length_forall :
+  forall l x, List.In x l -> length (construct_not_in_list l) > length x.
+Proof.
+  elim => [x Hin /= | a l Hind x /= [Heqxa | Hinl]].
+  - by apply List.in_nil in Hin.
+  - rewrite Heqxa string_append_length repeat_string_length.
+    rewrite {1}(plus_n_O (length x)).
+    by rewrite ltn_add2l construct_not_in_list_length.
+  - rewrite string_append_length ltn_addl => [// | ].
+      by apply Hind.
+Qed.
+
+Theorem construct_not_in_list_spec:
+  forall l, not (List.In (construct_not_in_list l) l).
+Proof.
+  move => l HIn.
+  apply construct_not_in_list_length_forall in HIn.
+    by rewrite ltnn in HIn.
+Qed.
+
+Fixpoint forall_bin_op_aux {A: Type} (m1: total_map A) (x2: A) (f: A -> A -> bool) (seen: list string):=
+  match m1 with
+  | TEmpty x1 => f x1 x2
+  | TUpdate m1' v x1 =>
+    if list_string_in seen v then
+      forall_bin_op_aux m1' x2 f seen
+    else
+      f x1 x2 && forall_bin_op_aux m1' x2 f (v::seen)
+  end.
+
+
+
+Lemma forall_bin_op_aux_spec {A: Type} :
+  forall m1 (x2: A) f seen, forall_bin_op_aux m1 x2 f seen = true <->
+                       (forall v, not (List.In v seen) -> f (eval_map m1 v) x2 = true).
+Proof.
+  elim => [v x2 f seen /= | m Hind v x1 x2 f seen /=].
+    by split => [// | H]; apply (H (construct_not_in_list seen)), construct_not_in_list_spec.
+  case (list_string_in seen v) eqn:Hseen.
+  - rewrite Hind.
+    split => [Hin v0 HnotIn| Hin v0 Hf].
+    + case (v =? v0) eqn: Hvv0; last first. by apply Hin.
+        by move: Hvv0 Hseen => /eqb_spec -> /list_string_in_spec Hseen.
+    + case (v =? v0) eqn: Hvv0; last first. apply Hin in Hf. by rewrite Hvv0 in Hf.
+        by move: Hvv0 Hseen => /eqb_spec -> /list_string_in_spec Hseen.
+  - split => [/andP[Hf /Hind Hforall] v0 Hv0notin | H ].
+    + case (v =? v0) eqn:Hvv0 => [// | ].
+      move: Hvv0 => /eqb_spec Hvv0.
+      apply Hforall.
+      by case.
+    + apply /andP. split.
+      * move: Hseen => /list_string_in_spec Hseen.
+        apply H in Hseen.
+          by rewrite eqb_refl in Hseen.
+      * apply Hind => v0 /= /Decidable.not_or [/eqb_spec Hvv0 Hnotin].
+        apply H in Hnotin.
+        rewrite /is_true in Hvv0.
+        apply negb_true_iff in Hvv0.
+          by rewrite Hvv0 in Hnotin.
+Qed.
+
+Fixpoint forall_bin_op_fix {A: Type} (m1 m2: total_map A) (f: A -> A -> bool) (seen: list string):=
+  match m2 with
+  | TEmpty x2 => forall_bin_op_aux m1 x2 f seen
+  | TUpdate m2' v x2 =>
+    if list_string_in seen v then
+      forall_bin_op_fix m1 m2' f seen
+    else
+      f (eval_map m1 v) x2 && forall_bin_op_fix m1 m2' f (v::seen)
+  end.
+
+Lemma forall_bin_op_fix_spec {A: Type} :
+  forall (m1 m2: @total_map A) f seen, forall_bin_op_fix m1 m2 f seen = true <->
+                                  forall v, not (List.In v seen) -> f (eval_map m1 v) (eval_map m2 v) = true.
+Proof.
+  move => m1 m2; move: m2 m1.
+  elim => [m1 m2 f seen /= | m2 Hind v x1 m1 f seen /=].
+    by split => /forall_bin_op_aux_spec //.
+  case (list_string_in seen v) eqn:Hseen; move: Hseen => /list_string_in_spec Hseen.
+  - rewrite Hind.
+    split => [Hin v0 HnotIn| Hin v0 Hf].
+    + case (v =? v0) eqn: Hvv0; last first. by apply Hin.
+        by move: Hvv0 Hseen => /eqb_spec ->.
+    + case (v =? v0) eqn: Hvv0; last first. apply Hin in Hf. by rewrite Hvv0 in Hf.
+        by move: Hvv0 Hseen => /eqb_spec ->.
+  - split => [/andP[Hf /Hind Hforall] v0 Hv0notin | H ].
+    + case (v =? v0) eqn:Hvv0 => [ | ].
+      * by move: Hvv0 => /eqb_spec <-.
+      * apply Hforall.
+        move: Hvv0 => /eqb_spec Hvv0.
+        by case.
+    + apply /andP. split.
+      * apply H in Hseen.
+          by rewrite eqb_refl in Hseen.
+      * apply Hind => v0 /= /Decidable.not_or [/eqb_spec Hvv0 Hnotin].
+        apply H in Hnotin.
+        rewrite /is_true in Hvv0.
+        apply negb_true_iff in Hvv0.
+          by rewrite Hvv0 in Hnotin.
+Qed.
+
+Definition forall_bin_op {A: Type} (m1 m2: total_map A) (f: A -> A -> bool) :=
+  forall_bin_op_fix m1 m2 f nil.
+
+Theorem forall_bin_op_spec {A: Type} :
+  forall (m1 m2: @total_map A) f, forall_bin_op m1 m2 f = true <-> forall v, f (eval_map m1 v) (eval_map m2 v).
+Proof.
+  move => m1 m2 f.
+  unfold forall_bin_op.
+  rewrite forall_bin_op_fix_spec /=.
+  split => [H | H v _].
+  - auto.
+  - by apply H.
+Qed.

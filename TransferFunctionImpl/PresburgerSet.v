@@ -24,8 +24,8 @@ Proof.
   - by simpl_totalmap_Z.
   - simpl_eval_presburger.
     exists (eval_map R v).
-    rewrite (eval_set_same _ R) => [x | //].
-    by simpl_totalmap_Z.
+    rewrite -Hingamma.
+    by simpl_eval_presburger.
 Qed.
 
 
@@ -90,8 +90,8 @@ Proof.
       by case (eval_map R op1 <=? eval_map R op2)%Z.
   - simpl_eval_presburger.
     exists (eval_map R v).
-    rewrite (eval_set_same _ R) => [x | //].
-    by simpl_totalmap_Z.
+    rewrite -Hingamma.
+    by simpl_eval_presburger.
 Qed.
 
 Theorem transfer_presburger_set_binop_sound {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
@@ -146,20 +146,18 @@ Proof.
     case (string_dec param value) => [Heq /= | /eqb_neq Hne /=].
     + rewrite Heq.
       apply Hind.
-      rewrite /Ensembles.In /gamma /= (eval_set_same _ R) => [x | //].
-      by simpl_totalmap_Z.
+      rewrite /Ensembles.In /gamma /=.
+      by simpl_eval_presburger.
     + apply Hind.
       rewrite /= /Ensembles.In.
       simpl_eval_presburger.
       rewrite Bool.andb_true_iff.
       split.
-      * simpl_eval_presburger.
-        rewrite Hne.
+      * rewrite Hne.
         by simpl_totalmap_Z.
       * simpl_eval_presburger.
         exists (eval_map R param).
-        rewrite (eval_set_same _ R) => [x | //].
-        by simpl_totalmap_Z.
+        by simpl_eval_presburger.
 Qed.
 
 Lemma transfer_presburger_set_branch_sound_aux {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
@@ -200,10 +198,10 @@ Qed.
 (* Transfer function for conditional branch instruction *)
 Definition transfer_presburger_set_branch_cond {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} (s: PSet) (c: variable) (l1 : label) (params1: list (variable * variable)) (l2: label) (params2: list (variable * variable)) :=
   let set_true := ne_set (pw_aff_from_aff (AVar c)) (pw_aff_from_aff (AConst 0))in
-  let set_true' := intersect_set s set_true in
+  let set_true' := intersect_set set_true s in
   let new_set_true := presburger_affect_variables set_true' params1 in
   let set_false := eq_set (pw_aff_from_aff (AVar c)) (pw_aff_from_aff (AConst 0)) in
-  let set_false' := intersect_set s set_false in
+  let set_false' := intersect_set set_false s in
   let new_set_false := presburger_affect_variables set_false' params2 in
   (new_set_true, l1)::(new_set_false, l2)::nil.
 
@@ -232,13 +230,13 @@ Proof.
       move => [HIn1 HIn2].
       split => [// | ].
       rewrite Z.eqb_eq in HRC * => HRC.
-      by rewrite -HRC //.
+      by rewrite -HRC /Ensembles.In.
   - eexists. simpl. split.
     + left. move: H7 => [HR' Hl'].
       rewrite Hl' //.
     + move: H7 => [HR' Hl'].
       rewrite Z.eqb_neq in HRC * => HRC.
-      rewrite HR' /= /Ensembles.In (constraint_neq_one_variable_correct R c 0) in HIn * => [// | ].
+      rewrite HR' /= /Ensembles.In (constraint_neq_one_variable_correct R c 0) in HIn * => [| //].
       rewrite presburger_affect_variables_sound => [ | //].
       rewrite /Ensembles.In /gamma /= !intersect_set_spec !Bool.andb_true_iff in HIn *.
       move => [HIn1 HIn2].
