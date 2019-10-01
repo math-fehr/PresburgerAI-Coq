@@ -4,15 +4,15 @@ Local Set Warnings "-notation-overridden".
 From mathcomp Require Import ssreflect.ssrnat.
 
 Inductive V :=
-| Top
-| Val (n: nat)
-| Bot.
+| VTop
+| VVal (n: nat)
+| VBot.
 
 Definition le_V (v1 v2: V) :=
   match (v1, v2) with
-  | (_, Top) => true
-  | (Bot, _) => true
-  | (Val n1, Val n2) => n1 =? n2
+  | (_, VTop) => true
+  | (VBot, _) => true
+  | (VVal n1, VVal n2) => n1 =? n2
   | _ => false
   end.
 
