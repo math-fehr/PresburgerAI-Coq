@@ -1,5 +1,6 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 From Coq Require Export Strings.String ZArith.BinInt.
+From PolyAI Require Export TotalMap.
 Local Open Scope Z_scope.
 
 Local Set Warnings "-notation-overridden".
@@ -70,6 +71,28 @@ Proof.
         by move => Himpossible.
 Qed.
 
+Definition binop_V (v1 v2: V) (op: Z -> Z -> Z):=
+  match (v1, v2) with
+  | (VBot, _) | (_, VBot) => VBot
+  | (VTop, _) | (_, VTop) => VTop
+  | (VVal v1, VVal v2) => VVal (op v1 v2)
+  end.
+
+Definition add_V (v1 v2: V) :=
+  binop_V v1 v2 Z.add.
+
+Definition sub_V (v1 v2: V) :=
+  binop_V v1 v2 Z.sub.
+
+Definition unop_V (v: V) (op: Z -> Z) :=
+  match v with
+  | VVal v => VVal (op v)
+  | other => other
+  end.
+
+Definition mul_V (z: Z) (v: V) :=
+  unop_V v (fun v => z * v).
+
 Class PFuncImpl (PFunc: Type) :=
   {
     eval_pfunc : PFunc -> (string -> V) -> V;
@@ -83,6 +106,26 @@ Class PFuncImpl (PFunc: Type) :=
     join_pfunc : PFunc -> PFunc -> PFunc;
     join_pfunc_spec_l : forall p1 p2, le_pfunc p1 (join_pfunc p1 p2);
     join_pfunc_spec_r : forall p1 p2, le_pfunc p2 (join_pfunc p1 p2);
+
+    is_constant_on_var: PFunc -> string -> bool;
+    is_constant_on_var_spec:
+      forall p v, is_constant_on_var p v ->
+             forall m m', (forall v', v' <> v -> m v' = m' v') -> eval_pfunc p m = eval_pfunc p m';
+
+    add_pfunc: PFunc -> PFunc -> PFunc;
+    add_pfunc_spec:
+      forall p1 p2 x, eval_pfunc (add_pfunc p1 p2) x =
+                 add_V (eval_pfunc p1 x) (eval_pfunc p2 x);
+
+    sub_pfunc: PFunc -> PFunc -> PFunc;
+    sub_pfunc_spec:
+      forall p1 p2 x, eval_pfunc (sub_pfunc p1 p2) x =
+                 sub_V (eval_pfunc p1 x) (eval_pfunc p2 x);
+
+    mul_pfunc: Z -> PFunc -> PFunc;
+    mul_pfunc_spec:
+      forall n p x, eval_pfunc (mul_pfunc n p) x =
+                 mul_V n (eval_pfunc p x);
   }.
 
 Theorem le_pfunc_refl {PFunc: Type} {PI: PFuncImpl PFunc} :
@@ -104,6 +147,5 @@ Qed.
 Ltac simpl_pfunc :=
   repeat (
       rewrite ?le_V_refl ?constant_pfunc_spec ?join_pfunc_spec_l ?join_pfunc_spec_r
-              ?le_pfunc_refl
+              ?le_pfunc_refl /in_V ?Z.eqb_refl /=
     ).
-
