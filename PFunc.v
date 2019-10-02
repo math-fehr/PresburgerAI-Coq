@@ -146,6 +146,8 @@ Qed.
 
 Ltac simpl_pfunc :=
   repeat (
-      rewrite ?le_V_refl ?constant_pfunc_spec ?join_pfunc_spec_l ?join_pfunc_spec_r
-              ?le_pfunc_refl /in_V ?Z.eqb_refl /=
+      rewrite ?le_V_refl ?constant_pfunc_spec ?join_pfunc_spec_l
+              ?join_pfunc_spec_r ?le_pfunc_refl
+              ?add_pfunc_spec ?sub_pfunc_spec ?mul_pfunc_spec
+              /in_V ?Z.eqb_refl /=
     ).
