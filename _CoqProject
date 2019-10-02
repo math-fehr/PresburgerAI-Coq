@@ -6,6 +6,7 @@ PFunc.v
 SSA.v
 AbstractDomain.v
 AbstractDomainImpl/PresburgerSet.v
+AbstractDomainImpl/PresburgerPwAff.v
 TransferFunction.v
 TransferFunctionImpl/PresburgerSet.v
 AbstractInterpreter.v
