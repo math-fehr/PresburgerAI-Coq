@@ -14,12 +14,12 @@ Inductive Aff :=
 | AMinus (a1 a2: Aff)
 | AMul (c: Z) (a: Aff).
 
-Inductive used_in_aff (a: Aff) (v: string) :=
+Fixpoint used_in_aff (a: Aff) (v: string) :=
   match a with
   | AConst _ => true
-  | AVar v' => v =? v'
+  | AVar v' => (v =? v')%string
   | APlus a1 a2 => used_in_aff a1 v || used_in_aff a2 v
-  | AMinus a1 a2 => used_in_aff a1 v || used_in_aff a2 eval_map
+  | AMinus a1 a2 => used_in_aff a1 v || used_in_aff a2 v
   | AMul c a' => used_in_aff a' v
   end.
 

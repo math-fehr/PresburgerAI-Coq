@@ -10,6 +10,14 @@ Inductive V :=
 | VVal (n: Z)
 | VBot.
 
+Definition eq_V (v1 v2: V) :=
+  match (v1, v2) with
+  | (VTop, VTop) => true
+  | (VBot, VBot) => true
+  | (VVal v1, VVal v2) => v1 =? v2
+  | _ => false
+  end.
+
 Definition le_V (v1 v2: V) :=
   match (v1, v2) with
   | (_, VTop) => true
@@ -81,8 +89,50 @@ Definition binop_V (v1 v2: V) (op: Z -> Z -> Z):=
 Definition add_V (v1 v2: V) :=
   binop_V v1 v2 Z.add.
 
+Theorem add_V_spec :
+  forall x1 v1, in_V x1 v1 ->
+           forall x2 v2, in_V x2 v2 ->
+                    in_V (x1 + x2) (add_V v1 v2).
+Proof.
+  move => x1 v1 H1 x2 v2 H2.
+  rewrite /in_V /add_V /binop_V.
+  case v1 eqn:Hv1; case v2 eqn:Hv2 => //.
+  rewrite /= in H1 H2.
+  move: H1 H2 => /Z.eqb_spec -> /Z.eqb_spec ->.
+    by rewrite Z.eqb_refl.
+Qed.
+
 Definition sub_V (v1 v2: V) :=
   binop_V v1 v2 Z.sub.
+
+Theorem sub_V_spec :
+  forall x1 v1, in_V x1 v1 ->
+           forall x2 v2, in_V x2 v2 ->
+                    in_V (x1 - x2) (sub_V v1 v2).
+Proof.
+  move => x1 v1 H1 x2 v2 H2.
+  rewrite /in_V /sub_V /binop_V.
+  case v1 eqn:Hv1; case v2 eqn:Hv2 => //.
+  rewrite /= in H1 H2.
+  move: H1 H2 => /Z.eqb_spec -> /Z.eqb_spec ->.
+    by rewrite Z.eqb_refl.
+Qed.
+
+Definition le_binop_V (v1 v2: V) :=
+  binop_V v1 v2 (fun v1 v2 => if v1 <=? v2 then 1 else 0).
+
+Theorem le_binop_V_spec :
+  forall x1 v1, in_V x1 v1 ->
+           forall x2 v2, in_V x2 v2 ->
+                    in_V (if x1 <=? x2 then 1 else 0) (le_binop_V v1 v2).
+Proof.
+  move => x1 v1 H1 x2 v2 H2.
+  rewrite /in_V /le_binop_V /binop_V.
+  case v1 eqn:Hv1; case v2 eqn:Hv2 => //.
+  rewrite /= in H1 H2.
+  move: H1 H2 => /Z.eqb_spec -> /Z.eqb_spec ->.
+    by rewrite Z.eqb_refl.
+Qed.
 
 Definition unop_V (v: V) (op: Z -> Z) :=
   match v with
@@ -109,8 +159,8 @@ Class PFuncImpl (PFunc: Type) :=
 
     is_constant_on_var: PFunc -> string -> bool;
     is_constant_on_var_spec:
-      forall p v, is_constant_on_var p v ->
-             forall m m', (forall v', v' <> v -> m v' = m' v') -> eval_pfunc p m = eval_pfunc p m';
+      forall p v, is_constant_on_var p v <->
+             forall m m', (forall v', v <> v' -> m v' = m' v') -> eval_pfunc p m = eval_pfunc p m';
 
     add_pfunc: PFunc -> PFunc -> PFunc;
     add_pfunc_spec:
@@ -125,7 +175,28 @@ Class PFuncImpl (PFunc: Type) :=
     mul_pfunc: Z -> PFunc -> PFunc;
     mul_pfunc_spec:
       forall n p x, eval_pfunc (mul_pfunc n p) x =
-                 mul_V n (eval_pfunc p x);
+               mul_V n (eval_pfunc p x);
+
+    le_binop_pfunc: PFunc -> PFunc -> PFunc;
+    le_binop_pfunc_spec:
+      forall p1 p2 x, eval_pfunc (le_binop_pfunc p1 p2) x =
+                 le_binop_V (eval_pfunc p1 x) (eval_pfunc p2 x);
+
+    pfunc_restrict_eq_set: PFunc -> Z -> PFunc;
+    pfunc_restrict_eq_set_spec:
+      forall p m v, eval_pfunc (pfunc_restrict_eq_set p v) m =
+                 if in_V v (eval_pfunc p m) then
+                   VVal v
+                 else
+                   VBot;
+
+    pfunc_restrict_ne_set: PFunc -> Z -> PFunc;
+    pfunc_restrict_ne_set_spec:
+      forall p m v, eval_pfunc (pfunc_restrict_ne_set p v) m =
+               if eq_V (eval_pfunc p m) (VVal v) then
+                 VBot
+               else
+                 (eval_pfunc p m);
   }.
 
 Theorem le_pfunc_refl {PFunc: Type} {PI: PFuncImpl PFunc} :
@@ -149,5 +220,8 @@ Ltac simpl_pfunc :=
       rewrite ?le_V_refl ?constant_pfunc_spec ?join_pfunc_spec_l
               ?join_pfunc_spec_r ?le_pfunc_refl
               ?add_pfunc_spec ?sub_pfunc_spec ?mul_pfunc_spec
-              /in_V ?Z.eqb_refl /=
+              ?le_binop_pfunc_spec
+              ?pointwise_un_op_spec ?pointwise_bin_op_spec
+              ?pfunc_restrict_eq_set_spec ?pfunc_restrict_ne_set_spec
+              ?Z.eqb_refl /=
     ).

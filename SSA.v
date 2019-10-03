@@ -40,6 +40,13 @@ Definition bin_op_eval (R : RegisterMap) (op : BinArithOpCode) (v1 v2 : variable
   | OpLe => if (eval_map R v1) <=? (eval_map R v2) then 1 else 0
   end.
 
+Definition bin_op_eval2 (op : BinArithOpCode) (v1 v2 : Z) :=
+  match op with
+  | OpAdd => v1 + v2
+  | OpMul => v1 * v2
+  | OpLe => if v1 <=? v2 then 1 else 0
+  end.
+
 (* An SSA instruction *)
 Inductive SSA :=
 | Const (v: variable) (c: Z)
