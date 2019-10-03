@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 From PolyAI Require Export SSA PFunc TotalMap.
-From PolyAI Require Import AbstractDomainImpl.PresburgerPwAff.
+From PolyAI Require Import AbstractDomainImpl.PFuncMap.
 Require Import Coq.Logic.FunctionalExtensionality.
 Require Import Coq.Lists.List.
 Require Export Coq.Sets.Ensembles.
