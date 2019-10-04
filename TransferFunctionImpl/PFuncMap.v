@@ -95,10 +95,10 @@ Theorem binop_pfunc_map_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
              forall op2, is_constant_on_var op2 res ->
                     forall R x1, in_V x1 (eval_pfunc op1 (eval_map R)) ->
                             forall x2, in_V x2 (eval_pfunc op2 (eval_map R)) ->
-                                  forall opc, in_V (bin_op_eval2 opc x1 x2) (eval_pfunc (binop_pfunc_map res op1 op2 opc) (eval_map (res !-> VVal (bin_op_eval2 opc x1 x2); R))).
+                                  forall opc, in_V (bin_op_eval opc x1 x2) (eval_pfunc (binop_pfunc_map res op1 op2 opc) (eval_map (res !-> VVal (bin_op_eval opc x1 x2); R))).
 Proof.
   move => res op1 Hconst1 op2 Hconst2 R x1 Hin1 x2 Hin2 [ | | ].
-  - rewrite /bin_op_eval2.
+  - rewrite /bin_op_eval.
     simpl_pfunc.
     apply is_constant_on_var_spec with
         (m := eval_map R)
@@ -112,7 +112,7 @@ Proof.
     rewrite -Hconst1 -Hconst2.
       by rewrite add_V_spec.
   - by simpl_pfunc.
-  - rewrite /bin_op_eval2.
+  - rewrite /bin_op_eval.
     simpl_pfunc.
     apply is_constant_on_var_spec with
         (m := eval_map R)
@@ -134,7 +134,7 @@ Definition pfunc_assign_arith {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map 
 
 Theorem pfunc_assign_arith_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall a R, In RegisterMap (gamma a) R ->
-         forall opr op1 op2 opc, In RegisterMap (gamma (pfunc_assign_arith a opr op1 op2 opc)) (opr !-> bin_op_eval R opc op1 op2; R).
+         forall opr op1 op2 opc, In RegisterMap (gamma (pfunc_assign_arith a opr op1 op2 opc)) (opr !-> bin_op_eval opc (eval_map R op1) (eval_map R op2); R).
 Proof.
   move => a R HInR opr op1 op2 opc.
   apply pfunc_map_assign_pfunc_spec => [// | ].
@@ -311,7 +311,7 @@ Proof.
 Qed.
 
 
-Definition transfer_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} {A: adom (total_map PFunc)}(inst: SSA) (a: total_map PFunc) (l: label):=
+Definition transfer_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} {A: adom (total_map PFunc)}(inst: Instruction) (a: total_map PFunc) (l: label):=
   match inst with
   | Const v c => (pfunc_assign_const a v c, l + 1)::nil
   | BinOp v opc op1 op2 op1_ne_v op2_ne_v => (pfunc_assign_arith a v op1 op2 opc, l+1)::nil

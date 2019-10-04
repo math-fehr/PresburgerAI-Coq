@@ -6,7 +6,7 @@ Open Scope string_scope.
 (* Transfer functions for our language *)
 Class transfer_function {ab: Type} (A: adom ab) :=
   {
-    transfer : SSA -> ab -> label -> list (ab * label);
+    transfer : Instruction -> ab -> label -> list (ab * label);
     transfer_sound :
       forall prog R l R' l',
         step prog (R, l) (R', l') ->

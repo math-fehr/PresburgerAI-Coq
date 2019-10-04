@@ -245,7 +245,7 @@ Qed.
 
 
 (* The final transfer function *)
-Definition transfer_presburger_set {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} (inst: SSA) (s: PSet) (l: label) :=
+Definition transfer_presburger_set {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} (inst: Instruction) (s: PSet) (l: label) :=
   match inst with
   | Const v c => (transfer_presburger_set_const s l v c)::nil
   | BinOp v opc op1 op2 op1_ne_v op2_ne_v => (transfer_presburger_set_binop s l v opc op1 op2)::nil
