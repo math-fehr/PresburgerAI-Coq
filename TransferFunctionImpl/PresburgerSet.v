@@ -236,7 +236,7 @@ Proof.
       rewrite Hl' //.
     + move: H7 => [HR' Hl'].
       rewrite Z.eqb_neq in HRC * => HRC.
-      rewrite HR' /= /Ensembles.In (constraint_neq_one_variable_correct R c 0) in HIn * => [| //].
+      rewrite HR' /= /Ensembles.In (constraint_neq_one_variable_correct R c 0) in HIn * => [ | //].
       rewrite presburger_affect_variables_sound => [ | //].
       rewrite /Ensembles.In /gamma /= !intersect_set_spec !Bool.andb_true_iff in HIn *.
       move => [HIn1 HIn2].

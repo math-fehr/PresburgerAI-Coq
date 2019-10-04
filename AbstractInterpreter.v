@@ -38,7 +38,7 @@ Theorem join_label_eq {ab: Type} {A: adom ab} (T: transfer_function A):
     join (List.nth label a default) a_join = List.nth label (join_label T a a_join label) default.
 Proof.
   elim => [a a_join default Hlength | n H a a_join default Hlength].
-  - case: a Hlength => [| //].
+  - case: a Hlength => [ | //].
     move => Hnillength.
     simpl in Hnillength.
     apply PeanoNat.Nat.nlt_0_r in Hnillength.
@@ -128,9 +128,9 @@ Theorem interpret_one_step_increase {ab: Type} {A: adom ab} (T: transfer_functio
 Proof.
   move => prog a label n default.
   unfold interpret_one_step.
-  case (nth_error prog label); last first => [| inst].
+  case (nth_error prog label); last first => [ | inst].
     by apply le_refl.
-  case (nth_error a label); last first => [| a0].
+  case (nth_error a label); last first => [ | a0].
     by apply le_refl.
   apply interpret_one_step_aux_increase.
 Qed.
@@ -185,7 +185,7 @@ Proof.
   elim => [a| [x l] a Hind a0].
   - rewrite /= Forall_forall /=.
     split => [H x bot // | //].
-  - split => [Hfix|].
+  - split => [Hfix| ].
     + rewrite Forall_forall => [[x' l'] Hin].
       rewrite /= in Hfix, Hin.
       apply Bool.andb_true_iff in Hfix.
@@ -282,7 +282,7 @@ Proof.
   move: {2}(_,_) (erefl (R0, 0)) => R00 R00eq.
   move: {2}(_,_) (erefl (R, l)) => Rl Rleq.
   rewrite R00eq Rleq in H.
-  elim: H R0 R l Rleq R00eq Hinbounds => [p R l|].
+  elim: H R0 R l Rleq R00eq Hinbounds => [p R l | ].
   - move=> R0 R1 l0 [-> ->] [<- <-] l0_small.
     move: (interpret_has_initial_state_top T p) => H0top.
     apply gamma_monotone in H0top.

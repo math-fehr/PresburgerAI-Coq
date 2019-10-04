@@ -2,45 +2,47 @@ From Coq Require Import ssreflect ssrfun ssrbool.
 Local Set Warnings "-notation-overridden".
 From mathcomp Require Import ssreflect.ssrnat.
 From Coq Require Export Arith.Arith Bool.Bool Strings.String.
+From Coq Require Import Logic.FunctionalExtensionality.
 
-(* This code was taken from the programming language fundations book
- and was modified a bit *)
+(* This code is inspired from the programming language fundations book *)
 
 Local Open Scope string_scope.
 Local Open Scope list_scope.
 
-(* _____     _        _ __  __             *)
-(*|_   _|__ | |_ __ _| |  \/  | __ _ _ __  *)
-(*  | |/ _ \| __/ _` | | |\/| |/ _` | '_ \ *)
-(*  | | (_) | || (_| | | |  | | (_| | |_) |*)
-(*  |_|\___/ \__\__,_|_|_|  |_|\__,_| .__/ *)
-(*                                  |_|    *)
+(* Representation of a total map with finite non-default values *)
 
 Inductive total_map (A: Type) :=
 | TEmpty (v: A)
 | TUpdate (m: total_map A) (x: string) (v: A)
 .
 
+(* Notation for a default map *)
+Notation "'_' '!->' v" := (TEmpty _ v)
+  (at level 100, right associativity).
+
+(* Notation for a map update *)
+Notation "x '!->' v ';' m" := (TUpdate _ m x v)
+                              (at level 100, v at next level, right associativity).
+
+
+(* Evaluate a map on a point*)
 Fixpoint eval_map {A: Type} (m: @total_map A) (x: string) :=
   match m with
   | TEmpty v => v
   | TUpdate m' x' v => if x' =? x then v else eval_map m' x
   end.
 
-Notation "'_' '!->' v" := (TEmpty _ v)
-  (at level 100, right associativity).
-
-Notation "x '!->' v ';' m" := (TUpdate _ m x v)
-                              (at level 100, v at next level, right associativity).
+(* Notation for evaluation *)
+Notation "m [| x |] " := (eval_map m x) (at level 100).
 
 Lemma t_apply_empty : forall (A : Type) (x : string) (v : A),
-    eval_map (_ !-> v) x = v.
+    (_ !-> v)[|x|] = v.
 Proof.
   by [].
 Qed.
 
 Lemma t_update_eq : forall (A : Type) (m : total_map A) (x: string) (v: A),
-    eval_map (x !-> v ; m) x = v.
+    (x !-> v ; m)[|x|] = v.
 Proof.
   move => A m x v /=.
   by rewrite eqb_refl.
@@ -54,9 +56,10 @@ Proof.
 Qed.
 
 Lemma t_update_shadow : forall (A : Type) (m : total_map A) (x: string) (v1 v2: A),
-    forall x', eval_map (x !-> v2 ; x !-> v1 ; m) x' = eval_map (x !-> v2 ; m) x'.
+    eval_map (x !-> v2 ; x !-> v1 ; m) = eval_map (x !-> v2 ; m).
 Proof.
-  move => A m x v1 v2 x' /=.
+  move => A m x v1 v2 /=.
+  extensionality x'.
   by case (x =? x').
 Qed.
 

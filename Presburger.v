@@ -141,7 +141,7 @@ Theorem eval_set_same_shadow {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
   forall p m v x1 x2, eval_set p (v !-> x1; v !-> x2; m) = eval_set p (v !-> x1; m).
   move => p m v x1 x2.
   apply eval_set_same => v'.
-  by apply t_update_shadow.
+  by rewrite t_update_shadow.
 Qed.
 
 Theorem eval_set_same_same {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
