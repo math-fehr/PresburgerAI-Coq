@@ -35,8 +35,8 @@ Fixpoint eval_aff (a: Aff) (m: total_map Z) :=
 Class PresburgerImpl (PSet PwAff: Type) :=
   {
     eval_set : PSet -> total_map Z -> bool;
-    eval_set_same : forall m1 m2, (forall x, m1 x = m2 x) ->
-                             forall s, eval_set s m1 = eval_set s m2;
+    eval_set_same : forall (m1 m2: total_map Z),
+        (forall x, m1 x = m2 x) -> forall s, eval_set s m1 = eval_set s m2;
 
     empty_set : PSet;
     empty_set_spec : forall x, eval_set empty_set x = false;
@@ -170,8 +170,8 @@ Proof.
 Qed.
 
 Theorem constraint_neq_one_variable_correct {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
-  forall m x v, m x <> v ->
-           forall p, eval_set p m = eval_set (intersect_set (ne_set (pw_aff_from_aff (AVar x)) (pw_aff_from_aff (AConst v))) p) m.
+  forall (m: total_map Z) x v,
+    m x <> v -> forall p, eval_set p m = eval_set (intersect_set (ne_set (pw_aff_from_aff (AVar x)) (pw_aff_from_aff (AConst v))) p) m.
 Proof.
   move => m x v /Z.eqb_neq Hne p.
   simpl_eval_presburger.
