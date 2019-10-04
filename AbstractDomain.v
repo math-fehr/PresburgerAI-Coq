@@ -19,8 +19,3 @@ Class adom (ab:Type) :=
     join_sound_l : forall a1 a2, le a1 (join a1 a2);
     join_sound_r : forall a1 a2, le a2 (join a1 a2);
   }.
-
-
-(* Instance for the polyhedral abstract domain *)
-
-
