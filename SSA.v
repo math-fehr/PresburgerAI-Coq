@@ -53,13 +53,14 @@ Inductive Instruction :=
 Definition Program :=
   list Instruction.
 
+(* [affect_variables R [(o1,i1); ... ; (oN, iN)]] will affect i1 to o1, then i2 to o2... *)
 Fixpoint affect_variables (R: RegisterMap) (vars: list (variable * variable)) :=
   match vars with
   | nil => R
   | (param, value)::vars' => affect_variables (param !-> eval_map R value; R) vars'
   end.
 
-(* Do one step given an instruction *)
+(* Execute an instruction *)
 Definition ssa_step (inst : Instruction) (R : RegisterMap) (l : label) :=
   match inst with
   | Const v x => (v !-> x; R, Nat.add l 1)
@@ -88,6 +89,6 @@ Inductive multi_step : Program -> state -> state -> Prop :=
 | MultiRefl : forall p R l, multi_step p (R, l) (R, l)
 | MultiStep : forall p s s' s'', multi_step p s s' -> step p s' s'' -> multi_step p s s''.
 
-(* The reachable states *)
+(* The reachable states, starting from label 0 on an arbitrary register map *)
 Inductive reachable_states : Program -> state -> Prop :=
 | Reachable : forall p R s', multi_step p (R, 0) s' -> reachable_states p s'.
