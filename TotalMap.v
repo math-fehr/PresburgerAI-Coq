@@ -33,7 +33,7 @@ Fixpoint eval_map {A: Type} (m: @total_map A) (x: string) :=
   end.
 
 (* Notation for evaluation *)
-Notation "m [| x |] " := (eval_map m x) (at level 100).
+Notation "m [| x |] " := (eval_map m x) (at level 65).
 
 Lemma t_apply_empty : forall (A : Type) (x : string) (v : A),
     (_ !-> v)[|x|] = v.
@@ -50,7 +50,7 @@ Qed.
 
 Theorem t_update_neq : forall (A : Type) (m : total_map A) (x1 x2: string) (v: A),
     x1 <> x2 ->
-    eval_map (x1 !-> v ; m) x2 = eval_map m x2.
+    (x1 !-> v ; m)[|x2|] = m[|x2|].
 Proof.
   by move => A m x1 x2 v /eqb_neq /= ->.
 Qed.
@@ -64,23 +64,24 @@ Proof.
 Qed.
 
 Theorem t_update_same : forall (A : Type) (m : total_map A) (x: string),
-    forall x', eval_map (x !-> eval_map m x ; m) x' = eval_map m x'.
+    eval_map (x !-> eval_map m x ; m) = eval_map m.
 Proof.
-  move => A m x x' /=.
+  move => A m x /=.
+  extensionality x'.
   by case (eqb_spec x x') => [<- | _].
 Qed.
 
 Theorem t_update_permute : forall (A : Type) (m : total_map A)
                                   (v1 v2: A) (x1 x2: string),
     x2 <> x1 ->
-    forall x', eval_map (x1 !-> v1 ; x2 !-> v2 ; m) x' =
-          eval_map (x2 !-> v2 ; x1 !-> v1 ; m) x'.
+    eval_map (x1 !-> v1 ; x2 !-> v2 ; m) =
+    eval_map (x2 !-> v2 ; x1 !-> v1 ; m).
 Proof.
-  move => A m v1 v2 x1 x2 /eqb_neq Hne x'.
-  case (eqb_spec x1 x') => [ <- /= | ].
+  move => A m v1 v2 x1 x2 /eqb_neq Hne.
+  extensionality x'.
+  case (eqb_spec x1 x') => [ <- /= | /eqb_neq Hne' /= ].
   - by rewrite eqb_refl Hne.
-  - move=> /eqb_neq Hne' /=.
-    by rewrite Hne'.
+  - by rewrite Hne'.
 Qed.
 
 Require Import Coq.ZArith.BinInt.
@@ -93,7 +94,7 @@ Fixpoint pointwise_un_op {A B: Type} (m: total_map A) (f: A -> B) :=
   end.
 
 Theorem pointwise_un_op_spec {A B: Type} :
-  forall m (f: A -> B) v, eval_map (pointwise_un_op m f) v = f (eval_map m v).
+  forall m (f: A -> B) v, (pointwise_un_op m f)[|v|] = f (m[|v|]).
 Proof.
   elim => [// | m Hind v x f v' /=].
   rewrite Hind.
@@ -108,7 +109,7 @@ Fixpoint pointwise_bin_op_aux {A B C: Type} (m1: total_map A) (x2: B) (f: A -> B
   end.
 
 Lemma pointwise_bin_op_aux_spec {A B C: Type} :
-  forall m1 x2 (f: A -> B -> C) s, eval_map (pointwise_bin_op_aux m1 x2 f) s = f (eval_map m1 s) x2.
+  forall m1 x2 (f: A -> B -> C) s, (pointwise_bin_op_aux m1 x2 f)[|s|] = f (m1[|s|]) x2.
 Proof.
   elim => [// | m H s x1 x2 f s' /=].
   rewrite H.
@@ -119,11 +120,11 @@ Fixpoint pointwise_bin_op {A B C: Type} (m1: total_map A) (m2: total_map B) (f: 
   match m2 with
   | TEmpty x2 => pointwise_bin_op_aux m1 x2 f
   | TUpdate m2' v x2 => let new_m := pointwise_bin_op m1 m2' f in
-                       (v !-> (f (eval_map m1 v) x2); new_m)
+                       (v !-> (f (m1[|v|]) x2); new_m)
   end.
 
 Theorem pointwise_bin_op_spec {A B C: Type} :
-  forall m1 m2 (f: A -> B -> C) x, eval_map (pointwise_bin_op m1 m2 f) x = f (eval_map m1 x) (eval_map m2 x).
+  forall m1 m2 (f: A -> B -> C) x, (pointwise_bin_op m1 m2 f)[|x|] = f (m1[|x|]) (m2[|x|]).
 Proof.
   move => m1 m2.
   elim: m2 m1 => [v m1 f x | m Hind x v m1 f x0 /=].
@@ -140,7 +141,6 @@ Ltac simpl_totalmap :=
 
 Ltac simpl_totalmap_Z :=
   repeat ( simpl_totalmap; rewrite ?Z.eqb_refl ).
-
 
 
 Fixpoint list_string_in (l: list string) (s: string) :=
@@ -234,11 +234,9 @@ Fixpoint forall_bin_op_aux {A: Type} (m1: total_map A) (x2: A) (f: A -> A -> boo
       f x1 x2 && forall_bin_op_aux m1' x2 f (v::seen)
   end.
 
-
-
 Lemma forall_bin_op_aux_spec {A: Type} :
   forall m1 (x2: A) f seen, forall_bin_op_aux m1 x2 f seen <->
-                       (forall v, not (List.In v seen) -> f (eval_map m1 v) x2).
+                       (forall v, not (List.In v seen) -> f (m1[|v|]) x2).
 Proof.
   elim => [v x2 f seen /= | m Hind v x1 x2 f seen /=].
     by split => [// | H]; apply (H (construct_not_in_list seen)), construct_not_in_list_spec.
@@ -272,12 +270,12 @@ Fixpoint forall_bin_op_fix {A: Type} (m1 m2: total_map A) (f: A -> A -> bool) (s
     if list_string_in seen v then
       forall_bin_op_fix m1 m2' f seen
     else
-      f (eval_map m1 v) x2 && forall_bin_op_fix m1 m2' f (v::seen)
+      f (m1[|v|]) x2 && forall_bin_op_fix m1 m2' f (v::seen)
   end.
 
 Lemma forall_bin_op_fix_spec {A: Type} :
   forall (m1 m2: @total_map A) f seen, forall_bin_op_fix m1 m2 f seen <->
-                                  forall v, not (List.In v seen) -> f (eval_map m1 v) (eval_map m2 v).
+                                  forall v, not (List.In v seen) -> f (m1[|v|]) (m2[|v|]).
 Proof.
   move => m1 m2; move: m2 m1.
   elim => [m1 m2 f seen /= | m2 Hind v x1 m1 f seen /=].
@@ -309,7 +307,7 @@ Definition forall_bin_op {A: Type} (m1 m2: total_map A) (f: A -> A -> bool) :=
   forall_bin_op_fix m1 m2 f nil.
 
 Theorem forall_bin_op_spec {A: Type} :
-  forall (m1 m2: @total_map A) f, forall_bin_op m1 m2 f <-> forall v, f (eval_map m1 v) (eval_map m2 v).
+  forall (m1 m2: @total_map A) f, forall_bin_op m1 m2 f <-> forall v, f (m1[|v|]) (m2[|v|]).
 Proof.
   move => m1 m2 f.
   unfold forall_bin_op.

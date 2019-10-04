@@ -148,7 +148,7 @@ Theorem eval_set_same_same {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
   forall p m v , eval_set p (v !-> eval_map m v; m) = eval_set p m.
   move => p m v.
   apply eval_set_same => v'.
-  by apply t_update_same.
+  by rewrite t_update_same.
 Qed.
 
 Ltac simpl_eval_presburger :=
