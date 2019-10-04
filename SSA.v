@@ -57,17 +57,17 @@ Definition Program :=
 Fixpoint affect_variables (R: RegisterMap) (vars: list (variable * variable)) :=
   match vars with
   | nil => R
-  | (param, value)::vars' => affect_variables (param !-> eval_map R value; R) vars'
+  | (param, value)::vars' => affect_variables (param !-> R value; R) vars'
   end.
 
 (* Execute an instruction *)
 Definition ssa_step (inst : Instruction) (R : RegisterMap) (l : label) :=
   match inst with
   | Const v x => (v !-> x; R, Nat.add l 1)
-  | BinOp v op x1 x2 _ _ => (v !-> bin_op_eval op (eval_map R x1) (eval_map R x2) ; R, Nat.add l 1)
+  | BinOp v op x1 x2 _ _ => (v !-> bin_op_eval op (R x1) (R x2) ; R, Nat.add l 1)
   | Br l' params => (affect_variables R params, l')
   | BrC c l1 params1 l2 params2 =>
-    if eval_map R c =? 0 then
+    if R c =? 0 then
       (affect_variables R params2, l2)
     else
       (affect_variables R params1, l1)
