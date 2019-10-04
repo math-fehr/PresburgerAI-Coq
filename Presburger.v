@@ -26,7 +26,7 @@ Fixpoint used_in_aff (a: Aff) (v: string) :=
 Fixpoint eval_aff (a: Aff) (m: total_map Z) :=
   match a with
   | AConst c => c
-  | AVar v => eval_map m v
+  | AVar v => m v
   | APlus a1 a2 => (eval_aff a1 m) + (eval_aff a2 m)
   | AMinus a1 a2 => (eval_aff a1 m) - (eval_aff a2 m)
   | AMul c a => c * (eval_aff a m)
@@ -35,7 +35,7 @@ Fixpoint eval_aff (a: Aff) (m: total_map Z) :=
 Class PresburgerImpl (PSet PwAff: Type) :=
   {
     eval_set : PSet -> total_map Z -> bool;
-    eval_set_same : forall m1 m2, (forall x, eval_map m1 x = eval_map m2 x) ->
+    eval_set_same : forall m1 m2, (forall x, m1 x = m2 x) ->
                              forall s, eval_set s m1 = eval_set s m2;
 
     empty_set : PSet;
@@ -145,7 +145,7 @@ Theorem eval_set_same_shadow {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
 Qed.
 
 Theorem eval_set_same_same {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
-  forall p m v , eval_set p (v !-> eval_map m v; m) = eval_set p m.
+  forall p m v , eval_set p (v !-> m v; m) = eval_set p m.
   move => p m v.
   apply eval_set_same => v'.
   by rewrite t_update_same.
@@ -163,14 +163,14 @@ Ltac simpl_eval_presburger :=
     ).
 
 Theorem constraint_eq_one_variable_correct {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
-  forall m p x, eval_set p m = eval_set (intersect_set (eq_set (pw_aff_from_aff (AVar x)) (pw_aff_from_aff (AConst (eval_map m x)))) p) m.
+  forall m p x, eval_set p m = eval_set (intersect_set (eq_set (pw_aff_from_aff (AVar x)) (pw_aff_from_aff (AConst (m x)))) p) m.
 Proof.
   move => m p x.
   by simpl_eval_presburger.
 Qed.
 
 Theorem constraint_neq_one_variable_correct {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
-  forall m x v, eval_map m x <> v ->
+  forall m x v, m x <> v ->
            forall p, eval_set p m = eval_set (intersect_set (ne_set (pw_aff_from_aff (AVar x)) (pw_aff_from_aff (AConst v))) p) m.
 Proof.
   move => m x v /Z.eqb_neq Hne p.
