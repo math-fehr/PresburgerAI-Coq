@@ -64,7 +64,7 @@ Proof.
 Qed.
 
 Theorem t_update_same : forall (A : Type) (m : total_map A) (x: string),
-    eval_map (x !-> eval_map m x ; m) = eval_map m.
+    eval_map (x !-> m x ; m) = eval_map m.
 Proof.
   move => A m x /=.
   extensionality x'.
@@ -134,10 +134,16 @@ Proof.
 Qed.
 
 Ltac simpl_totalmap :=
-  repeat (
-      rewrite ?t_apply_empty ?t_update_eq ?t_update_shadow ?t_update_same ?eqb_refl%string
-              ?pointwise_un_op_spec ?pointwise_bin_op_spec /=
-    ).
+repeat match goal with
+       | [ |- context[eval_map (TEmpty _) _] ] => rewrite t_apply_empty
+       | [ |- context[eval_map (?v !-> _ ; _) ?v]] => rewrite t_update_eq
+       | [ |- context[eval_map (?v !-> _ ; ?v !-> _ ; _)]] => rewrite t_update_shadow
+       | [ |- context[eval_map (?x !-> ?m ?x ; ?m)]] => rewrite t_update_same
+       | [ |- context[(?s =? ?s)%string]] => rewrite eqb_refl
+       | [ |- context[eval_map (pointwise_un_op _ _) _]] => rewrite pointwise_un_op_spec
+       | [ |- context[eval_map (pointwise_bin_op _ _ _) _]] => rewrite pointwise_bin_op_spec
+       | _ => rewrite /=
+       end.
 
 Ltac simpl_totalmap_Z :=
   repeat ( simpl_totalmap; rewrite ?Z.eqb_refl ).

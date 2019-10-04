@@ -41,7 +41,8 @@ Proof.
   apply negb_true_iff in Hne.
   rewrite Hne /constant_or_set_to_top_pfunc.
   simpl_totalmap.
-  case (is_constant_on_var (eval_map a v') v) eqn:Hconstant; last first. by simpl_pfunc.
+  case (is_constant_on_var (eval_map a v') v) eqn:Hconstant; last first.
+    by simpl_pfunc.
   apply is_constant_on_var_spec with
         (m := eval_map (pointwise_un_op R VVal))
         (m' := (fun x : string => if (v =? x)%string then VVal z else eval_map (pointwise_un_op R VVal) x)) in Hconstant.
