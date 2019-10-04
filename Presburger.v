@@ -74,34 +74,39 @@ Class PresburgerImpl (PSet PwAff: Type) :=
                                        None;
 
     union_pw_aff : PwAff -> PwAff -> PwAff;
-    union_pw_aff_spec : forall p1 p2 x, eval_pw_aff (union_pw_aff p1 p2) x = match eval_pw_aff p1 x with
-                                                                        | None => eval_pw_aff p2 x
-                                                                        | r => r
-                                                                        end;
+    union_pw_aff_spec : forall p1 p2 x, eval_pw_aff (union_pw_aff p1 p2) x =
+                                   match eval_pw_aff p1 x with
+                                   | None => eval_pw_aff p2 x
+                                   | r => r
+                                   end;
 
     eq_set : PwAff -> PwAff -> PSet;
-    eq_set_spec : forall p1 p2 x, eval_set (eq_set p1 p2) x = match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
-                                                         | (Some v1, Some v2) => v1 =? v2
-                                                         | _ => false
-                                                         end;
+    eq_set_spec : forall p1 p2 x, eval_set (eq_set p1 p2) x =
+                             match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
+                             | (Some v1, Some v2) => v1 =? v2
+                             | _ => false
+                             end;
 
     ne_set : PwAff -> PwAff -> PSet;
-    ne_set_spec : forall p1 p2 x, eval_set (ne_set p1 p2) x = match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
-                                                         | (Some v1, Some v2) => negb (v1 =? v2)
-                                                         | _ => false
-                                                         end;
+    ne_set_spec : forall p1 p2 x, eval_set (ne_set p1 p2) x =
+                             match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
+                             | (Some v1, Some v2) => negb (v1 =? v2)
+                             | _ => false
+                             end;
 
     le_set : PwAff -> PwAff -> PSet;
-    le_set_spec : forall p1 p2 x, eval_set (le_set p1 p2) x = match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
-                                                         | (Some v1, Some v2) => v1 <=? v2
-                                                         | _ => false
-                                                         end;
+    le_set_spec : forall p1 p2 x, eval_set (le_set p1 p2) x =
+                             match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
+                             | (Some v1, Some v2) => v1 <=? v2
+                             | _ => false
+                             end;
 
     indicator_function : PSet -> PwAff;
-    indicator_function_spec : forall s x, eval_pw_aff (indicator_function s) x = if eval_set s x then
-                                                                             Some 1
-                                                                         else
-                                                                           Some 0;
+    indicator_function_spec : forall s x, eval_pw_aff (indicator_function s) x =
+                                     if eval_set s x then
+                                       Some 1
+                                     else
+                                       Some 0;
   }.
 
 Theorem is_subset_refl {PSet PwAff : Type} {P : PresburgerImpl PSet PwAff} :
