@@ -39,10 +39,10 @@ Class PresburgerImpl (PSet PwAff: Type) :=
         (forall x, m1 x = m2 x) -> forall s, eval_set s m1 = eval_set s m2;
 
     empty_set : PSet;
-    empty_set_spec : forall x, eval_set empty_set x = false;
+    empty_set_spec : forall x, ~~(eval_set empty_set x);
 
     universe_set : PSet;
-    universe_set_spec : forall x, eval_set universe_set x = true;
+    universe_set_spec : forall x, eval_set universe_set x;
 
     union_set : PSet -> PSet -> PSet;
     union_set_spec : forall p1 p2 x,
@@ -53,12 +53,12 @@ Class PresburgerImpl (PSet PwAff: Type) :=
         eval_set (intersect_set p1 p2) x = eval_set p1 x && eval_set p2 x;
 
     is_subset : PSet -> PSet -> bool;
-    is_subset_spec : forall p1 p2, is_subset p1 p2 = true <->
-                              forall x, eval_set p1 x = true -> eval_set p2 x = true;
+    is_subset_spec : forall p1 p2, is_subset p1 p2 <->
+                              forall x, eval_set p1 x -> eval_set p2 x;
 
     set_project_out : PSet -> string -> PSet;
-    set_project_out_spec : forall p d x, eval_set (set_project_out p d) x = true <->
-                                    exists v, eval_set p (d !-> v; x) = true;
+    set_project_out_spec : forall p d x, eval_set (set_project_out p d) x <->
+                                    exists v, eval_set p (d !-> v; x);
 
 
     eval_pw_aff : PwAff -> total_map Z -> option Z;
@@ -110,16 +110,16 @@ Class PresburgerImpl (PSet PwAff: Type) :=
   }.
 
 Theorem is_subset_refl {PSet PwAff : Type} {P : PresburgerImpl PSet PwAff} :
-  forall p, is_subset p p = true.
+  forall p, is_subset p p.
 Proof.
   move => p.
   by rewrite is_subset_spec.
 Qed.
 
 Theorem is_subset_trans {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} :
-  forall p1 p2 p3, is_subset p1 p2 = true ->
-              is_subset p2 p3 = true ->
-              is_subset p1 p3 = true.
+  forall p1 p2 p3, is_subset p1 p2 ->
+              is_subset p2 p3 ->
+              is_subset p1 p3.
 Proof.
   move => p1 p2 p3.
   rewrite !is_subset_spec.
@@ -127,7 +127,7 @@ Proof.
 Qed.
 
 Theorem is_subset_union_l {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
-  forall p1 p2, is_subset p1 (union_set p1 p2) = true.
+  forall p1 p2, is_subset p1 (union_set p1 p2).
 Proof.
   move => p1 p2.
   rewrite is_subset_spec => x Hp1.
@@ -135,7 +135,7 @@ Proof.
 Qed.
 
 Theorem is_subset_union_r {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
-  forall p1 p2, is_subset p2 (union_set p1 p2) = true.
+  forall p1 p2, is_subset p2 (union_set p1 p2).
 Proof.
   move => p1 p2.
   rewrite is_subset_spec => x Hp2.

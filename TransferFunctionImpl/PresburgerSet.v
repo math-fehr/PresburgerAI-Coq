@@ -19,12 +19,12 @@ Proof.
   move=> v c R l R' l' [HR' Hl'] a Hingamma.
   rewrite /Ensembles.In /transfer_presburger_set_const /gamma /= in Hingamma *.
   simpl_eval_presburger.
-  rewrite Bool.andb_true_iff HR'.
+  apply /andP.
+  rewrite HR'.
   split.
   - by simpl_totalmap_Z.
   - simpl_eval_presburger.
     exists (eval_map R v).
-    rewrite -Hingamma.
     by simpl_eval_presburger.
 Qed.
 
@@ -78,7 +78,8 @@ Proof.
   move=> v opc op1 op2 /eqb_neq Hop1 /eqb_neq Hop2 R l R' l' [HR' Hl'] a Hingamma.
   rewrite /Ensembles.In /transfer_presburger_set_const /gamma /= in Hingamma *.
   simpl_eval_presburger.
-  rewrite Bool.andb_true_iff HR'.
+  apply /andP.
+  rewrite !HR'.
   split.
   - simpl_totalmap_Z.
     case opc.
@@ -90,7 +91,6 @@ Proof.
       by case (eval_map R op1 <=? eval_map R op2)%Z.
   - simpl_eval_presburger.
     exists (eval_map R v).
-    rewrite -Hingamma.
     by simpl_eval_presburger.
 Qed.
 
@@ -151,7 +151,7 @@ Proof.
     + apply Hind.
       rewrite /= /Ensembles.In.
       simpl_eval_presburger.
-      rewrite Bool.andb_true_iff.
+      apply /andP.
       split.
       * rewrite Hne.
         by simpl_totalmap_Z.
@@ -226,8 +226,8 @@ Proof.
     + move: H7 => [HR' Hl'].
       rewrite HR' /= /Ensembles.In (constraint_eq_one_variable_correct R a c) in HIn *.
       rewrite presburger_affect_variables_sound => [ | //].
-      rewrite /Ensembles.In /gamma /= !intersect_set_spec !Bool.andb_true_iff in HIn *.
-      move => [HIn1 HIn2].
+      rewrite /Ensembles.In /gamma /= !intersect_set_spec in HIn *.
+      move: HIn => /andP[HIn1 HIn2].
       split => [// | ].
       rewrite Z.eqb_eq in HRC * => HRC.
       by rewrite -HRC /Ensembles.In.
@@ -238,9 +238,8 @@ Proof.
       rewrite Z.eqb_neq in HRC * => HRC.
       rewrite HR' /= /Ensembles.In (constraint_neq_one_variable_correct R c 0) in HIn * => [ | //].
       rewrite presburger_affect_variables_sound => [ | //].
-      rewrite /Ensembles.In /gamma /= !intersect_set_spec !Bool.andb_true_iff in HIn *.
-      move => [HIn1 HIn2].
-      by [].
+      rewrite /Ensembles.In /gamma /= !intersect_set_spec in HIn *.
+      by move: HIn => /andP[HIn1 HIn2].
 Qed.
 
 
