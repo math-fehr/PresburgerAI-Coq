@@ -26,7 +26,7 @@ Proof.
   by simpl_eval_presburger.
 Qed.
 
-Instance PresburgerSetAD {PSet PwAff: Type} (P : PresburgerImpl PSet PwAff) : adom PSet :=
+Instance PresburgerSetAD {PSet PwAff: Type} (PI : PresburgerImpl PSet PwAff) : adom PSet :=
   {
     le := is_subset;
     bot := empty_set;

@@ -109,51 +109,53 @@ Class PresburgerImpl (PSet PwAff: Type) :=
                                        Some 0;
   }.
 
-Theorem is_subset_refl {PSet PwAff : Type} {P : PresburgerImpl PSet PwAff} :
+Generalizable All Variables.
+
+Theorem is_subset_refl `{PI: PresburgerImpl PSet PwAff}:
   forall p, is_subset p p.
 Proof.
   move => p.
-  by rewrite is_subset_spec.
+    by rewrite is_subset_spec.
 Qed.
 
-Theorem is_subset_trans {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} :
+Theorem is_subset_trans `{PI: PresburgerImpl PSet PwAff}:
   forall p1 p2 p3, is_subset p1 p2 ->
               is_subset p2 p3 ->
               is_subset p1 p3.
 Proof.
   move => p1 p2 p3.
   rewrite !is_subset_spec.
-  by auto.
+    by auto.
 Qed.
 
-Theorem is_subset_union_l {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
+Theorem is_subset_union_l `{PI: PresburgerImpl PSet PwAff} :
   forall p1 p2, is_subset p1 (union_set p1 p2).
 Proof.
   move => p1 p2.
   rewrite is_subset_spec => x Hp1.
-  by rewrite union_set_spec Hp1.
+    by rewrite union_set_spec Hp1.
 Qed.
 
-Theorem is_subset_union_r {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
+Theorem is_subset_union_r `{PI: PresburgerImpl PSet PwAff} :
   forall p1 p2, is_subset p2 (union_set p1 p2).
 Proof.
   move => p1 p2.
   rewrite is_subset_spec => x Hp2.
-  by rewrite union_set_spec Hp2 orbT.
+    by rewrite union_set_spec Hp2 orbT.
 Qed.
 
-Theorem eval_set_same_shadow {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
+Theorem eval_set_same_shadow `{PI: PresburgerImpl PSet PwAff} :
   forall p m v x1 x2, eval_set p (v !-> x1; v !-> x2; m) = eval_set p (v !-> x1; m).
   move => p m v x1 x2.
   apply eval_set_same => v'.
-  by rewrite t_update_shadow.
+    by rewrite t_update_shadow.
 Qed.
 
-Theorem eval_set_same_same {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
+Theorem eval_set_same_same `{PI: PresburgerImpl PSet PwAff} :
   forall p m v , eval_set p (v !-> m v; m) = eval_set p m.
   move => p m v.
   apply eval_set_same => v'.
-  by rewrite t_update_same.
+    by rewrite t_update_same.
 Qed.
 
 Ltac simpl_eval_presburger :=
@@ -167,16 +169,27 @@ Ltac simpl_eval_presburger :=
       simpl_totalmap_Z
     ).
 
-Theorem constraint_eq_one_variable_correct {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
-  forall m p x, eval_set p m = eval_set (intersect_set (eq_set (pw_aff_from_aff (AVar x)) (pw_aff_from_aff (AConst (m x)))) p) m.
+
+Theorem constraint_eq_one_variable_correct `{PI: PresburgerImpl PSet PwAff} :
+  forall m p x, eval_set p m =
+           eval_set (intersect_set
+                       (eq_set
+                          (pw_aff_from_aff (AVar x))
+                          (pw_aff_from_aff (AConst (m x))))
+                       p) m.
 Proof.
   move => m p x.
   by simpl_eval_presburger.
 Qed.
 
-Theorem constraint_neq_one_variable_correct {PSet PwAff: Type} {P: PresburgerImpl PSet PwAff} :
+Theorem constraint_neq_one_variable_correct `{PI: PresburgerImpl PSet PwAff} :
   forall (m: total_map Z) x v,
-    m x <> v -> forall p, eval_set p m = eval_set (intersect_set (ne_set (pw_aff_from_aff (AVar x)) (pw_aff_from_aff (AConst v))) p) m.
+    m x <> v -> forall p, eval_set p m =
+                   eval_set (intersect_set
+                               (ne_set
+                                  (pw_aff_from_aff (AVar x))
+                                  (pw_aff_from_aff (AConst v)))
+                               p) m.
 Proof.
   move => m x v /Z.eqb_neq Hne p.
   simpl_eval_presburger.
