@@ -23,14 +23,12 @@ Definition le_V (v1 v2: V) :=
   | (_, VTop) => true
   | (VBot, _) => true
   | (VVal n1, VVal n2) => n1 =? n2
-  |
-  _ => false
+  | _ => false
   end.
 
 Theorem le_V_refl : forall v, (le_V v v).
 Proof.
   case => // n.
-  rewrite /le_V.
   by apply Z.eqb_refl.
 Qed.
 
@@ -60,8 +58,7 @@ Proof.
   - case v1; case v2 => // n n0.
     rewrite /le_V => /Z.eqb_spec -> //.
   - case v1; case v2 => //.
-    + move => n /= Hin.
-      move: (Hin (n+1) is_true_true) => Himpossible.
+    + move => n /= /(_ (n+1) is_true_true) Himpossible.
         by rewrite /is_true Z.add_1_r Z.eqb_compare Zcompare.Zcompare_succ_Gt in Himpossible.
     + move => Hle.
         by have /Hle : (in_V 0 VTop) by [] => Himpossible.
