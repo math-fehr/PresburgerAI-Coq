@@ -35,6 +35,8 @@ Fixpoint eval_map {A: Type} (m: @total_map A) (x: string) :=
 (* Coercion for evaluation *)
 Coercion eval_map : total_map >-> Funclass.
 
+(* Useful lemmas and theorems *)
+
 Lemma t_apply_empty : forall (A : Type) (x : string) (v : A),
     (_ !-> v) x = v.
 Proof.
@@ -132,6 +134,8 @@ Proof.
   - rewrite Hind.
     case (eqb_spec x x0) => [ -> // | //].
 Qed.
+
+(* Useful tactic which apply known lemmas *)
 
 Ltac simpl_totalmap :=
 repeat match goal with
