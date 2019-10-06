@@ -19,12 +19,12 @@ Proof.
   move=> v c R l R' l' [HR' Hl'] a Hingamma.
   rewrite /Ensembles.In /transfer_presburger_set_const /gamma /= in Hingamma *.
   simpl_presburger.
-  apply /andP.
   rewrite HR'.
+  apply /andP.
   split.
   - by simpl_totalmap_Z.
   - simpl_presburger.
-    exists (eval_map R v).
+    exists (R v).
     by simpl_presburger.
 Qed.
 
@@ -46,10 +46,10 @@ Proof.
   split.
   - left.
     move: H7 => [HR' Hl'].
-    rewrite Hl'.
-    by reflexivity.
-  - move: (transfer_presburger_set_const_sound_aux P v c R l R' l' H7 a HIn) => Hgoal.
-    by apply Hgoal.
+    by rewrite Hl'.
+  - eapply transfer_presburger_set_const_sound_aux.
+    + by apply H7.
+    + by [].
 Qed.
 
 (* Transfer function for binary arithmetic operation *)
@@ -86,9 +86,9 @@ Proof.
     + by simpl_presburger.
     + by simpl_presburger.
     + simpl_presburger.
-      by case (eval_map R op1 <=? eval_map R op2)%Z.
+      by case (R op1 <=? R op2)%Z.
   - simpl_presburger.
-    exists (eval_map R v).
+    exists (R v).
     by simpl_presburger.
 Qed.
 
@@ -109,8 +109,7 @@ Proof.
   split.
   - left.
     move: H7 => [HR' Hl'].
-    rewrite Hl'.
-    by reflexivity.
+    by rewrite Hl'.
   - move: (transfer_presburger_set_binop_sound_aux P v opc op1 op2 Hop1 Hop2 R l R' l' H7 a HIn) => Hgoal.
     by apply Hgoal.
 Qed.
@@ -138,18 +137,16 @@ Lemma presburger_affect_variables_sound {PSet PwAff: Type} (P: PresburgerImpl PS
     forall params, Ensembles.In RegisterMap (gamma (presburger_affect_variables s params)) (affect_variables R params).
 Proof.
   move => R s HR params.
-  elim: params R s HR.
-  - by [].
-  - move => [param value] l Hind R s HR /=.
-    case (string_dec param value) => [Heq /= | Hne /=].
-    + rewrite Heq.
-      apply Hind.
-      rewrite /Ensembles.In /gamma /=.
+  elim: params R s HR => [// | [param value] l Hind R s HR /=].
+  case (string_dec param value) => [Heq /= | Hne /=].
+  - rewrite Heq.
+    apply Hind.
+    rewrite /Ensembles.In /gamma /=.
       by simpl_presburger.
-    + apply Hind.
-      rewrite /= /Ensembles.In.
-      simpl_presburger.
-      exists (eval_map R param).
+  - apply Hind.
+    rewrite /= /Ensembles.In.
+    simpl_presburger.
+    exists (R param).
       by simpl_totalmap.
 Qed.
 
@@ -182,8 +179,7 @@ Proof.
   split.
   - left.
     move: H7 => [HR' Hl'].
-    rewrite Hl'.
-    by reflexivity.
+    by rewrite Hl'.
   - move: (transfer_presburger_set_branch_sound_aux P l_ params R l R' l' H7 a HIn) => Hgoal.
     by apply Hgoal.
 Qed.
