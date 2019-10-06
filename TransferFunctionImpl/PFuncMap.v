@@ -293,6 +293,7 @@ Proof.
     rewrite pfunc_map_affect_variables_sound. by [].
     rewrite /pfunc_map_assign_pfunc /In /gamma /= /gamma_pfunc_map => s1.
     simpl_pfunc.
+    simpl_totalmap.
     case (eqb_spec c s1) => [ <- | Hne ].
     + simpl_pfunc.
       rewrite /constant_or_set_to_top_pfunc.

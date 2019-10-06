@@ -145,7 +145,7 @@ Class PFuncImpl (PFunc: Type) :=
     eval_pfunc : PFunc -> (string -> V) -> V;
 
     constant_pfunc : V -> PFunc;
-    constant_pfunc_spec : forall v x, eval_pfunc (constant_pfunc v) x = v;
+    constant_pfunc_spec : forall v, eval_pfunc (constant_pfunc v) = (fun x => v);
 
     le_pfunc : PFunc -> PFunc -> bool;
     le_pfunc_spec: forall p1 p2, le_pfunc p1 p2 <-> forall x, le_V (eval_pfunc p1 x) (eval_pfunc p2 x);
@@ -213,12 +213,18 @@ Proof.
 Qed.
 
 Ltac simpl_pfunc :=
-  repeat (
-      rewrite ?le_V_refl ?constant_pfunc_spec ?join_pfunc_spec_l
-              ?join_pfunc_spec_r ?le_pfunc_refl
-              ?add_pfunc_spec ?sub_pfunc_spec ?mul_pfunc_spec
-              ?le_binop_pfunc_spec
-              ?pointwise_un_op_spec ?pointwise_bin_op_spec
-              ?pfunc_restrict_eq_set_spec ?pfunc_restrict_ne_set_spec
-              ?Z.eqb_refl /=
-    ).
+  repeat match goal with
+         | [ |- context[le_V ?v ?v] ] => rewrite le_V_refl
+         | [ |- context[eval_pfunc (constant_pfunc _)]] => rewrite constant_pfunc_spec
+         | [ |- context[le_pfunc ?p (join_pfunc ?p _)]] => rewrite join_pfunc_spec_l
+         | [ |- context[le_pfunc ?p (join_pfunc _ ?p)]] => rewrite join_pfunc_spec_r
+         | [ |- context[le_pfunc ?p ?p]] => rewrite le_pfunc_refl
+         | [ |- context[eval_pfunc (add_pfunc _ _) _]] => rewrite add_pfunc_spec
+         | [ |- context[eval_pfunc (sub_pfunc _ _) _]] => rewrite sub_pfunc_spec
+         | [ |- context[eval_pfunc (mul_pfunc _ _) _]] => rewrite mul_pfunc_spec
+         | [ |- context[eval_pfunc (le_binop_pfunc _ _) _]] => rewrite le_binop_pfunc_spec
+         | [ |- context[eval_pfunc (pfunc_restrict_eq_set _ _) _]] => rewrite pfunc_restrict_eq_set_spec
+         | [ |- context[eval_pfunc (pfunc_restrict_ne_set _ _) _]] => rewrite pfunc_restrict_ne_set_spec
+         | [ |- context[(?z =? ?z)%Z]] => rewrite Z.eqb_refl
+         | _ => rewrite /=
+         end.
