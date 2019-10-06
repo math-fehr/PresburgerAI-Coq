@@ -33,14 +33,12 @@ Theorem pfunc_map_assign_pfunc_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
                 -> Ensembles.In RegisterMap (gamma (pfunc_map_assign_pfunc a v p)) (v !-> z; R).
 Proof.
   move => a R HInR p z v HinR' /=.
-  rewrite /In /gamma_pfunc_map => v'.
+  rewrite /In /gamma_pfunc_map /pfunc_map_assign_pfunc => v'.
   case (eqb_spec v v') => [<- | Hne ]. by simpl_totalmap.
   rewrite t_update_neq; last first. by [].
   rewrite /=.
-  move /eqb_spec in Hne.
-  apply negb_true_iff in Hne.
-  rewrite Hne /constant_or_set_to_top_pfunc.
   simpl_totalmap.
+  rewrite /constant_or_set_to_top_pfunc.
   case (is_constant_on_var (eval_map a v') v) eqn:Hconstant; last first.
     by simpl_pfunc.
   apply is_constant_on_var_spec with
@@ -201,8 +199,7 @@ Proof.
       rewrite t_update_same.
       have : (eval_map (pointwise_un_op (value !-> eval_map R value; R) VVal)) = (eval_map (pointwise_un_op R VVal)).
       * extensionality s.
-        simpl_pfunc.
-        case (eqb_spec value s) => [-> | ]; by simpl_totalmap.
+        by simpl_pfunc.
       * by move => ->.
     + apply Hind.
       rewrite /= /Ensembles.In /gamma_pfunc_map => s.
@@ -213,8 +210,8 @@ Proof.
       rewrite is_constant_on_var_spec in HConstCoerc *.
       move => /(_ (eval_map (pointwise_un_op (param !-> eval_map R value; R) VVal))
                  (eval_map (pointwise_un_op R VVal)))Heq.
-      rewrite Heq => [// | ].
-      by move => v' /= /eqb_spec /negb_true_iff ->.
+      rewrite Heq => [// | v' Hnev'].
+      by simpl_totalmap.
 Qed.
 
 Definition transfer_pfunc_map_branch {PFunc: Type} {P: PFuncImpl PFunc} (a: total_map PFunc) (l: label) (params: list (variable * variable)) :=
@@ -307,9 +304,10 @@ Proof.
       case (eval_pfunc (eval_map a c) (eval_map (pointwise_un_op R VVal))) eqn:HV0 => [//| /Z.eqb_eq Himpossible|//].
       rewrite Himpossible in Hin.
       case (eval_map R c) eqn:HeRc0 => //.
-    + rewrite /constant_or_set_to_top_pfunc.
-      case (is_constant_on_var (eval_map a s1) c) eqn:Hconst; last first. by simpl_pfunc.
-        by [].
+    + simpl_pfunc.
+      rewrite /constant_or_set_to_top_pfunc.
+      case (is_constant_on_var (a s1) c) => [// | ].
+        by simpl_pfunc.
 Qed.
 
 

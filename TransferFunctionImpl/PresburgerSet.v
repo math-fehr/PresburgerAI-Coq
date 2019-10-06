@@ -75,7 +75,7 @@ Lemma transfer_presburger_set_binop_sound_aux {PSet PwAff: Type} (P: PresburgerI
          let (a', l') := (transfer_presburger_set_binop a l v opc op1 op2) in
          Ensembles.In RegisterMap (gamma a') R'.
 Proof.
-  move=> v opc op1 op2 /eqb_neq Hop1 /eqb_neq Hop2 R l R' l' [HR' Hl'] a Hingamma.
+  move=> v opc op1 op2 Hop1 Hop2 R l R' l' [HR' Hl'] a Hingamma.
   rewrite /Ensembles.In /transfer_presburger_set_const /gamma /= in Hingamma *.
   simpl_eval_presburger.
   apply /andP.
@@ -83,11 +83,9 @@ Proof.
   split.
   - simpl_totalmap_Z.
     case opc.
-    + simpl_eval_presburger.
-      by rewrite Hop1 Hop2 Z.eqb_refl.
+    + by simpl_eval_presburger.
     + by simpl_eval_presburger.
     + simpl_eval_presburger.
-      rewrite Hop1 Hop2.
       by case (eval_map R op1 <=? eval_map R op2)%Z.
   - simpl_eval_presburger.
     exists (eval_map R v).
@@ -143,7 +141,7 @@ Proof.
   elim: params R s HR.
   - by [].
   - move => [param value] l Hind R s HR /=.
-    case (string_dec param value) => [Heq /= | /eqb_neq Hne /=].
+    case (string_dec param value) => [Heq /= | Hne /=].
     + rewrite Heq.
       apply Hind.
       rewrite /Ensembles.In /gamma /=.
@@ -151,13 +149,8 @@ Proof.
     + apply Hind.
       rewrite /= /Ensembles.In.
       simpl_eval_presburger.
-      apply /andP.
-      split.
-      * rewrite Hne.
-        by simpl_totalmap_Z.
-      * simpl_eval_presburger.
-        exists (eval_map R param).
-        by simpl_eval_presburger.
+      exists (eval_map R param).
+      by simpl_totalmap.
 Qed.
 
 Lemma transfer_presburger_set_branch_sound_aux {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :

@@ -225,6 +225,5 @@ Ltac simpl_pfunc :=
          | [ |- context[eval_pfunc (le_binop_pfunc _ _) _]] => rewrite le_binop_pfunc_spec
          | [ |- context[eval_pfunc (pfunc_restrict_eq_set _ _) _]] => rewrite pfunc_restrict_eq_set_spec
          | [ |- context[eval_pfunc (pfunc_restrict_ne_set _ _) _]] => rewrite pfunc_restrict_ne_set_spec
-         | [ |- context[(?z =? ?z)%Z]] => rewrite Z.eqb_refl
-         | _ => rewrite /=
+         | _ => simpl_totalmap_Z
          end.

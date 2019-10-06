@@ -37,27 +37,27 @@ Coercion eval_map : total_map >-> Funclass.
 
 (* Useful lemmas and theorems *)
 
-Lemma t_apply_empty : forall (A : Type) (x : string) (v : A),
+Lemma t_apply_empty : forall {A : Type} (x : string) (v : A),
     (_ !-> v) x = v.
 Proof.
   by [].
 Qed.
 
-Lemma t_update_eq : forall (A : Type) (m : total_map A) (x: string) (v: A),
+Lemma t_update_eq : forall {A : Type} (m : total_map A) (x: string) (v: A),
     (x !-> v ; m) x = v.
 Proof.
   move => A m x v /=.
   by rewrite eqb_refl.
 Qed.
 
-Theorem t_update_neq : forall (A : Type) (m : total_map A) (x1 x2: string) (v: A),
+Theorem t_update_neq : forall {A : Type} (m : total_map A) (x1 x2: string) (v: A),
     x1 <> x2 ->
     (x1 !-> v ; m) x2 = m x2.
 Proof.
   by move => A m x1 x2 v /eqb_neq /= ->.
 Qed.
 
-Lemma t_update_shadow : forall (A : Type) (m : total_map A) (x: string) (v1 v2: A),
+Lemma t_update_shadow : forall {A : Type} (m : total_map A) (x: string) (v1 v2: A),
     eval_map (x !-> v2 ; x !-> v1 ; m) = eval_map (x !-> v2 ; m).
 Proof.
   move => A m x v1 v2 /=.
@@ -65,7 +65,7 @@ Proof.
   by case (x =? x').
 Qed.
 
-Theorem t_update_same : forall (A : Type) (m : total_map A) (x: string),
+Theorem t_update_same : forall {A : Type} (m : total_map A) (x: string),
     eval_map (x !-> m x ; m) = eval_map m.
 Proof.
   move => A m x /=.
@@ -73,7 +73,7 @@ Proof.
   by case (eqb_spec x x') => [<- | _].
 Qed.
 
-Theorem t_update_permute : forall (A : Type) (m : total_map A)
+Theorem t_update_permute : forall {A : Type} (m : total_map A)
                                   (v1 v2: A) (x1 x2: string),
     x2 <> x1 ->
     eval_map (x1 !-> v1 ; x2 !-> v2 ; m) =
@@ -139,10 +139,11 @@ Qed.
 
 Ltac simpl_totalmap :=
 repeat match goal with
-       | [ |- context[eval_map (TEmpty _) _] ] => rewrite t_apply_empty
+       | [ |- context[eval_map (_ !-> _) _] ] => rewrite t_apply_empty
        | [ |- context[eval_map (?v !-> _ ; _) ?v]] => rewrite t_update_eq
+       | [ H : ?v1 <> ?v2 |- context[eval_map (?v1 !-> _ ; _) ?v2] ] => rewrite (t_update_neq _ _ _ _ H)
        | [ |- context[eval_map (?v !-> _ ; ?v !-> _ ; _)]] => rewrite t_update_shadow
-       | [ |- context[eval_map (?x !-> ?m ?x ; ?m)]] => rewrite t_update_same
+       | [ |- context[eval_map (?x !-> eval_map ?m ?x ; ?m)]] => rewrite t_update_same
        | [ |- context[(?s =? ?s)%string]] => rewrite eqb_refl
        | [ |- context[eval_map (pointwise_un_op _ _) _]] => rewrite pointwise_un_op_spec
        | [ |- context[eval_map (pointwise_bin_op _ _ _) _]] => rewrite pointwise_bin_op_spec
@@ -326,3 +327,5 @@ Proof.
   - auto.
   - by apply H.
 Qed.
+
+Global Opaque eval_map.

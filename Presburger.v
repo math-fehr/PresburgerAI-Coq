@@ -23,7 +23,7 @@ Fixpoint used_in_aff (a: Aff) (v: string) :=
   | AMul c a' => used_in_aff a' v
   end.
 
-Fixpoint eval_aff (a: Aff) (m: total_map Z) :=
+Fixpoint eval_aff (a: Aff) (m: string -> Z) :=
   match a with
   | AConst c => c
   | AVar v => m v
@@ -34,8 +34,8 @@ Fixpoint eval_aff (a: Aff) (m: total_map Z) :=
 
 Class PresburgerImpl (PSet PwAff: Type) :=
   {
-    eval_set : PSet -> total_map Z -> bool;
-    eval_set_same : forall (m1 m2: total_map Z),
+    eval_set : PSet -> (string -> Z) -> bool;
+    eval_set_same : forall m1 m2,
         (forall x, m1 x = m2 x) -> forall s, eval_set s m1 = eval_set s m2;
 
     empty_set : PSet;
@@ -57,11 +57,11 @@ Class PresburgerImpl (PSet PwAff: Type) :=
                               forall x, eval_set p1 x -> eval_set p2 x;
 
     set_project_out : PSet -> string -> PSet;
-    set_project_out_spec : forall p d x, eval_set (set_project_out p d) x <->
-                                    exists v, eval_set p (d !-> v; x);
+    set_project_out_spec : forall p d (m: total_map Z), eval_set (set_project_out p d) m <->
+                                    exists v, eval_set p (d !-> v; m);
 
 
-    eval_pw_aff : PwAff -> total_map Z -> option Z;
+    eval_pw_aff : PwAff -> (string -> Z) -> option Z;
 
     pw_aff_from_aff : Aff -> PwAff;
     pw_aff_from_aff_spec : forall a x, eval_pw_aff (pw_aff_from_aff a) x = Some (eval_aff a x);
