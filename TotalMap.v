@@ -135,25 +135,6 @@ Proof.
     case (eqb_spec x x0) => [ -> // | //].
 Qed.
 
-(* Useful tactic which apply known lemmas *)
-
-Ltac simpl_totalmap :=
-repeat match goal with
-       | [ |- context[eval_map (_ !-> _) _] ] => rewrite t_apply_empty
-       | [ |- context[eval_map (?v !-> _ ; _) ?v]] => rewrite t_update_eq
-       | [ H : ?v1 <> ?v2 |- context[eval_map (?v1 !-> _ ; _) ?v2] ] => rewrite (t_update_neq _ _ _ _ H)
-       | [ |- context[eval_map (?v !-> _ ; ?v !-> _ ; _)]] => rewrite t_update_shadow
-       | [ |- context[eval_map (?x !-> eval_map ?m ?x ; ?m)]] => rewrite t_update_same
-       | [ |- context[(?s =? ?s)%string]] => rewrite eqb_refl
-       | [ |- context[eval_map (pointwise_un_op _ _) _]] => rewrite pointwise_un_op_spec
-       | [ |- context[eval_map (pointwise_bin_op _ _ _) _]] => rewrite pointwise_bin_op_spec
-       | _ => rewrite /=
-       end.
-
-Ltac simpl_totalmap_Z :=
-  repeat ( simpl_totalmap; rewrite ?Z.eqb_refl ).
-
-
 Fixpoint list_string_in (l: list string) (s: string) :=
   match l with
   | nil => false
@@ -327,5 +308,24 @@ Proof.
   - auto.
   - by apply H.
 Qed.
+
+(* Useful tactic which apply known lemmas *)
+
+Ltac simpl_totalmap :=
+repeat match goal with
+       | [ |- context[eval_map (_ !-> _) _] ] => rewrite t_apply_empty
+       | [ |- context[eval_map (?v !-> _ ; _) ?v]] => rewrite t_update_eq
+       | [ H : ?v1 <> ?v2 |- context[eval_map (?v1 !-> _ ; _) ?v2] ] => rewrite (t_update_neq _ _ _ _ H)
+       | [ |- context[eval_map (?v !-> _ ; ?v !-> _ ; _)]] => rewrite t_update_shadow
+       | [ |- context[eval_map (?x !-> eval_map ?m ?x ; ?m)]] => rewrite t_update_same
+       | [ |- context[(?s =? ?s)%string]] => rewrite eqb_refl
+       | [ |- context[eval_map (pointwise_un_op _ _) _]] => rewrite pointwise_un_op_spec
+       | [ |- context[eval_map (pointwise_bin_op _ _ _) _]] => rewrite pointwise_bin_op_spec
+       | [ |- is_true (forall_bin_op _ _ _)] => apply forall_bin_op_spec
+       | _ => rewrite /=
+       end.
+
+Ltac simpl_totalmap_Z :=
+  repeat ( simpl_totalmap; rewrite ?Z.eqb_refl ).
 
 Global Opaque eval_map.

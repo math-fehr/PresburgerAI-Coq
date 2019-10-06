@@ -4,7 +4,7 @@ Require Export Coq.Sets.Ensembles.
 From Coq Require Import ssreflect ssrfun ssrbool.
 
 Definition gamma_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} :=
-  fun p r => forall s, in_V (eval_map r s) (eval_pfunc (eval_map p s) (eval_map (pointwise_un_op r VVal))).
+  fun pl (R: total_map Z) => forall s, in_V (R s) (eval_pfunc_Z (pl s) R).
 
 Definition le_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} :=
   fun a1 a2 => forall_bin_op a1 a2 le_pfunc.
@@ -33,13 +33,9 @@ Theorem gamma_pfunc_map_monotone {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall a1 a2, le_pfunc_map a1 a2 -> Included RegisterMap (gamma_pfunc_map a1) (gamma_pfunc_map a2).
 Proof.
   move => a1 a2 Hle.
-  rewrite /le_pfunc_map forall_bin_op_spec /Included /In /gamma_pfunc_map in Hle *.
-  move => Hle x Hin s.
-  move: (Hle s).
-  rewrite le_pfunc_spec => Htemp.
-  move: (Htemp (eval_map (pointwise_un_op x VVal))).
-  rewrite le_V_spec => Htemp2.
-  by apply (Htemp2 (eval_map x s)).
+  rewrite /le_pfunc_map forall_bin_op_spec /Included /In /gamma_pfunc_map in Hle * => Hle x Hin s.
+    by move: Hle => /(_ s) /le_pfunc_spec /(_ (eval_map (pointwise_un_op x VVal)))
+                    /le_V_spec /(_ _ (Hin _)) Hle.
 Qed.
 
 Theorem gamma_pfunc_map_top {PFunc: Type} {PI: PFuncImpl PFunc} :
@@ -55,17 +51,16 @@ Theorem join_pfunc_map_sound_l {PFunc: Type} {PI: PFuncImpl PFunc} :
 Proof.
   move => a1 a2.
   rewrite /join_pfunc_map /le_pfunc_map forall_bin_op_spec => v.
-  rewrite pointwise_bin_op_spec.
-  apply join_pfunc_spec_l.
+  by simpl_pfunc.
 Qed.
 
 Theorem join_pfunc_map_sound_r {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall a1 a2, le_pfunc_map a2 (join_pfunc_map a1 a2).
 Proof.
   move => a1 a2.
-  rewrite /join_pfunc_map /le_pfunc_map forall_bin_op_spec => v.
-  rewrite pointwise_bin_op_spec.
-  apply join_pfunc_spec_r.
+  rewrite /join_pfunc_map /le_pfunc_map.
+  simpl_pfunc => v.
+  by simpl_pfunc.
 Qed.
 
 Instance PFuncMapAD {PFunc: Type} (PI: PFuncImpl PFunc) : adom (total_map PFunc) :=

@@ -196,6 +196,9 @@ Class PFuncImpl (PFunc: Type) :=
                  (eval_pfunc p m);
   }.
 
+Definition eval_pfunc_Z {PFunc: Type} {PI: PFuncImpl PFunc} (p: PFunc) (m: total_map Z) :=
+  eval_pfunc p (pointwise_un_op m VVal).
+
 Theorem le_pfunc_refl {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall a, le_pfunc a a.
 Proof.
@@ -214,6 +217,7 @@ Qed.
 
 Ltac simpl_pfunc :=
   repeat match goal with
+         | [ |- context[eval_pfunc_Z _ _]] => rewrite /eval_pfunc_Z
          | [ |- context[le_V ?v ?v] ] => rewrite le_V_refl
          | [ |- context[eval_pfunc (constant_pfunc _)]] => rewrite constant_pfunc_spec
          | [ |- context[le_pfunc ?p (join_pfunc ?p _)]] => rewrite join_pfunc_spec_l
