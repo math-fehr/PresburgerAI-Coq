@@ -18,14 +18,14 @@ Lemma transfer_presburger_set_const_sound_aux {PSet PwAff: Type} (P: PresburgerI
 Proof.
   move=> v c R l R' l' [HR' Hl'] a Hingamma.
   rewrite /Ensembles.In /transfer_presburger_set_const /gamma /= in Hingamma *.
-  simpl_eval_presburger.
+  simpl_presburger.
   apply /andP.
   rewrite HR'.
   split.
   - by simpl_totalmap_Z.
-  - simpl_eval_presburger.
+  - simpl_presburger.
     exists (eval_map R v).
-    by simpl_eval_presburger.
+    by simpl_presburger.
 Qed.
 
 
@@ -77,19 +77,19 @@ Lemma transfer_presburger_set_binop_sound_aux {PSet PwAff: Type} (P: PresburgerI
 Proof.
   move=> v opc op1 op2 Hop1 Hop2 R l R' l' [HR' Hl'] a Hingamma.
   rewrite /Ensembles.In /transfer_presburger_set_const /gamma /= in Hingamma *.
-  simpl_eval_presburger.
+  simpl_presburger.
   apply /andP.
   rewrite !HR'.
   split.
   - simpl_totalmap_Z.
     case opc.
-    + by simpl_eval_presburger.
-    + by simpl_eval_presburger.
-    + simpl_eval_presburger.
+    + by simpl_presburger.
+    + by simpl_presburger.
+    + simpl_presburger.
       by case (eval_map R op1 <=? eval_map R op2)%Z.
-  - simpl_eval_presburger.
+  - simpl_presburger.
     exists (eval_map R v).
-    by simpl_eval_presburger.
+    by simpl_presburger.
 Qed.
 
 Theorem transfer_presburger_set_binop_sound {PSet PwAff: Type} (P: PresburgerImpl PSet PwAff) :
@@ -145,10 +145,10 @@ Proof.
     + rewrite Heq.
       apply Hind.
       rewrite /Ensembles.In /gamma /=.
-      by simpl_eval_presburger.
+      by simpl_presburger.
     + apply Hind.
       rewrite /= /Ensembles.In.
-      simpl_eval_presburger.
+      simpl_presburger.
       exists (eval_map R param).
       by simpl_totalmap.
 Qed.
@@ -217,22 +217,18 @@ Proof.
     + right. left. move: H7 => [HR' Hl'].
       by rewrite Hl' //.
     + move: H7 => [HR' Hl'].
-      rewrite HR' /= /Ensembles.In (constraint_eq_one_variable_correct R a c) in HIn *.
-      rewrite presburger_affect_variables_sound => [ | //].
-      rewrite /Ensembles.In /gamma /= !intersect_set_spec in HIn *.
-      move: HIn => /andP[HIn1 HIn2].
-      split => [// | ].
-      rewrite Z.eqb_eq in HRC * => HRC.
-      by rewrite -HRC /Ensembles.In.
+      rewrite HR' /= /Ensembles.In in HIn *.
+      rewrite presburger_affect_variables_sound /Ensembles.In => [// | ].
+      simpl_presburger.
+      by apply /andP.
   - eexists. simpl. split.
     + left. move: H7 => [HR' Hl'].
       rewrite Hl' //.
     + move: H7 => [HR' Hl'].
-      rewrite Z.eqb_neq in HRC * => HRC.
-      rewrite HR' /= /Ensembles.In (constraint_neq_one_variable_correct R c 0) in HIn * => [ | //].
-      rewrite presburger_affect_variables_sound => [ | //].
-      rewrite /Ensembles.In /gamma /= !intersect_set_spec in HIn *.
-      by move: HIn => /andP[HIn1 HIn2].
+      rewrite /Ensembles.In HR' presburger_affect_variables_sound /Ensembles.In //=.
+      simpl_presburger.
+      apply /andP.
+      by rewrite HRC.
 Qed.
 
 

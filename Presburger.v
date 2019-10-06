@@ -144,54 +144,22 @@ Proof.
     by rewrite union_set_spec Hp2 orbT.
 Qed.
 
-Theorem eval_set_same_shadow `{PI: PresburgerImpl PSet PwAff} :
-  forall p m v x1 x2, eval_set p (v !-> x1; v !-> x2; m) = eval_set p (v !-> x1; m).
-  move => p m v x1 x2.
-  apply eval_set_same => v'.
-    by rewrite t_update_shadow.
-Qed.
-
-Theorem eval_set_same_same `{PI: PresburgerImpl PSet PwAff} :
-  forall p m v , eval_set p (v !-> m v; m) = eval_set p m.
-  move => p m v.
-  apply eval_set_same => v'.
-    by rewrite t_update_same.
-Qed.
-
-Ltac simpl_eval_presburger :=
-  repeat (
-      rewrite ?empty_set_spec ?universe_set_spec ?union_set_spec
-              ?intersect_set_spec ?is_subset_spec ?set_project_out_spec
-              ?pw_aff_from_aff_spec ?intersect_domain_spec ?union_pw_aff_spec
-              ?eq_set_spec ?ne_set_spec ?le_set_spec ?indicator_function_spec
-              ?is_subset_refl ?is_subset_union_l ?is_subset_union_r
-              ?eval_set_same_shadow ?eval_set_same_same;
-      simpl_totalmap_Z
-    ).
-
-
-Theorem constraint_eq_one_variable_correct `{PI: PresburgerImpl PSet PwAff} :
-  forall m p x, eval_set p m =
-           eval_set (intersect_set
-                       (eq_set
-                          (pw_aff_from_aff (AVar x))
-                          (pw_aff_from_aff (AConst (m x))))
-                       p) m.
-Proof.
-  move => m p x.
-  by simpl_eval_presburger.
-Qed.
-
-Theorem constraint_neq_one_variable_correct `{PI: PresburgerImpl PSet PwAff} :
-  forall (m: total_map Z) x v,
-    m x <> v -> forall p, eval_set p m =
-                   eval_set (intersect_set
-                               (ne_set
-                                  (pw_aff_from_aff (AVar x))
-                                  (pw_aff_from_aff (AConst v)))
-                               p) m.
-Proof.
-  move => m x v /Z.eqb_neq Hne p.
-  simpl_eval_presburger.
-  by rewrite Hne.
-Qed.
+Ltac simpl_presburger :=
+  repeat match goal with
+         | [ |- context[eval_set empty_set _]] => rewrite (negbTE (empty_set_spec _))
+         | [ |- context[eval_set universe_set _]] => rewrite universe_set_spec
+         | [ |- context[eval_set (union_set _ _) _]] => rewrite union_set_spec
+         | [ |- context[eval_set (intersect_set _ _) _]] => rewrite intersect_set_spec
+         | [ |- context[eval_set (set_project_out _ _) _]] => rewrite set_project_out_spec
+         | [ |- context[eval_pw_aff (pw_aff_from_aff _) _]] => rewrite pw_aff_from_aff_spec
+         | [ |- context[eval_pw_aff (intersect_domain _ _) _]] => rewrite intersect_domain_spec
+         | [ |- context[eval_pw_aff (union_pw_aff _ _) _]] => rewrite union_pw_aff_spec
+         | [ |- context[eval_set (eq_set _ _) _]] => rewrite eq_set_spec
+         | [ |- context[eval_set (ne_set _ _) _]] => rewrite ne_set_spec
+         | [ |- context[eval_set (le_set _ _) _]] => rewrite le_set_spec
+         | [ |- context[eval_pw_aff (indicator_function _) _]] => rewrite indicator_function_spec
+         | [ |- context[is_subset ?s ?s]] => rewrite is_subset_refl
+         | [ |- context[is_subset ?s (union_set ?s _)]] => rewrite is_subset_union_l
+         | [ |- context[is_subset ?s (union_set _ ?s)]] => rewrite is_subset_union_r
+         | _ => simpl_totalmap_Z
+         end.

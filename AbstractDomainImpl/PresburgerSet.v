@@ -23,7 +23,7 @@ Theorem gamma_presburger_top {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} 
 Proof.
   move => x.
   rewrite /Ensembles.In.
-  by simpl_eval_presburger.
+  by simpl_presburger.
 Qed.
 
 Instance PresburgerSetAD {PSet PwAff: Type} (PI : PresburgerImpl PSet PwAff) : adom PSet :=
