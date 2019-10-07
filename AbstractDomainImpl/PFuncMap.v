@@ -4,7 +4,7 @@ Require Export Coq.Sets.Ensembles.
 From Coq Require Import ssreflect ssrfun ssrbool.
 
 Definition gamma_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} :=
-  fun pl (R: total_map Z) => forall s, in_V (R s) (eval_pfunc_Z (pl s) R).
+  fun pl (R: total_map Z) => forall s, in_V (R s) (eval_pfunc (pl s) (pointwise_un_op R VVal)).
 
 Definition le_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} :=
   fun a1 a2 => forall_bin_op a1 a2 le_pfunc.
@@ -43,7 +43,6 @@ Theorem gamma_pfunc_map_top {PFunc: Type} {PI: PFuncImpl PFunc} :
 Proof.
   move => x.
   rewrite /In /gamma_pfunc_map => s.
-  rewrite /eval_pfunc_Z.
     by simpl_pfunc.
 Qed.
 

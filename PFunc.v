@@ -196,9 +196,6 @@ Class PFuncImpl (PFunc: Type) :=
                  (eval_pfunc p m);
   }.
 
-Definition eval_pfunc_Z {PFunc: Type} {PI: PFuncImpl PFunc} (p: PFunc) (m: total_map Z) :=
-  eval_pfunc p (pointwise_un_op m VVal).
-
 Theorem le_pfunc_refl {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall a, le_pfunc a a.
 Proof.
@@ -215,14 +212,14 @@ Proof.
     by apply (le_V_trans _ (eval_pfunc a2 x)).
 Qed.
 
-Theorem is_constant_on_var_Z_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
+Theorem is_constant_on_var_update_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
       forall p v, is_constant_on_var p v ->
-             forall z m, eval_pfunc_Z p (v !-> z; m) = eval_pfunc_Z p m.
+             forall z m, eval_pfunc p (v !-> z; m) = eval_pfunc p m.
 Proof.
   move => p v Hconst z m.
   apply (iffLR (is_constant_on_var_spec _ _)) with
-        (m0 := eval_map (pointwise_un_op m VVal))
-        (m' := eval_map (pointwise_un_op (v !-> z; m) VVal))
+        (m0 := eval_map m)
+        (m' := eval_map (v !-> z; m))
       in Hconst => [ // | v' Hne ].
     by simpl_totalmap.
 Qed.
@@ -250,8 +247,8 @@ Ltac simpl_pfunc :=
          | [ |- context[eval_pfunc (le_binop_pfunc _ _) _]] => rewrite le_binop_pfunc_spec
          | [ |- context[eval_pfunc (pfunc_restrict_eq_set _ _) _]] => rewrite pfunc_restrict_eq_set_spec
          | [ |- context[eval_pfunc (pfunc_restrict_ne_set _ _) _]] => rewrite pfunc_restrict_ne_set_spec
-         | [ H: is_true (is_constant_on_var ?p ?v) |- context[eval_pfunc_Z ?p (?v !-> ?z; ?m)]] =>
-           rewrite (is_constant_on_var_Z_spec p v H z m)
+         | [ H: is_true (is_constant_on_var ?p ?v) |- context[eval_pfunc ?p (?v !-> ?z; ?m)]] =>
+           rewrite (is_constant_on_var_update_spec p v H z m)
          | [ H: is_true (is_constant_on_var ?p ?v) |- context[eval_pfunc ?p (eval_map (?v !-> ?x; ?m))]] =>
            rewrite ((iffLR (is_constant_on_var_spec p v)) H (v !-> x; m) m (t_update_other m x v))
          | [ H1: is_true (in_V ?x1 ?v1), H2: is_true (in_V ?x2 ?v2) |- context[in_V (?x1 + ?x2) (add_V ?v1 ?v2)]] =>
