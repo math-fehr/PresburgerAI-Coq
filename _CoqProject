@@ -4,6 +4,7 @@
 TotalMap.v
 PFunc.v
 SSA.v
+LSSA.v
 AbstractDomain.v
 AbstractDomainImpl/PresburgerSet.v
 AbstractDomainImpl/PFuncMap.v
