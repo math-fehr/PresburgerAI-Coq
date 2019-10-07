@@ -1,15 +1,16 @@
 # things in this folder are _recursively visible_
 # For more reading, see: https://coq.inria.fr/refman/practical-tools/coq-commands.html#by-command-line-options
--R . PolyAI
-TotalMap.v
-PFunc.v
-SSA.v
-LSSA.v
-AbstractDomain.v
-AbstractDomainImpl/PresburgerSet.v
-AbstractDomainImpl/PFuncMap.v
-TransferFunction.v
-TransferFunctionImpl/PresburgerSet.v
-TransferFunctionImpl/PFuncMap.v
-AbstractInterpreter.v
-Presburger.v
+
+-R src/ PolyAI
+src/TotalMap.v
+src/PFunc.v
+src/SSA.v
+src/LSSA.v
+src/AbstractDomain.v
+src/AbstractDomainImpl/PresburgerSet.v
+src/AbstractDomainImpl/PFuncMap.v
+src/TransferFunction.v
+src/TransferFunctionImpl/PresburgerSet.v
+src/TransferFunctionImpl/PFuncMap.v
+src/AbstractInterpreter.v
+src/Presburger.v
