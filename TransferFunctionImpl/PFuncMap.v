@@ -21,7 +21,6 @@ Proof.
     by simpl_pfunc.
 Qed.
 
-
 Definition pfunc_map_assign_pfunc {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map PFunc) (v: string) (p: PFunc) :=
   let projected_a := pointwise_un_op a (fun a' => constant_or_set_to_top_pfunc a' v) in
   let new_a := (v !-> p ; projected_a) in
@@ -29,25 +28,19 @@ Definition pfunc_map_assign_pfunc {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_
 
 Theorem pfunc_map_assign_pfunc_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall a R, Ensembles.In RegisterMap (gamma a) R ->
-         forall p z v, in_V z (eval_pfunc p (eval_map (pointwise_un_op (v !-> z; R) VVal)))
+         forall p z v, in_V z (eval_pfunc_Z p (v !-> z; R))
                 -> Ensembles.In RegisterMap (gamma (pfunc_map_assign_pfunc a v p)) (v !-> z; R).
 Proof.
   move => a R HInR p z v HinR' /=.
   rewrite /In /gamma_pfunc_map /pfunc_map_assign_pfunc => v'.
   case (eqb_spec v v') => [<- | Hne ]. by simpl_totalmap.
-  rewrite t_update_neq; last first. by [].
-  rewrite /=.
   simpl_totalmap.
   rewrite /constant_or_set_to_top_pfunc.
   case (is_constant_on_var (eval_map a v') v) eqn:Hconstant; last first.
-    by simpl_pfunc.
-  apply is_constant_on_var_spec with
-        (m := eval_map (pointwise_un_op R VVal))
-        (m' := (fun x : string => if (v =? x)%string then VVal z else eval_map (pointwise_un_op R VVal) x)) in Hconstant.
-    by rewrite -Hconstant.
-    move => v'0 /eqb_spec.
-    rewrite eqb_sym.
-      by move => /negb_true_iff ->.
+    by rewrite /eval_pfunc_Z; simpl_pfunc.
+  have Hconstant' : (is_true (is_constant_on_var (a v') v)).
+    by [].
+  by simpl_pfunc.
 Qed.
 
 
@@ -60,6 +53,7 @@ Theorem pfunc_assign_const_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
 Proof.
   move => a R HIn v c.
   apply pfunc_map_assign_pfunc_spec => [// | ].
+  rewrite /eval_pfunc_Z.
     by simpl_pfunc.
 Qed.
 
@@ -92,38 +86,18 @@ Definition binop_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} (res: string) (op
 Theorem binop_pfunc_map_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall res op1, is_constant_on_var op1 res ->
              forall op2, is_constant_on_var op2 res ->
-                    forall R x1, in_V x1 (eval_pfunc op1 (eval_map R)) ->
-                            forall x2, in_V x2 (eval_pfunc op2 (eval_map R)) ->
-                                  forall opc, in_V (bin_op_eval opc x1 x2) (eval_pfunc (binop_pfunc_map res op1 op2 opc) (eval_map (res !-> VVal (bin_op_eval opc x1 x2); R))).
+                    forall R x1, in_V x1 (eval_pfunc_Z op1 R) ->
+                            forall x2, in_V x2 (eval_pfunc_Z op2 R) ->
+                                  forall opc, in_V (bin_op_eval opc x1 x2) (eval_pfunc_Z (binop_pfunc_map res op1 op2 opc) (res !-> bin_op_eval opc x1 x2; R)).
 Proof.
   move => res op1 Hconst1 op2 Hconst2 R x1 Hin1 x2 Hin2 [ | | ].
-  - rewrite /bin_op_eval.
-    simpl_pfunc.
-    apply is_constant_on_var_spec with
-        (m := eval_map R)
-        (m' := fun x : string => if (res =? x)%string then VVal (x1 + x2) else eval_map R x)
-      in Hconst1;
-      apply is_constant_on_var_spec with
-        (m := eval_map R)
-        (m' := fun x : string => if (res =? x)%string then VVal (x1 + x2) else eval_map R x)
-      in Hconst2;
-      try (move => v' /eqb_spec /negb_true_iff; by rewrite eqb_sym => ->).
-    rewrite -Hconst1 -Hconst2.
-      by rewrite add_V_spec.
-  - by simpl_pfunc.
-  - rewrite /bin_op_eval.
-    simpl_pfunc.
-    apply is_constant_on_var_spec with
-        (m := eval_map R)
-        (m' := fun x : string => if (res =? x)%string then VVal (if (x1 <=? x2)%Z then 1%Z else 0%Z) else eval_map R x)
-      in Hconst1;
-      apply is_constant_on_var_spec with
-        (m := eval_map R)
-        (m' := fun x : string => if (res =? x)%string then VVal (if (x1 <=? x2)%Z then 1%Z else 0%Z) else eval_map R x)
-      in Hconst2;
-      try (move => v' /eqb_spec /negb_true_iff; by rewrite eqb_sym => ->).
-    rewrite -Hconst1 -Hconst2.
-      by rewrite le_binop_V_spec.
+  - rewrite /= /eval_pfunc_Z in Hin1 Hin2 *.
+    by simpl_pfunc.
+  - rewrite /eval_pfunc_Z.
+    by simpl_pfunc.
+  - simpl_pfunc.
+    rewrite /eval_pfunc_Z in Hin1 Hin2 *.
+    by simpl_pfunc.
 Qed.
 
 Definition pfunc_assign_arith {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map PFunc) (opr op1 op2: string) (opc: BinArithOpCode):=
@@ -133,19 +107,20 @@ Definition pfunc_assign_arith {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map 
 
 Theorem pfunc_assign_arith_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall a R, In RegisterMap (gamma a) R ->
-         forall opr op1 op2 opc, In RegisterMap (gamma (pfunc_assign_arith a opr op1 op2 opc)) (opr !-> bin_op_eval opc (eval_map R op1) (eval_map R op2); R).
+         forall opr op1 op2 opc, In RegisterMap (gamma (pfunc_assign_arith a opr op1 op2 opc))
+                               (opr !-> bin_op_eval opc (R op1) (R op2); R).
 Proof.
   move => a R HInR opr op1 op2 opc.
   apply pfunc_map_assign_pfunc_spec => [// | ].
-  rewrite [pointwise_un_op _ _]/=.
+  rewrite /eval_pfunc_Z [pointwise_un_op _ _]/=.
   apply binop_pfunc_map_spec.
   - by apply constant_or_set_to_top_pfunc_is_constant.
   - by apply constant_or_set_to_top_pfunc_is_constant.
-  - rewrite /In /gamma /= /gamma_pfunc_map in HInR.
+  - rewrite /In /gamma /= /gamma_pfunc_map /eval_pfunc_Z in HInR *.
     rewrite /constant_or_set_to_top_pfunc.
     case (is_constant_on_var (eval_map a op1) opr) => [// | ].
       by simpl_pfunc.
-  - rewrite /In /gamma /= /gamma_pfunc_map in HInR.
+  - rewrite /In /gamma /= /gamma_pfunc_map /eval_pfunc_Z in HInR *.
     rewrite /constant_or_set_to_top_pfunc.
     case (is_constant_on_var (eval_map a op2) opr) => [// | ].
       by simpl_pfunc.
@@ -189,28 +164,26 @@ Lemma pfunc_map_affect_variables_sound {PFunc: Type} (P: PFuncImpl PFunc) :
     forall params, Ensembles.In RegisterMap (gamma (pfunc_map_affect_variables a params)) (affect_variables R params).
 Proof.
   move => R a HR params.
-  elim: params R a HR.
-  - by [].
-  - move => [param value] l Hind R a HR /=.
-    case (string_dec param value) => [Heq /= | /eqb_neq Hne /=].
-    + rewrite Heq.
-      apply Hind.
-      rewrite /Ensembles.In /gamma /= /gamma_pfunc_map => s0.
-      rewrite t_update_same.
-      have : (eval_map (pointwise_un_op (value !-> eval_map R value; R) VVal)) = (eval_map (pointwise_un_op R VVal)).
-      * extensionality s.
-        by simpl_pfunc.
-      * by move => ->.
-    + apply Hind.
-      rewrite /= /Ensembles.In /gamma_pfunc_map => s.
-      rewrite pfunc_map_assign_pfunc_spec; try (by []).
-      rewrite /constant_or_set_to_top_pfunc.
-      case (is_constant_on_var (eval_map a value) param) eqn:HConst; last first. by simpl_pfunc.
-      have: (is_constant_on_var (eval_map a value) param) by [] => HConstCoerc.
-      rewrite is_constant_on_var_spec in HConstCoerc *.
-      move => /(_ (eval_map (pointwise_un_op (param !-> eval_map R value; R) VVal))
-                 (eval_map (pointwise_un_op R VVal)))Heq.
-      rewrite Heq => [// | v' Hnev'].
+  elim: params R a HR. by [].
+  move => [param value] l Hind R a HR /=.
+  case (string_dec param value) => [Heq /= | /eqb_neq Hne /=].
+  - rewrite Heq.
+    apply Hind => s0.
+    simpl_pfunc.
+    rewrite /eval_pfunc_Z /=.
+    have HeqRvalue : (VVal (R value) = (pointwise_un_op R VVal) value). by simpl_pfunc.
+    rewrite HeqRvalue.
+    simpl_pfunc.
+      by apply HR.
+  - apply Hind => s.
+    rewrite pfunc_map_assign_pfunc_spec; try (by []).
+    rewrite /constant_or_set_to_top_pfunc /eval_pfunc_Z.
+    case (is_constant_on_var (a value) param) eqn:HConst; last first. by simpl_pfunc.
+    have: (is_constant_on_var (a value) param) by [] => HConstCoerc.
+    rewrite is_constant_on_var_spec in HConstCoerc *.
+    move => /(_ (eval_map (pointwise_un_op (param !-> eval_map R value; R) VVal))
+               (eval_map (pointwise_un_op R VVal))) Heq.
+    rewrite Heq => [ | v' Hnev']. by apply HR.
       by simpl_totalmap.
 Qed.
 
@@ -229,15 +202,11 @@ Proof.
   exists (fst (transfer_pfunc_map_branch a l_ params)).
   inversion Hstep. subst.
   rewrite -Hinst in H6.
-  case: H6 => H6.
-  rewrite H6 /= in H7.
-  move: H7 => [HR' Hl'].
+  case: H6 => -> /= in H7.
+  move: H7 => [-> ->].
   split.
-  - left.
-    rewrite Hl'.
-    by [].
-  - rewrite /transfer_pfunc_map_branch [_.1]/= HR'.
-      by apply pfunc_map_affect_variables_sound.
+  - by left.
+  - by apply pfunc_map_affect_variables_sound.
 Qed.
 
 (* Transfer function for conditional branch instruction *)
@@ -263,51 +232,47 @@ Proof.
   move => c l1 params1 l2 params2 prog R l R' l' Hstep Hinst a Hin.
   inversion Hstep. subst.
   rewrite -Hinst in H6.
-  case: H6 => Hs.
-  rewrite Hs /= in H7.
+  case: H6 => -> /= in H7.
   case (eval_map R c =? 0)%Z eqn:HRC in H7.
   - eexists. split. by right; left; move: H7 => [HR' -> //].
-    move: H7 => [-> Hl'].
-    rewrite /In /gamma /= /gamma_pfunc_map => s0.
-    rewrite pfunc_map_affect_variables_sound. by [].
-    rewrite /pfunc_map_assign_pfunc /In /gamma /= /gamma_pfunc_map => s1.
-    simpl_pfunc.
+    apply Z.eqb_eq in HRC.
+    move: H7 => [-> _] s0.
+    rewrite pfunc_map_affect_variables_sound => [// | s1].
+    rewrite /eval_pfunc_Z /pfunc_map_assign_pfunc.
     case (eqb_spec c s1) => [ <- | Hne ].
-    + simpl_pfunc.
-      rewrite /constant_or_set_to_top_pfunc.
-      case (is_constant_on_var (eval_map a c) c); last first. by simpl_pfunc.
-      rewrite /In /gamma /= /gamma_pfunc_map in Hin.
+    + rewrite /constant_or_set_to_top_pfunc.
+      simpl_pfunc.
+      case (is_constant_on_var (eval_map a c) c); last first;
+        rewrite !HRC. by simpl_pfunc.
       move: Hin => /(_ c).
-      move: HRC => /Z.eqb_eq -> Hin.
+      move: HRC => -> Hin.
         by rewrite Hin.
     + simpl_totalmap.
       rewrite /constant_or_set_to_top_pfunc.
       case (is_constant_on_var (eval_map a s1) c) eqn:Hconst; last first. by simpl_pfunc.
-        by [].
+        by apply Hin.
   - eexists. split. by left; move: H7 => [-> -> //].
-    move: H7 => [-> Hl'].
-    rewrite /In /gamma /= /gamma_pfunc_map => s0.
-    rewrite pfunc_map_affect_variables_sound. by [].
-    rewrite /pfunc_map_assign_pfunc /In /gamma /= /gamma_pfunc_map => s1.
-    simpl_pfunc.
-    simpl_totalmap.
-    case (eqb_spec c s1) => [ <- | Hne ].
-    + simpl_pfunc.
-      rewrite /constant_or_set_to_top_pfunc.
-      case (is_constant_on_var (eval_map a c) c); last first. by simpl_pfunc.
-      rewrite /In /gamma /= /gamma_pfunc_map in Hin.
+    move: H7 => [-> _] s0.
+    rewrite pfunc_map_affect_variables_sound => [// | s1].
+    rewrite /eval_pfunc_Z.    case (eqb_spec c s1) => [ <- | Hne ].
+    + rewrite /constant_or_set_to_top_pfunc.
+      rewrite /pfunc_map_assign_pfunc.
+      simpl_pfunc.
+      case (is_constant_on_var (eval_map a c) c); last first.
+        by simpl_pfunc.
       move: Hin => /(_ c) Hin.
-      case (eq_V (eval_pfunc (eval_map a c) (eval_map (pointwise_un_op R VVal))) (VVal 0)) eqn:HeqV;
-        last first. by [].
+      case (eq_V (eval_pfunc (a c) (pointwise_un_op R VVal)) (VVal 0)) eqn:HeqV => [ | //].
       rewrite /eq_V in HeqV.
       move: HeqV.
-      case (eval_pfunc (eval_map a c) (eval_map (pointwise_un_op R VVal))) eqn:HV0 => [//| /Z.eqb_eq Himpossible|//].
-      rewrite Himpossible in Hin.
-      case (eval_map R c) eqn:HeRc0 => //.
-    + simpl_pfunc.
+      case (eval_pfunc (a c) ((pointwise_un_op R VVal))) eqn:HV0 => [//| /Z.eqb_eq Himpossible|//].
+      rewrite /eval_pfunc_Z HV0 Himpossible in Hin.
+      by case (eval_map R c) eqn:HeRc0.
+    + rewrite /pfunc_map_assign_pfunc.
+      simpl_pfunc.
       rewrite /constant_or_set_to_top_pfunc.
-      case (is_constant_on_var (a s1) c) => [// | ].
-        by simpl_pfunc.
+      case (is_constant_on_var (a s1) c) => [ | ].
+      * by apply Hin.
+      * by simpl_pfunc.
 Qed.
 
 

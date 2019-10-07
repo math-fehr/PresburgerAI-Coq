@@ -43,6 +43,7 @@ Theorem gamma_pfunc_map_top {PFunc: Type} {PI: PFuncImpl PFunc} :
 Proof.
   move => x.
   rewrite /In /gamma_pfunc_map => s.
+  rewrite /eval_pfunc_Z.
     by simpl_pfunc.
 Qed.
 

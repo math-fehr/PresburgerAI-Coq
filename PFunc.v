@@ -215,9 +215,30 @@ Proof.
     by apply (le_V_trans _ (eval_pfunc a2 x)).
 Qed.
 
+Theorem is_constant_on_var_Z_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
+      forall p v, is_constant_on_var p v ->
+             forall z m, eval_pfunc_Z p (v !-> z; m) = eval_pfunc_Z p m.
+Proof.
+  move => p v Hconst z m.
+  apply (iffLR (is_constant_on_var_spec _ _)) with
+        (m0 := eval_map (pointwise_un_op m VVal))
+        (m' := eval_map (pointwise_un_op (v !-> z; m) VVal))
+      in Hconst => [ // | v' Hne ].
+    by simpl_totalmap.
+Qed.
+
+(* A useful lemma used in the next tactic *)
+Lemma t_update_other : forall {A : Type} (m : total_map A),
+    forall x v v', v <> v' ->
+              (v !-> x; m) v' = m v'.
+Proof.
+  move => A m x v v' Hne.
+    by simpl_totalmap.
+Qed.
+
+
 Ltac simpl_pfunc :=
   repeat match goal with
-         | [ |- context[eval_pfunc_Z _ _]] => rewrite /eval_pfunc_Z
          | [ |- context[le_V ?v ?v] ] => rewrite le_V_refl
          | [ |- context[eval_pfunc (constant_pfunc _)]] => rewrite constant_pfunc_spec
          | [ |- context[le_pfunc ?p (join_pfunc ?p _)]] => rewrite join_pfunc_spec_l
@@ -229,5 +250,13 @@ Ltac simpl_pfunc :=
          | [ |- context[eval_pfunc (le_binop_pfunc _ _) _]] => rewrite le_binop_pfunc_spec
          | [ |- context[eval_pfunc (pfunc_restrict_eq_set _ _) _]] => rewrite pfunc_restrict_eq_set_spec
          | [ |- context[eval_pfunc (pfunc_restrict_ne_set _ _) _]] => rewrite pfunc_restrict_ne_set_spec
+         | [ H: is_true (is_constant_on_var ?p ?v) |- context[eval_pfunc_Z ?p (?v !-> ?z; ?m)]] =>
+           rewrite (is_constant_on_var_Z_spec p v H z m)
+         | [ H: is_true (is_constant_on_var ?p ?v) |- context[eval_pfunc ?p (eval_map (?v !-> ?x; ?m))]] =>
+           rewrite ((iffLR (is_constant_on_var_spec p v)) H (v !-> x; m) m (t_update_other m x v))
+         | [ H1: is_true (in_V ?x1 ?v1), H2: is_true (in_V ?x2 ?v2) |- context[in_V (?x1 + ?x2) (add_V ?v1 ?v2)]] =>
+           rewrite (add_V_spec x1 v1 H1 x2 v2 H2)
+         | [ H1: is_true (in_V ?x1 ?v1), H2: is_true (in_V ?x2 ?v2) |- context[in_V (if (?x1 <=? ?x2)%Z then 1%Z else _) (le_binop_V ?v1 ?v2)]] =>
+           rewrite (le_binop_V_spec x1 v1 H1 x2 v2 H2)
          | _ => simpl_totalmap_Z
          end.
