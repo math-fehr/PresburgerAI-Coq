@@ -316,6 +316,7 @@ repeat match goal with
        | [ |- context[eval_map (_ !-> _) _] ] => rewrite t_apply_empty
        | [ |- context[eval_map (?v !-> _ ; _) ?v]] => rewrite t_update_eq
        | [ H : ?v1 <> ?v2 |- context[eval_map (?v1 !-> _ ; _) ?v2] ] => rewrite (t_update_neq _ _ _ _ H)
+       | [ |- context[eval_map (?v1 !-> _ ; ?m) ?v2]] => rewrite (t_update_neq m v1 v2 _); last first; [ by apply eqb_neq | idtac ]
        | [ |- context[eval_map (?v !-> _ ; ?v !-> _ ; _)]] => rewrite t_update_shadow
        | [ |- context[eval_map (?x !-> eval_map ?m ?x ; ?m)]] => rewrite t_update_same
        | [ |- context[(?s =? ?s)%string]] => rewrite eqb_refl
