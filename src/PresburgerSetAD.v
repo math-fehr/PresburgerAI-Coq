@@ -1,6 +1,4 @@
 From PolyAI Require Export Presburger AbstractDomain.
-Require Import PolyAI.SSA.
-Require Export Coq.Sets.Ensembles.
 From Coq Require Import ssreflect ssrfun ssrbool.
 
 Require Import String.

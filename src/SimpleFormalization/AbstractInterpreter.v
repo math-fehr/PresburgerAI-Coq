@@ -1,8 +1,5 @@
-Require Export PolyAI.SSA.
-Require Export PolyAI.TotalMap.
-Require Export PolyAI.AbstractDomain.
-Require Export PolyAI.TransferFunction.
-Require Export Coq.Sets.Ensembles.
+From PolyAI Require Export SSA TotalMap AbstractDomain.
+From PolyAI.SimpleFormalization Require Export TransferFunction.
 Require Import Coq.Program.Equality.
 Require Import Coq.Lists.List.
 From Coq Require Import ssreflect ssrfun ssrbool.
