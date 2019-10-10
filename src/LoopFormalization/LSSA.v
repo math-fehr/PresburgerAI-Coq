@@ -15,7 +15,7 @@ Definition bbid := string.
 Definition RegisterMap := total_map Z.
 
 (* The label is the program counter *)
-Definition state := total_map RegisterMap.
+Definition state := bbid * nat * RegisterMap.
 
 (* Basics binary arithmetic opcodes *)
 Inductive BinArithOpCode :=
@@ -100,19 +100,125 @@ Inductive term_step: Program -> Term -> RegisterMap -> (bbid * RegisterMap)
                     (bbF, (affect_variables R (get_inputs p bbF) paramsF))
 .
 
-(* The semantics of a list of instructions *)
+(* The small step semantics of a program *)
+Inductive step: Program -> state -> state -> Prop :=
+| InstStep (p: Program) (bb_id: bbid) (params: list vid) (insts: list Inst) (term: Term) :
+    p bb_id = Some (params, insts, term) ->
+    forall l inst, List.nth_error insts l = Some inst ->
+            forall R R', inst_step inst R R' ->
+                    step p (bb_id, l, R) (bb_id, S l, R')
+| TermStep (p: Program) (bb_id: bbid) (params: list vid) (insts: list Inst) (term: Term) :
+    p bb_id = Some (params, insts, term) ->
+    forall l, List.nth_error insts l = None ->
+         forall new_bbid R R', term_step p term R (new_bbid, R') ->
+                          step p (bb_id, l, R) (new_bbid, O, R').
+
+(* The reflexive and transitive closure of the trans relation *)
+Inductive multi_step: Program -> state -> state -> Prop :=
+| StepRefl : forall p s, multi_step p s s
+| StepTrans : forall p s s' s'', step p s s' -> multi_step p s' s'' -> multi_step p s s''.
+
+(* Interpretation of a single instruction *)
+Definition interpret_inst (inst: Inst) (R: RegisterMap) :=
+  match inst with
+  | Const v c => (v !-> c; R)
+  | BinOp v opc op1 op2 _ _ => (v !-> bin_op_eval opc (R op1) (R op2); R)
+  end.
+
+Theorem interpret_inst_spec :
+  forall inst R, inst_step inst R (interpret_inst inst R).
+Proof.
+  move => inst R.
+  case inst; constructor.
+Qed.
+
+(* Interpretation of a single terminator *)
+Definition interpret_term (p: Program) (t: Term) (R: RegisterMap) :=
+  match t with
+  | Br bb params => (bb, affect_variables R (get_inputs p bb) params)
+  | BrC c bbT paramsT bbF paramsF =>
+    if R c =? 0 then
+      (bbF, affect_variables R (get_inputs p bbF) paramsF)
+    else
+      (bbT, affect_variables R (get_inputs p bbT) paramsT)
+  end.
+
+Theorem interpret_term_spec :
+  forall p t R, term_step p t R (interpret_term p t R).
+Proof.
+  move => p t R.
+  case t => [ bb params | c bbT paramsT bbF paramsF /=].
+  - constructor.
+  - case (Z.eqb_spec (R c) 0); by constructor.
+Qed.
+
+(* Interpretation of a single step *)
+Definition interpret_step (p: Program) (bb_id: bbid) (pc: nat) (R: RegisterMap) :=
+  if p bb_id is Some (_, insts, term) then
+    if List.nth_error insts pc is Some inst then
+      Some (bb_id, S pc, interpret_inst inst R)
+    else
+      let (new_bb_id, R') := interpret_term p term R in
+      Some (new_bb_id, O, R')
+  else
+    None.
+
+Theorem interpret_step_spec :
+  forall p bb_id pc R state',
+    Some state' = interpret_step p bb_id pc R ->
+    step p (bb_id, pc, R) state'.
+Proof.
+  move => p bb_id pc R [[bb_id' pc'] R'].
+  rewrite /interpret_step.
+  case Hbb: (p bb_id) => [ [[params insts] term] | //].
+  case_eq (List.nth_error insts pc) => [inst Hinst [-> -> ->] | Hinst].
+  - eapply InstStep.
+    + by apply Hbb.
+    + by apply Hinst.
+    + by apply interpret_inst_spec.
+  - move Hnew: (interpret_term p term R) => [new_bb_id R'0] [-> -> ->].
+    eapply TermStep.
+    + by apply Hbb.
+    + by apply Hinst.
+    + rewrite -Hnew.
+        by apply interpret_term_spec.
+Qed.
+
+(* Interpretation of multiple steps *)
+Fixpoint interpret_multi_step (fuel: nat) (p: Program) (bb_id: bbid) (pc: nat) (R: RegisterMap) :=
+  if fuel is S fuel' then
+    if interpret_step p bb_id pc R is Some (bb_id', pc', R') then
+      interpret_multi_step fuel' p bb_id' pc' R'
+    else
+      (bb_id, pc, R)
+  else
+    (bb_id, pc, R).
+
+Theorem interpret_multi_step_spec:
+  forall fuel p bb_id pc R, multi_step p (bb_id, pc, R) (interpret_multi_step fuel p bb_id pc R).
+Proof.
+  elim => [p bb_id pc R | fuel' Hind p bb_id pc R /=]; [by apply StepRefl | ].
+  case_eq (interpret_step p bb_id pc R) => [[[bb_id' pc'] R'] Hstep | Hnostep ]; [ | by constructor ].
+  symmetry in Hstep.
+  apply interpret_step_spec in Hstep.
+  eapply StepTrans.
+  - by apply Hstep.
+  - by apply Hind.
+Qed.
+
+(* The denotational semantics of a list of instructions *)
 Inductive inst_list_denotation: (list Inst) -> RegisterMap -> RegisterMap -> Prop :=
 | EmptyInstListStep (R: RegisterMap) : inst_list_denotation nil R R
 | ConsInstListStep (i: Inst) (l: list Inst) (R R' R'': RegisterMap) :
     inst_step i R R' -> inst_list_denotation l R' R'' ->
     inst_list_denotation (i::l) R R''.
 
-(* The semantics of a basic block *)
+(* The denotational semantics of a basic block *)
 Inductive bb_denotation: Program -> BasicBlock -> RegisterMap -> (bbid * RegisterMap) -> Prop :=
 | BBDenot (p: Program) (out_id: bbid) (params: list vid) (il: list Inst) (t: Term) (R R' R'': RegisterMap) :
     inst_list_denotation il R R' -> term_step p t R' (out_id, R'') -> bb_denotation p (params,il,t) R (out_id, R'').
 
-(* The semantics of a program *)
+(* The denotational semantics of a program *)
 Inductive program_denotation: Program -> ProgramStructure -> (bbid * RegisterMap) -> (bbid * RegisterMap) -> Prop :=
 | BBInDenot (p: Program) (out_id bb_id: bbid) (params: list vid) (insts: list Inst)
             (term: Term) (R R': RegisterMap):
@@ -144,42 +250,10 @@ Inductive program_denotation: Program -> ProgramStructure -> (bbid * RegisterMap
     program_denotation p (Loop header_id (Some body)) (header_id, R0) (id3, R3).
 
 
-Definition interpret_instruction (inst: Inst) (R: RegisterMap) :=
-  match inst with
-  | Const v c => (v !-> c; R)
-  | BinOp v opc op1 op2 _ _ => (v !-> bin_op_eval opc (R op1) (R op2); R)
-  end.
-
-Theorem interpret_instruction_spec :
-  forall inst R, inst_step inst R (interpret_instruction inst R).
-Proof.
-  move => inst R.
-  case inst; constructor.
-Qed.
-
-Definition interpret_term (p: Program) (t: Term) (R: RegisterMap) :=
-  match t with
-  | Br bb params => (bb, affect_variables R (get_inputs p bb) params)
-  | BrC c bbT paramsT bbF paramsF =>
-    if R c =? 0 then
-      (bbF, affect_variables R (get_inputs p bbF) paramsF)
-    else
-      (bbT, affect_variables R (get_inputs p bbT) paramsT)
-  end.
-
-Theorem interpret_term_spec :
-  forall p t R, term_step p t R (interpret_term p t R).
-Proof.
-  move => p t R.
-  case t => [ bb params | c bbT paramsT bbF paramsF /=].
-  - constructor.
-  - case (Z.eqb_spec (R c) 0); by constructor.
-Qed.
-
 Fixpoint interpret_inst_list (l: list Inst) (R: RegisterMap) :=
   match l with
   | nil => R
-  | inst::l' => interpret_inst_list l' (interpret_instruction inst R)
+  | inst::l' => interpret_inst_list l' (interpret_inst inst R)
   end.
 
 Theorem interpret_inst_list_spec :
@@ -188,7 +262,7 @@ Proof.
   elim => [ | i l0 Hind R /= ].
   - constructor.
   - eapply ConsInstListStep.
-    + by apply interpret_instruction_spec.
+    + by apply interpret_inst_spec.
     + by [].
 Qed.
 
@@ -338,22 +412,21 @@ Section Example.
 
   Definition progstruct := DAG (BB "entry") (DAG (Loop "loop" None) (BB "exit")).
 
-  Definition input := ("entry", (_ !-> 0)).
-
+  (* We need to set eval_map transparent to simplify computations *)
   Transparent eval_map.
 
-  Example program_may_terminate :
-    forall R, exists R', program_denotation prog progstruct ("entry", R) ("finished", R').
+  (* Check that the small step semantics and the denotational semantics on a correct
+     program structure behave the same *)
+  Example interpret_denotational_small_step_same :
+    match (interpret_program 10%nat prog progstruct "entry" (_ !-> 0)) with
+    | Some (end_id_denot, end_R_denot) =>
+      match (interpret_multi_step 1000 prog "entry" O (_ !-> 0)) with
+      | (end_id_ss, end_pc_ss, end_R_ss) => end_pc_ss = O /\ end_id_ss = end_id_denot /\ end_R_denot = end_R_ss
+      end
+    | None => False
+    end.
   Proof.
-    move => R.
-    move Hfinal_state: (interpret_program 10%nat prog progstruct "entry" R) => final.
-    move: (interpret_program_spec 10 prog progstruct "entry" R).
-    rewrite Hfinal_state.
-    move: final Hfinal_state => [[id' R'] Hfinal | // ].
-    move => /(_ id' R' (eq_refl _)) Hgoal.
-    exists R'.
-    compute in Hfinal.
-    by move: Hfinal => [-> _].
+      by compute.
   Qed.
 
 End Example.
