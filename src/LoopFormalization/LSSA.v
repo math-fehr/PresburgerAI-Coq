@@ -34,17 +34,20 @@ Inductive Term :=
 | BrC (c: vid) (bbT: bbid) (paramsT: list vid)
       (bbF: bbid) (paramsF: list vid).
 
-(* A basic block. Has a identifier, a list of parameters,
+(* A basic block. Has a list of parameters,
  a list of instructions, and a terminator *)
 Definition BasicBlock :=
-  bbid * (list vid) * (list Inst) * Term.
+  (list vid) * (list Inst) * Term.
 
-(* A program is either a basic block, a loop that contains a header and
- a body, or the consecutive execution of two programs *)
-Inductive Program :=
-| Loop (header: BasicBlock) (body: option Program)
-| DAG (p1 p2: Program)
-| BB (bb: BasicBlock).
+(* A program is a set of basic blocks indexed by their bbid *)
+Definition Program := total_map (option BasicBlock).
+
+(* A program structure is either a basic block, a loop that contains a header and
+ a body, or the concatenation of two program strutures *)
+Inductive ProgramStructure :=
+| Loop (header: bbid) (body: option ProgramStructure)
+| DAG (p1 p2: ProgramStructure)
+| BB (bb: bbid).
 
 Local Open Scope string_scope.
 Local Open Scope list_scope.
@@ -58,27 +61,10 @@ Fixpoint affect_variables (R: RegisterMap) (vars inputs: list vid) :=
   end.
 
 (* Get inputs of a basic block given its id,
-   and return None if the id is not found *)
-Fixpoint get_inputs_error (p: Program) (id: bbid) :=
-  match p with
-  | Loop (id', inputs, _, _) None =>
-    if id =? id' then Some inputs else None
-  | Loop (id', inputs, _, _) (Some p') =>
-    if id =? id' then Some inputs else get_inputs_error p' id
-  | BB (id', inputs, _, _) =>
-    if id =? id' then Some inputs else None
-  | DAG p1 p2 =>
-    match get_inputs_error p1 id with
-    | None => get_inputs_error p2 id
-    | res => res
-    end
-  end.
-
-(* Get inputs of a basic block given its id,
    and return nil if the id is not found *)
-Definition get_inputs (p: Program) (id: bbid) :=
-  match get_inputs_error p id with
-  | Some res => res
+Fixpoint get_inputs (p: Program) (id: bbid) :=
+  match p id with
+  | Some (inputs, _, _) => inputs
   | None => nil
   end.
 
@@ -123,38 +109,39 @@ Inductive inst_list_denotation: (list Inst) -> RegisterMap -> RegisterMap -> Pro
 
 (* The semantics of a basic block *)
 Inductive bb_denotation: Program -> BasicBlock -> RegisterMap -> (bbid * RegisterMap) -> Prop :=
-| BBDenot (p: Program) (id out_id: bbid) (params: list vid) (il: list Inst) (t: Term) (R R' R'': RegisterMap) :
-    inst_list_denotation il R R' -> term_step p t R' (out_id, R'') -> bb_denotation p (id,params,il,t) R (out_id, R'').
+| BBDenot (p: Program) (out_id: bbid) (params: list vid) (il: list Inst) (t: Term) (R R' R'': RegisterMap) :
+    inst_list_denotation il R R' -> term_step p t R' (out_id, R'') -> bb_denotation p (params,il,t) R (out_id, R'').
 
 (* The semantics of a program *)
-Inductive program_denotation: Program -> Program -> (bbid * RegisterMap) -> (bbid * RegisterMap) -> Prop :=
+Inductive program_denotation: Program -> ProgramStructure -> (bbid * RegisterMap) -> (bbid * RegisterMap) -> Prop :=
 | BBInDenot (p: Program) (out_id bb_id: bbid) (params: list vid) (insts: list Inst)
             (term: Term) (R R': RegisterMap):
-    bb_denotation p (bb_id, params, insts, term) R (out_id, R') ->
-    program_denotation p (BB (bb_id, params, insts, term)) (bb_id, R) (out_id, R')
-| BBNotInDenot (p: Program) (in_id bb_id: bbid) (params: list vid) (insts: list Inst)
-            (term: Term) (R R': RegisterMap):
+    Some (params, insts, term) = p bb_id ->
+    bb_denotation p (params, insts, term) R (out_id, R') ->
+    program_denotation p (BB bb_id) (bb_id, R) (out_id, R')
+| BBNotInDenot (p: Program) (in_id bb_id: bbid) (R: RegisterMap):
     ~~(bb_id =? in_id)%string ->
-    program_denotation p (BB (bb_id, params, insts, term)) (in_id, R) (in_id, R)
-| DAGDenot (p p1 p2: Program) (R R' R'': RegisterMap) (id id' id'': bbid):
-    program_denotation p p1 (id, R) (id', R') ->
-    program_denotation p p2 (id', R') (id'', R'') ->
-    program_denotation p (DAG p1 p2) (id, R) (id'', R'')
-| LoopNotInDenot (p: Program) (header_id: bbid) (params: list vid) (insts: list Inst)
-                 (term: Term) (body: option Program) (id: bbid) (R: RegisterMap):
+    program_denotation p (BB bb_id) (in_id, R) (in_id, R)
+| DAGDenot (p: Program) (ps1 ps2: ProgramStructure) (R R' R'': RegisterMap) (id id' id'': bbid):
+    program_denotation p ps1 (id, R) (id', R') ->
+    program_denotation p ps2 (id', R') (id'', R'') ->
+    program_denotation p (DAG ps1 ps2) (id, R) (id'', R'')
+| LoopNotInDenot (p: Program) (header_id: bbid) (body: option ProgramStructure) (id: bbid) (R: RegisterMap):
     ~~(header_id =? id)%string ->
-    program_denotation p (Loop (header_id, params, insts, term) body) (id, R) (id, R)
+    program_denotation p (Loop header_id body) (id, R) (id, R)
 | LoopSingleInDenot (p: Program) (header_id: bbid) (params: list vid) (insts: list Inst)
                     (term: Term) (id1 id2: bbid) (R0 R1 R2: RegisterMap):
-    bb_denotation p (header_id, params, insts, term) R0 (id1, R1) ->
-    program_denotation p (Loop (header_id, params, insts, term) None) (id1, R1) (id2, R2) ->
-    program_denotation p (Loop (header_id, params, insts, term) None) (header_id, R0) (id2, R2)
-| LoopInDenot (p body: Program) (header_id: bbid) (params: list vid) (insts: list Inst)
+    Some (params, insts, term) = p header_id ->
+    bb_denotation p (params, insts, term) R0 (id1, R1) ->
+    program_denotation p (Loop header_id None) (id1, R1) (id2, R2) ->
+    program_denotation p (Loop header_id None) (header_id, R0) (id2, R2)
+| LoopInDenot (p: Program) (body: ProgramStructure) (header_id: bbid) (params: list vid) (insts: list Inst)
               (term: Term) (id1 id2 id3: bbid) (R0 R1 R2 R3: RegisterMap):
-    bb_denotation p (header_id, params, insts, term) R0 (id1, R1) ->
+    Some (params, insts, term) = p header_id ->
+    bb_denotation p (params, insts, term) R0 (id1, R1) ->
     program_denotation p body (id1, R1) (id2, R2) ->
-    program_denotation p (Loop (header_id, params, insts, term) (Some body)) (id2, R2) (id3, R3) ->
-    program_denotation p (Loop (header_id, params, insts, term) (Some body)) (header_id, R0) (id3, R3).
+    program_denotation p (Loop header_id (Some body)) (id2, R2) (id3, R3) ->
+    program_denotation p (Loop header_id (Some body)) (header_id, R0) (id3, R3).
 
 
 Definition interpret_instruction (inst: Inst) (R: RegisterMap) :=
@@ -211,8 +198,8 @@ Definition interpret_bb (p: Program) (bb: BasicBlock) (R: RegisterMap) :=
 Theorem interpret_bb_spec :
   forall p bb R, bb_denotation p bb R (interpret_bb p bb R).
 Proof.
-  move => p [[[bb_id params] insts] term] R.
-  move H: (interpret_bb p (bb_id, params, insts, term) R) => bbR'.
+  move => p [[params insts] term] R.
+  move H: (interpret_bb p (params, insts, term) R) => bbR'.
   case: bbR' H => a b Hbb.
   eapply BBDenot.
   - apply interpret_inst_list_spec.
@@ -221,12 +208,12 @@ Proof.
       by apply interpret_term_spec.
 Qed.
 
-Fixpoint interpret_program (fuel: nat) (p sub_p: Program) (id: bbid) (R: RegisterMap) :=
+Fixpoint interpret_program (fuel: nat) (p: Program) (ps: ProgramStructure) (id: bbid) (R: RegisterMap) :=
   if fuel is S fuel' then
-    match sub_p with
+    match ps with
     | BB bb =>
-      if (id =? bb.1.1.1)%string then
-        Some (interpret_bb p bb R)
+      if (id =? bb)%string then
+        option_map (fun bb => interpret_bb p bb R) (p bb)
       else
         Some (id, R)
     | DAG p1 p2 =>
@@ -235,16 +222,22 @@ Fixpoint interpret_program (fuel: nat) (p sub_p: Program) (id: bbid) (R: Registe
       else
         None
     | Loop h None =>
-      if (id =? h.1.1.1)%string then
-        let (id', R') := interpret_bb p h R in
-        interpret_program fuel' p (Loop h None) id' R'
+      if (id =? h)%string then
+        if p h is Some (params, insts, term) then
+          let (id', R') := interpret_bb p (params, insts, term) R in
+          interpret_program fuel' p (Loop h None) id' R'
+        else
+          None
       else
         Some (id, R)
     | Loop h (Some body) =>
-      if (id =? h.1.1.1)%string then
-        let (id', R') := interpret_bb p h R in
-        if interpret_program fuel' p body id' R' is Some (id'', R'') then
-          interpret_program fuel' p (Loop h (Some body)) id'' R''
+      if (id =? h)%string then
+        if p h is Some (params, insts, term) then
+          let (id', R') := interpret_bb p (params, insts, term) R in
+          if interpret_program fuel' p body id' R' is Some (id'', R'') then
+            interpret_program fuel' p (Loop h (Some body)) id'' R''
+          else
+            None
         else
           None
       else
@@ -259,25 +252,27 @@ Theorem interpret_program_spec :
     program_denotation p sub_p (id, R) (id', R').
 Proof.
   elim => [ p sub_p id R id' R' Hsome // | n Hind p sub_p id R id' R'].
-  case sub_p => [ [[[header_id params] insts] term] [ body | ] /= | p1 p2 /= HDAG | [[[bb_id params] insts] term]].
+  case sub_p => [ header_id [ body | ] /= | p1 p2 /= HDAG | bb_id].
   - case_eq (id =? header_id)%string; last first.
     + move => Hne [-> ->].
       apply LoopNotInDenot.
       by rewrite eqb_sym Hne.
-    + move => /eqb_eq -> Hinterpret.
-      move Hbb_interpret: (interpret_bb p (header_id, params, insts, term) R) => bb_interpret.
-      move: bb_interpret => [id_bb_interpret R_bb_interpret] in Hbb_interpret.
-      rewrite Hbb_interpret in Hinterpret.
-      move: Hinterpret.
+    + move => /eqb_eq ->.
+      case_eq (p header_id) => [[[params insts] term] Hpheader_id | //].
+      move Hbb_interpret: (interpret_bb p (params, insts, term) R) => bb_interpret.
+      move: bb_interpret Hbb_interpret => [id_bb_interpret R_bb_interpret] Hbb_interpret.
       case_eq (interpret_program n p body id_bb_interpret R_bb_interpret) => [ [p0_id p0R] Hinterpret HSome | //].
       eapply LoopInDenot with (id1 := id_bb_interpret) (R1 := R_bb_interpret) (id2 := p0_id) (R2 := p0R).
+      * symmetry. by apply Hpheader_id.
       * rewrite -Hbb_interpret.
         by apply interpret_bb_spec.
       * by apply Hind.
       * by apply Hind.
-  - case_eq (id =? header_id)%string => [ /eqb_eq -> Hinterpret | Hne [-> ->]].
-    + move Hp0: (interpret_bb p (header_id, params, insts, term) R) => [p0_id p0_R].
-      apply LoopSingleInDenot with (id1 := p0_id) (R1 := p0_R).
+  - case_eq (id =? header_id)%string => [ /eqb_eq -> | Hne [-> ->]].
+    + case_eq (p header_id) => [[[params insts] term] Hpheader_id Hinterpret | //].
+      move Hp0: (interpret_bb p (params, insts, term) R) => [p0_id p0_R].
+      eapply LoopSingleInDenot with (id1 := p0_id) (R1 := p0_R).
+      * symmetry. apply Hpheader_id.
       * rewrite -Hp0.
           by apply interpret_bb_spec.
       * rewrite Hp0 in Hinterpret.
@@ -293,20 +288,20 @@ Proof.
     + by apply Hind.
     + by [].
   - rewrite /interpret_program /=.
-    case (eqb_spec id bb_id)%string => [-> [HBB] | /eqb_spec Hne [-> ->]].
-    + apply BBInDenot.
-      rewrite HBB.
-      apply interpret_bb_spec.
+    case (eqb_spec id bb_id)%string => [-> HBB | /eqb_spec Hne [-> ->]].
+    move: HBB.
+    rewrite /option_map.
+    case_eq (p bb_id) => [ [[params insts] term] Hpbb_id [HBB] | //].
+    + eapply BBInDenot.
+      * rewrite Hpbb_id.
+          by reflexivity.
+      * rewrite HBB.
+        by apply interpret_bb_spec.
     + apply BBNotInDenot.
-      apply R.
         by rewrite eqb_sym.
 Qed.
 
 Section Example.
-
-  Definition entry_bb := ("entry", @nil string,
-                          (Const "zero" 0)::(Const "one" 1)::nil,
-                          (Br "loop" ("zero"::nil))).
 
   Definition y_ne_x : "y" <> "x".
   Proof.
@@ -328,28 +323,31 @@ Section Example.
       by apply eqb_neq.
   Qed.
 
+  Definition entry_bb := (@nil string,
+                          (Const "zero" 0)::(Const "one" 1)::nil,
+                          (Br "loop" ("zero"::nil))).
 
-  Definition loop_header := ("loop", "x"::nil,
-                             (BinOp "y" OpAdd "x" "one" y_ne_x y_ne_one)::
-                             (BinOp "c" OpLe "y" "one" c_ne_y c_ne_one)::nil,
-                             (BrC "c" "loop" ("y"::nil) "exit" ("y"::nil))).
+  Definition loop_bb := ("x"::nil,
+                         (BinOp "y" OpAdd "x" "one" y_ne_x y_ne_one)::
+                         (BinOp "c" OpLe "y" "one" c_ne_y c_ne_one)::nil,
+                         (BrC "c" "loop" ("y"::nil) "exit" ("y"::nil))).
 
-  Definition loop := Loop loop_header None.
+  Definition exit_bb := ("exitvalue"::nil, @nil Inst, (Br "finished" nil)).
 
-  Definition exit_bb := ("exit", "exitvalue"::nil, @nil Inst, (Br "finished" nil)).
+  Definition prog := ("entry" !-> Some entry_bb; "loop" !-> Some loop_bb; "exit" !-> Some exit_bb ;_ !-> None).
 
-  Definition program := DAG (BB entry_bb) (DAG loop (BB exit_bb)).
+  Definition progstruct := DAG (BB "entry") (DAG (Loop "loop" None) (BB "exit")).
 
   Definition input := ("entry", (_ !-> 0)).
 
   Transparent eval_map.
 
   Example program_may_terminate :
-    forall R, exists R', program_denotation program program ("entry", R) ("finished", R').
+    forall R, exists R', program_denotation prog progstruct ("entry", R) ("finished", R').
   Proof.
     move => R.
-    move Hfinal_state: (interpret_program 10%nat program program "entry" R) => final.
-    move: (interpret_program_spec 10 program program "entry" R).
+    move Hfinal_state: (interpret_program 10%nat prog progstruct "entry" R) => final.
+    move: (interpret_program_spec 10 prog progstruct "entry" R).
     rewrite Hfinal_state.
     move: final Hfinal_state => [[id' R'] Hfinal | // ].
     move => /(_ id' R' (eq_refl _)) Hgoal.
