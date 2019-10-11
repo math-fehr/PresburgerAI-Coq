@@ -68,6 +68,68 @@ Fixpoint get_inputs (p: Program) (id: bbid) :=
   | None => nil
   end.
 
+Fixpoint bbs_in_program (p: ProgramStructure) :=
+  match p with
+  | Loop header (Some body) => header::(bbs_in_program body)
+  | DAG p1 p2 => (bbs_in_program p1) ++ (bbs_in_program p2)
+  | Loop bb None | BB bb => bb::nil
+  end.
+
+(* Return list of basic blocks that are inside a loop body.
+   Note that the body does not contain the header. *)
+Fixpoint bbs_in_loops (p: ProgramStructure) :=
+  match p with
+  | Loop header (Some body) => bbs_in_program body
+  | DAG p1 p2 => (bbs_in_loops p1) ++ (bbs_in_loops p2)
+  | Loop _ None | BB _ => nil
+  end.
+
+Definition term_successors (term: Term) :=
+  match term with
+  | Br succ _ => succ::nil
+  | BrC _ succ1 _ succ2 _ => succ1::succ2::nil
+  end.
+
+Fixpoint program_successors (p: Program) (ps: ProgramStructure) :=
+  match ps with
+  | Loop header (Some body) =>
+    match (p header) with
+    | Some (_, _, t) => (term_successors t) ++ (program_successors p body)
+    | None => program_successors p body
+    end
+  | DAG ps1 ps2 => (program_successors p ps1) ++ (program_successors p ps2)
+  | BB bb | Loop bb None =>
+    match (p bb) with
+    | Some (_, _, t) => (term_successors t)
+    | None => nil
+    end
+  end.
+
+Fixpoint structure_preserve_dominance_aux (p: Program) (ps: ProgramStructure) (non_reachable: list bbid) :=
+  match ps with
+  | Loop header (Some body) => structure_preserve_dominance_aux p body non_reachable
+  | DAG ps1 ps2 => (structure_preserve_dominance_aux p ps1 non_reachable)
+                  && structure_preserve_dominance_aux p ps2 (non_reachable ++ bbs_in_program ps1)
+  | BB bb | Loop bb None =>
+            match p bb with
+            | None => false
+            | Some bb => list_string_forall (fun succ => ~~list_string_in non_reachable succ) (term_successors bb.2)
+            end
+  end.
+
+Definition structure_preserve_dominance (p: Program) (ps: ProgramStructure) :=
+  structure_preserve_dominance_aux p ps nil.
+
+Fixpoint structure_has_natural_loops (p: Program) (ps: ProgramStructure) :=
+  match ps with
+  | Loop header (Some body) => structure_has_natural_loops p body
+  | DAG ps1 ps2 => list_string_forall (fun s => ~~list_string_in (bbs_in_loops ps2) s) (program_successors p ps1)
+  | _ => true
+  end.
+
+Definition structure_sound (p: Program) (ps: ProgramStructure) :=
+  structure_preserve_dominance p ps && structure_has_natural_loops p ps.
+
 Local Open Scope Z_scope.
 
 (* The evaluation of a binary operation *)
