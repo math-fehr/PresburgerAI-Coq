@@ -268,48 +268,48 @@ Proof.
   - by apply Hind.
 Qed.
 
-(* The denotational semantics of a list of instructions *)
-Inductive inst_list_denotation: (list Inst) -> RegisterMap -> RegisterMap -> Prop :=
-| EmptyInstListStep (R: RegisterMap) : inst_list_denotation nil R R
+(* The big_step semantics of a list of instructions *)
+Inductive inst_list_big_step: (list Inst) -> RegisterMap -> RegisterMap -> Prop :=
+| EmptyInstListStep (R: RegisterMap) : inst_list_big_step nil R R
 | ConsInstListStep (i: Inst) (l: list Inst) (R R' R'': RegisterMap) :
-    inst_step i R R' -> inst_list_denotation l R' R'' ->
-    inst_list_denotation (i::l) R R''.
+    inst_step i R R' -> inst_list_big_step l R' R'' ->
+    inst_list_big_step (i::l) R R''.
 
-(* The denotational semantics of a basic block *)
-Inductive bb_denotation: Program -> BasicBlock -> RegisterMap -> (bbid * RegisterMap) -> Prop :=
-| BBDenot (p: Program) (out_id: bbid) (params: list vid) (il: list Inst) (t: Term) (R R' R'': RegisterMap) :
-    inst_list_denotation il R R' -> term_step p t R' (out_id, R'') -> bb_denotation p (params,il,t) R (out_id, R'').
+(* The big_step semantics of a basic block *)
+Inductive bb_big_step: Program -> BasicBlock -> RegisterMap -> (bbid * RegisterMap) -> Prop :=
+| BBBigStep (p: Program) (out_id: bbid) (params: list vid) (il: list Inst) (t: Term) (R R' R'': RegisterMap) :
+    inst_list_big_step il R R' -> term_step p t R' (out_id, R'') -> bb_big_step p (params,il,t) R (out_id, R'').
 
-(* The denotational semantics of a program *)
-Inductive program_denotation: Program -> ProgramStructure -> (bbid * RegisterMap) -> (bbid * RegisterMap) -> Prop :=
-| BBInDenot (p: Program) (out_id bb_id: bbid) (params: list vid) (insts: list Inst)
+(* The big_step semantics of a program *)
+Inductive program_big_step: Program -> ProgramStructure -> (bbid * RegisterMap) -> (bbid * RegisterMap) -> Prop :=
+| BBInBigStep (p: Program) (out_id bb_id: bbid) (params: list vid) (insts: list Inst)
             (term: Term) (R R': RegisterMap):
     Some (params, insts, term) = p bb_id ->
-    bb_denotation p (params, insts, term) R (out_id, R') ->
-    program_denotation p (BB bb_id) (bb_id, R) (out_id, R')
-| BBNotInDenot (p: Program) (in_id bb_id: bbid) (R: RegisterMap):
+    bb_big_step p (params, insts, term) R (out_id, R') ->
+    program_big_step p (BB bb_id) (bb_id, R) (out_id, R')
+| BBNotInBigStep (p: Program) (in_id bb_id: bbid) (R: RegisterMap):
     ~~(bb_id =? in_id)%string ->
-    program_denotation p (BB bb_id) (in_id, R) (in_id, R)
-| DAGDenot (p: Program) (ps1 ps2: ProgramStructure) (R R' R'': RegisterMap) (id id' id'': bbid):
-    program_denotation p ps1 (id, R) (id', R') ->
-    program_denotation p ps2 (id', R') (id'', R'') ->
-    program_denotation p (DAG ps1 ps2) (id, R) (id'', R'')
-| LoopNotInDenot (p: Program) (header_id: bbid) (body: option ProgramStructure) (id: bbid) (R: RegisterMap):
+    program_big_step p (BB bb_id) (in_id, R) (in_id, R)
+| DAGBigStep (p: Program) (ps1 ps2: ProgramStructure) (R R' R'': RegisterMap) (id id' id'': bbid):
+    program_big_step p ps1 (id, R) (id', R') ->
+    program_big_step p ps2 (id', R') (id'', R'') ->
+    program_big_step p (DAG ps1 ps2) (id, R) (id'', R'')
+| LoopNotInBigStep (p: Program) (header_id: bbid) (body: option ProgramStructure) (id: bbid) (R: RegisterMap):
     ~~(header_id =? id)%string ->
-    program_denotation p (Loop header_id body) (id, R) (id, R)
-| LoopSingleInDenot (p: Program) (header_id: bbid) (params: list vid) (insts: list Inst)
+    program_big_step p (Loop header_id body) (id, R) (id, R)
+| LoopSingleInBigStep (p: Program) (header_id: bbid) (params: list vid) (insts: list Inst)
                     (term: Term) (id1 id2: bbid) (R0 R1 R2: RegisterMap):
     Some (params, insts, term) = p header_id ->
-    bb_denotation p (params, insts, term) R0 (id1, R1) ->
-    program_denotation p (Loop header_id None) (id1, R1) (id2, R2) ->
-    program_denotation p (Loop header_id None) (header_id, R0) (id2, R2)
-| LoopInDenot (p: Program) (body: ProgramStructure) (header_id: bbid) (params: list vid) (insts: list Inst)
+    bb_big_step p (params, insts, term) R0 (id1, R1) ->
+    program_big_step p (Loop header_id None) (id1, R1) (id2, R2) ->
+    program_big_step p (Loop header_id None) (header_id, R0) (id2, R2)
+| LoopInBigStep (p: Program) (body: ProgramStructure) (header_id: bbid) (params: list vid) (insts: list Inst)
               (term: Term) (id1 id2 id3: bbid) (R0 R1 R2 R3: RegisterMap):
     Some (params, insts, term) = p header_id ->
-    bb_denotation p (params, insts, term) R0 (id1, R1) ->
-    program_denotation p body (id1, R1) (id2, R2) ->
-    program_denotation p (Loop header_id (Some body)) (id2, R2) (id3, R3) ->
-    program_denotation p (Loop header_id (Some body)) (header_id, R0) (id3, R3).
+    bb_big_step p (params, insts, term) R0 (id1, R1) ->
+    program_big_step p body (id1, R1) (id2, R2) ->
+    program_big_step p (Loop header_id (Some body)) (id2, R2) (id3, R3) ->
+    program_big_step p (Loop header_id (Some body)) (header_id, R0) (id3, R3).
 
 
 Fixpoint interpret_inst_list (l: list Inst) (R: RegisterMap) :=
@@ -319,7 +319,7 @@ Fixpoint interpret_inst_list (l: list Inst) (R: RegisterMap) :=
   end.
 
 Theorem interpret_inst_list_spec :
-  forall l R, inst_list_denotation l R (interpret_inst_list l R).
+  forall l R, inst_list_big_step l R (interpret_inst_list l R).
 Proof.
   elim => [ | i l0 Hind R /= ].
   - constructor.
@@ -332,12 +332,12 @@ Definition interpret_bb (p: Program) (bb: BasicBlock) (R: RegisterMap) :=
   interpret_term p bb.2 (interpret_inst_list bb.1.2 R).
 
 Theorem interpret_bb_spec :
-  forall p bb R, bb_denotation p bb R (interpret_bb p bb R).
+  forall p bb R, bb_big_step p bb R (interpret_bb p bb R).
 Proof.
   move => p [[params insts] term] R.
   move H: (interpret_bb p (params, insts, term) R) => bbR'.
   case: bbR' H => a b Hbb.
-  eapply BBDenot.
+  eapply BBBigStep.
   - apply interpret_inst_list_spec.
   - rewrite -Hbb.
     rewrite /interpret_bb /=.
@@ -385,20 +385,20 @@ Fixpoint interpret_program (fuel: nat) (p: Program) (ps: ProgramStructure) (id: 
 Theorem interpret_program_spec :
   forall fuel p sub_p id R id' R',
     Some (id', R') = interpret_program fuel p sub_p id R ->
-    program_denotation p sub_p (id, R) (id', R').
+    program_big_step p sub_p (id, R) (id', R').
 Proof.
   elim => [ p sub_p id R id' R' Hsome // | n Hind p sub_p id R id' R'].
   case sub_p => [ header_id [ body | ] /= | p1 p2 /= HDAG | bb_id].
   - case_eq (id =? header_id)%string; last first.
     + move => Hne [-> ->].
-      apply LoopNotInDenot.
+      apply LoopNotInBigStep.
       by rewrite eqb_sym Hne.
     + move => /eqb_eq ->.
       case_eq (p header_id) => [[[params insts] term] Hpheader_id | //].
       move Hbb_interpret: (interpret_bb p (params, insts, term) R) => bb_interpret.
       move: bb_interpret Hbb_interpret => [id_bb_interpret R_bb_interpret] Hbb_interpret.
       case_eq (interpret_program n p body id_bb_interpret R_bb_interpret) => [ [p0_id p0R] Hinterpret HSome | //].
-      eapply LoopInDenot with (id1 := id_bb_interpret) (R1 := R_bb_interpret) (id2 := p0_id) (R2 := p0R).
+      eapply LoopInBigStep with (id1 := id_bb_interpret) (R1 := R_bb_interpret) (id2 := p0_id) (R2 := p0R).
       * symmetry. by apply Hpheader_id.
       * rewrite -Hbb_interpret.
         by apply interpret_bb_spec.
@@ -407,17 +407,17 @@ Proof.
   - case_eq (id =? header_id)%string => [ /eqb_eq -> | Hne [-> ->]].
     + case_eq (p header_id) => [[[params insts] term] Hpheader_id Hinterpret | //].
       move Hp0: (interpret_bb p (params, insts, term) R) => [p0_id p0_R].
-      eapply LoopSingleInDenot with (id1 := p0_id) (R1 := p0_R).
+      eapply LoopSingleInBigStep with (id1 := p0_id) (R1 := p0_R).
       * symmetry. apply Hpheader_id.
       * rewrite -Hp0.
           by apply interpret_bb_spec.
       * rewrite Hp0 in Hinterpret.
           by apply Hind.
-    + apply LoopNotInDenot.
+    + apply LoopNotInBigStep.
       by rewrite eqb_sym Hne.
   - case (interpret_program n p p1 id R) eqn:Hp1 in HDAG.
     move: p0 => [p0_id p0_R] in HDAG Hp1.
-    eapply DAGDenot.
+    eapply DAGBigStep.
     + apply Hind.
       symmetry.
         by apply Hp1.
@@ -428,12 +428,12 @@ Proof.
     move: HBB.
     rewrite /option_map.
     case_eq (p bb_id) => [ [[params insts] term] Hpbb_id [HBB] | //].
-    + eapply BBInDenot.
+    + eapply BBInBigStep.
       * rewrite Hpbb_id.
           by reflexivity.
       * rewrite HBB.
         by apply interpret_bb_spec.
-    + apply BBNotInDenot.
+    + apply BBNotInBigStep.
         by rewrite eqb_sym.
 Qed.
 
@@ -483,13 +483,13 @@ Section Example.
       by [].
   Qed.
 
-  (* Check that the small step semantics and the denotational semantics on a correct
+  (* Check that the small step semantics and the big_step semantics on a correct
      program structure behave the same *)
-  Example interpret_denotational_small_step_same :
+  Example interpret_big_step_small_step_same :
     match (interpret_program 10%nat prog progstruct "entry" (_ !-> 0)) with
-    | Some (end_id_denot, end_R_denot) =>
+    | Some (end_id_bs, end_R_bs) =>
       match (interpret_multi_step 1000 prog "entry" O (_ !-> 0)) with
-      | (end_id_ss, end_pc_ss, end_R_ss) => end_pc_ss = O /\ end_id_ss = end_id_denot /\ end_R_denot = end_R_ss
+      | (end_id_ss, end_pc_ss, end_R_ss) => end_pc_ss = O /\ end_id_ss = end_id_bs /\ end_R_bs = end_R_ss
       end
     | None => False
     end.
