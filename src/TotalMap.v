@@ -141,7 +141,8 @@ Fixpoint list_string_in (l: list string) (s: string) :=
   | s'::l' => (s =? s')%string || list_string_in l' s
   end.
 
-Theorem list_string_in_spec : forall l s, reflect (List.In s l) (list_string_in l s).
+Theorem list_string_in_spec :
+  forall l s, reflect (List.In s l) (list_string_in l s).
 Proof.
   elim => [s // | a l Hind s /=].
   - apply: (iffP idP) => [// | Hne // ].
@@ -150,6 +151,24 @@ Proof.
     + right. by apply /Hind.
     + apply /orP. left. by apply eqb_refl.
     + apply /orP. right. by apply /Hind.
+Qed.
+
+Fixpoint list_string_forall (f: string -> bool) (l: list string) :=
+  match l with
+  | nil => true
+  | a::l' => f a && list_string_forall f l'
+  end.
+
+Theorem list_string_forall_spec :
+  forall l f, list_string_forall f l <-> List.Forall f l.
+Proof.
+  elim => [// | s l Hind f].
+  split => [/= /andP [Hfs Hforall] | HForall /=].
+  - apply List.Forall_cons => [// | ].
+      by apply Hind.
+  - inversion HForall. subst.
+    apply Hind in H2.
+      by apply /andP.
 Qed.
 
 Local Open Scope string_scope.
