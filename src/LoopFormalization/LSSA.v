@@ -477,6 +477,12 @@ Section Example.
   (* We need to set eval_map transparent to simplify computations *)
   Transparent eval_map.
 
+  Example progstruct_correct :
+    structure_sound prog progstruct.
+  Proof.
+      by [].
+  Qed.
+
   (* Check that the small step semantics and the denotational semantics on a correct
      program structure behave the same *)
   Example interpret_denotational_small_step_same :
