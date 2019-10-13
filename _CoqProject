@@ -4,14 +4,17 @@
 -R src/ PolyAI
 src/TotalMap.v
 src/PFunc.v
+src/Presburger.v
 
 src/SimpleFormalization/SSA.v
-src/LoopFormalization/LSSA.v
-src/AbstractDomain.v
-src/PresburgerSetAD.v
-src/PFuncMapAD.v
+src/SimpleFormalization/AbstractDomain.v
+src/SimpleFormalization/PresburgerSetAD.v
+src/SimpleFormalization/PFuncMapAD.v
 src/SimpleFormalization/TransferFunction.v
 src/SimpleFormalization/PresburgerSetTF.v
 src/SimpleFormalization/PFuncMapTF.v
 src/SimpleFormalization/AbstractInterpreter.v
-src/Presburger.v
+
+src/LoopFormalization/LSSA.v
+src/LoopFormalization/LAbstractDomain.v
+src/LoopFormalization/LTransferFunction.v

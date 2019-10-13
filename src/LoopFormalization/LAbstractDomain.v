@@ -1,4 +1,4 @@
-From PolyAI Require Export SSA Presburger.
+From PolyAI.LoopFormalization Require Export LSSA.
 Require Export Coq.Sets.Ensembles.
 From Coq Require Import ssreflect ssrfun ssrbool.
 
