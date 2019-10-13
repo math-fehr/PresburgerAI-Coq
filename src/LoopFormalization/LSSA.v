@@ -105,30 +105,18 @@ Fixpoint program_successors (p: Program) (ps: ProgramStructure) :=
     end
   end.
 
-Fixpoint structure_preserve_dominance_aux (p: Program) (ps: ProgramStructure) (non_reachable: list bbid) :=
+Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
   match ps with
-  | Loop header (Some body) => structure_preserve_dominance_aux p body non_reachable
-  | DAG ps1 ps2 => (structure_preserve_dominance_aux p ps1 non_reachable)
-                  && structure_preserve_dominance_aux p ps2 (non_reachable ++ bbs_in_program ps1)
-  | BB bb | Loop bb None =>
-            match p bb with
-            | None => false
-            | Some bb => list_string_forall (fun succ => ~~list_string_in non_reachable succ) (term_successors bb.2)
-            end
-  end.
-
-Definition structure_preserve_dominance (p: Program) (ps: ProgramStructure) :=
-  structure_preserve_dominance_aux p ps nil.
-
-Fixpoint structure_has_natural_loops (p: Program) (ps: ProgramStructure) :=
-  match ps with
-  | Loop header (Some body) => structure_has_natural_loops p body
+  | Loop header (Some body) =>
+    structure_sound p body
   | DAG ps1 ps2 => list_string_forall (fun s => ~~list_string_in (bbs_in_loops ps2) s) (program_successors p ps1)
+  | BB bb =>
+    match p bb with
+    | None => false
+    | Some (_,_,term) => ~~list_string_in (term_successors term) bb
+    end
   | _ => true
   end.
-
-Definition structure_sound (p: Program) (ps: ProgramStructure) :=
-  structure_preserve_dominance p ps && structure_has_natural_loops p ps.
 
 Local Open Scope Z_scope.
 
@@ -179,6 +167,13 @@ Inductive step: Program -> state -> state -> Prop :=
 Inductive multi_step: Program -> state -> state -> Prop :=
 | StepRefl : forall p s, multi_step p s s
 | StepTrans : forall p s s' s'', step p s s' -> multi_step p s' s'' -> multi_step p s s''.
+
+(* The reflexive and transitive closure of the trans relation,
+   where every step should fulfill a proposition *)
+Inductive multi_step_cond: Program -> (state -> state -> Prop) -> state -> state -> Prop :=
+| StepCondRefl : forall p c s, multi_step_cond p c s s
+| StepCondTrans : forall p (c: state -> state -> Prop) s s' s'',
+    step p s s' -> c s s' -> multi_step_cond p c s' s'' -> multi_step_cond p c s s''.
 
 (* Interpretation of a single instruction *)
 Definition interpret_inst (inst: Inst) (R: RegisterMap) :=
