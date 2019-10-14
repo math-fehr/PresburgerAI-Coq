@@ -21,7 +21,7 @@ Proof.
     by simpl_pfunc.
 Qed.
 
-Definition pfunc_map_assign_pfunc {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map PFunc) (v: string) (p: PFunc) :=
+Definition pfunc_map_assign_pfunc {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map) (v: string) (p: PFunc) :=
   let projected_a := pointwise_un_op a (fun a' => constant_or_set_to_top_pfunc a' v) in
   let new_a := (v !-> p ; projected_a) in
   new_a.
@@ -33,19 +33,19 @@ Theorem pfunc_map_assign_pfunc_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
 Proof.
   move => a R HInR p z v HinR' /=.
   rewrite /In /gamma_pfunc_map /pfunc_map_assign_pfunc => v'.
-  case (eqb_spec v v') => [<- | Hne ]. by simpl_totalmap.
+  case (eqb_spec v v') => [<- | /eqP Hne ]. by simpl_totalmap.
   simpl_totalmap.
   rewrite /constant_or_set_to_top_pfunc.
   case (is_constant_on_var (eval_map a v') v) eqn:Hconstant; last first.
     by simpl_pfunc.
-  have Hconstant' : (is_true (is_constant_on_var (a v') v)).
+  have Hconstant': (is_true (is_constant_on_var (a v') v)).
     by [].
     simpl_pfunc.
   apply HInR.
 Qed.
 
 
-Definition pfunc_assign_const {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map PFunc) (v: string) (c: Z) :=
+Definition pfunc_assign_const {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map) (v: string) (c: Z) :=
   pfunc_map_assign_pfunc a v (constant_pfunc (VVal c)).
 
 Theorem pfunc_assign_const_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
@@ -86,17 +86,17 @@ Definition binop_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} (res: string) (op
 Theorem binop_pfunc_map_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall res op1, is_constant_on_var op1 res ->
              forall op2, is_constant_on_var op2 res ->
-                    forall (R: total_map V) x1, in_V x1 (eval_pfunc op1 R) ->
-                                           forall x2, in_V x2 (eval_pfunc op2 R) ->
-                                                 forall opc, in_V (bin_op_eval opc x1 x2)
-                                                             (eval_pfunc
-                                                                (binop_pfunc_map res op1 op2 opc)
-                                                                (res !-> VVal (bin_op_eval opc x1 x2); R)).
+                    forall (R: total_map) x1, in_V x1 (eval_pfunc op1 R) ->
+                                         forall x2, in_V x2 (eval_pfunc op2 R) ->
+                                               forall opc, in_V (bin_op_eval opc x1 x2)
+                                                           (eval_pfunc
+                                                              (binop_pfunc_map res op1 op2 opc)
+                                                              (res !-> VVal (bin_op_eval opc x1 x2); R)).
 Proof.
   move => res op1 Hconst1 op2 Hconst2 R x1 Hin1 x2 Hin2 [ | | ]; by simpl_pfunc.
 Qed.
 
-Definition pfunc_assign_arith {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map PFunc) (opr op1 op2: string) (opc: BinArithOpCode):=
+Definition pfunc_assign_arith {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map) (opr op1 op2: string) (opc: BinArithOpCode):=
   let op1_ := constant_or_set_to_top_pfunc (eval_map a op1) opr in
   let op2_ := constant_or_set_to_top_pfunc (eval_map a op2) opr in
   pfunc_map_assign_pfunc a opr (binop_pfunc_map opr op1_ op2_ opc).
@@ -139,7 +139,7 @@ Proof.
   - by apply pfunc_assign_arith_spec.
 Qed.
 
-Fixpoint pfunc_map_affect_variables {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map PFunc) (params: list (variable * variable)) :=
+Fixpoint pfunc_map_affect_variables {PFunc: Type} {PI: PFuncImpl PFunc} (a: total_map) (params: list (variable * variable)) :=
   match params with
   | nil => a
   | (param, value)::params' =>
@@ -173,7 +173,7 @@ Proof.
     by simpl_pfunc.
 Qed.
 
-Definition transfer_pfunc_map_branch {PFunc: Type} {P: PFuncImpl PFunc} (a: total_map PFunc) (l: label) (params: list (variable * variable)) :=
+Definition transfer_pfunc_map_branch {PFunc: Type} {P: PFuncImpl PFunc} (a: total_map) (l: label) (params: list (variable * variable)) :=
   (pfunc_map_affect_variables a params, l).
 
 Lemma transfer_pfunc_map_branch_sound {PFunc: Type} (P: PFuncImpl PFunc) :
@@ -196,7 +196,7 @@ Proof.
 Qed.
 
 (* Transfer function for conditional branch instruction *)
-Definition transfer_pfunc_map_branch_cond {PFunc: Type} {P: PFuncImpl PFunc} (a: total_map PFunc) (c: variable) (l1 : label) (params1: list (variable * variable)) (l2: label) (params2: list (variable * variable)) :=
+Definition transfer_pfunc_map_branch_cond {PFunc: Type} {P: PFuncImpl PFunc} (a: total_map) (c: variable) (l1 : label) (params1: list (variable * variable)) (l2: label) (params2: list (variable * variable)) :=
   let pfunc_true_ := constant_or_set_to_top_pfunc (eval_map a c) c in
   let pfunc_true := pfunc_restrict_ne_set pfunc_true_ 0 in
   let new_true_ := pfunc_map_assign_pfunc a c pfunc_true in
@@ -219,7 +219,7 @@ Proof.
   inversion Hstep. subst.
   rewrite -Hinst in H6.
   case: H6 => -> /= in H7.
-  case (eval_map R c =? 0)%Z eqn:HRC in H7.
+  case (eval_map R c == 0)%Z eqn:HRC in H7.
   - eexists. split. by right; left; move: H7 => [HR' -> //].
     apply Z.eqb_eq in HRC.
     move: H7 => [-> _] s0.
@@ -262,7 +262,7 @@ Proof.
 Qed.
 
 
-Definition transfer_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} {A: adom (total_map PFunc)}(inst: Instruction) (a: total_map PFunc) (l: label):=
+Definition transfer_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} {A: adom (@total_map string_eqType PFunc)} (inst: Instruction) (a: total_map) (l: label):=
   match inst with
   | Const v c => (pfunc_assign_const a v c, l + 1)::nil
   | BinOp v opc op1 op2 op1_ne_v op2_ne_v => (pfunc_assign_arith a v op1 op2 opc, l+1)::nil
@@ -274,9 +274,9 @@ Theorem transfer_presburger_set_sound {PFunc: Type} (PI: PFuncImpl PFunc) :
   forall prog R l R' l',
     step prog (R, l) (R', l') ->
     forall inst, Some inst = List.nth_error prog l ->
-            forall a, Ensembles.In (total_map Z) (gamma a) R ->
+            forall a, Ensembles.In (total_map) (gamma a) R ->
                  exists a', List.In (a', l') (transfer_pfunc_map inst a l) /\
-                       Ensembles.In (total_map Z) (gamma a') R'.
+                       Ensembles.In (total_map) (gamma a') R'.
 Proof.
   move => prog R l R' l' Hstep inst.
   move: prog R l R' l' Hstep.

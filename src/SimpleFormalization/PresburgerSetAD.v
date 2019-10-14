@@ -7,7 +7,7 @@ Open Scope string_scope.
 
 Theorem gamma_presburger_monotone {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} :
   forall p1 p2, is_subset p1 p2 ->
-           Included (total_map Z)
+           Included (total_map)
                     (fun x => eval_set p1 x)
                     (fun x => eval_set p2 x).
 Proof.
@@ -17,7 +17,7 @@ Proof.
 Qed.
 
 Theorem gamma_presburger_top {PSet PwAff: Type} {P : PresburgerImpl PSet PwAff} :
-  forall x, Ensembles.In (total_map Z) (fun x => eval_set universe_set x) x.
+  forall x, Ensembles.In (total_map) (fun x => eval_set universe_set x) x.
 Proof.
   move => x.
   rewrite /Ensembles.In.

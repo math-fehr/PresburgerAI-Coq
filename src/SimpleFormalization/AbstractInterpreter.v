@@ -288,6 +288,8 @@ Proof.
   - move=> p [R0 l0] [R1 l1] [R2 l2] Hmsteps Hind Hstep R0' R2' l2' [H1 H2] [H3 H4] Hl_small.
     move: H1 H2 H3 H4 => -> -> <- <- in Hmsteps Hind Hstep Hl_small *.
     inversion Hstep. subst.
-    move: (Hind R0' R1 l1 eq_refl eq_refl H4) => {Hind}Hind.
-    apply: (interpret_step_sound T p R1 l1 R2 l2); auto.
+    move: (Hind R0' R1 l1 ) => {Hind}Hind.
+    apply: (interpret_step_sound T p R1 l1 R2 l2).
+      by apply Hstep.
+      by apply Hind.
 Qed.

@@ -1,5 +1,5 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
-Require Export PolyAI.TotalMap.
+From PolyAI Require Export TotalMap ssrZ.
 Require Export Coq.Sets.Ensembles.
 Require Export Coq.ZArith.BinInt.
 
@@ -17,7 +17,7 @@ Inductive Aff :=
 Fixpoint used_in_aff (a: Aff) (v: string) :=
   match a with
   | AConst _ => true
-  | AVar v' => (v =? v')%string
+  | AVar v' => (v == v')
   | APlus a1 a2 => used_in_aff a1 v || used_in_aff a2 v
   | AMinus a1 a2 => used_in_aff a1 v || used_in_aff a2 v
   | AMul c a' => used_in_aff a' v
@@ -57,7 +57,7 @@ Class PresburgerImpl (PSet PwAff: Type) :=
                               forall x, eval_set p1 x -> eval_set p2 x;
 
     set_project_out : PSet -> string -> PSet;
-    set_project_out_spec : forall p d (m: total_map Z), eval_set (set_project_out p d) m <->
+    set_project_out_spec : forall p d (m: total_map), eval_set (set_project_out p d) m <->
                                     exists v, eval_set p (d !-> v; m);
 
 
@@ -83,14 +83,14 @@ Class PresburgerImpl (PSet PwAff: Type) :=
     eq_set : PwAff -> PwAff -> PSet;
     eq_set_spec : forall p1 p2 x, eval_set (eq_set p1 p2) x =
                              match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
-                             | (Some v1, Some v2) => v1 =? v2
+                             | (Some v1, Some v2) => v1 == v2
                              | _ => false
                              end;
 
     ne_set : PwAff -> PwAff -> PSet;
     ne_set_spec : forall p1 p2 x, eval_set (ne_set p1 p2) x =
                              match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
-                             | (Some v1, Some v2) => negb (v1 =? v2)
+                             | (Some v1, Some v2) => (v1 != v2)
                              | _ => false
                              end;
 
@@ -161,5 +161,5 @@ Ltac simpl_presburger :=
          | [ |- context[is_subset ?s ?s]] => rewrite is_subset_refl
          | [ |- context[is_subset ?s (union_set ?s _)]] => rewrite is_subset_union_l
          | [ |- context[is_subset ?s (union_set _ ?s)]] => rewrite is_subset_union_r
-         | _ => simpl_totalmap_Z
+         | _ => simpl_totalmap
          end.

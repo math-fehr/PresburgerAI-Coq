@@ -23,7 +23,7 @@ Proof.
   rewrite HR'.
   apply /andP.
   split.
-  - by simpl_totalmap_Z.
+  - by simpl_totalmap.
   - simpl_presburger.
     exists (R v).
     by simpl_presburger.
@@ -82,7 +82,7 @@ Proof.
   apply /andP.
   rewrite !HR'.
   split.
-  - simpl_totalmap_Z.
+  - simpl_totalmap.
     case opc.
     + by simpl_presburger.
     + by simpl_presburger.
@@ -120,7 +120,7 @@ Fixpoint presburger_affect_variables {PSet PwAff: Type} {P: PresburgerImpl PSet 
   match params with
   | nil => s
   | (param, value)::params' =>
-    if string_dec param value then
+    if param == value then
       presburger_affect_variables s params'
     else
       let c_set := eq_set (pw_aff_from_aff (AVar param)) (pw_aff_from_aff (AVar value)) in
@@ -139,12 +139,13 @@ Lemma presburger_affect_variables_sound {PSet PwAff: Type} (P: PresburgerImpl PS
 Proof.
   move => R s HR params.
   elim: params R s HR => [// | [param value] l Hind R s HR /=].
-  case (string_dec param value) => [Heq /= | Hne /=].
-  - rewrite Heq.
+  case (eqstringP param value) => [-> /=| /eqP Hne /=].
+  - simpl_totalmap.
     apply Hind.
     rewrite /Ensembles.In /gamma /=.
       by simpl_presburger.
-  - apply Hind.
+  - simpl_totalmap.
+    apply Hind.
     rewrite /= /Ensembles.In.
     simpl_presburger.
     exists (R param).
@@ -209,7 +210,7 @@ Proof.
   rewrite -Hinst in H6.
   move: H6 => [H6].
   rewrite H6 /= in H7.
-  case (eval_map R c =? 0)%Z eqn:HRC in H7.
+  case (eval_map R c == 0%Z) eqn:HRC in H7.
   - eexists. simpl. split.
     + right. left. move: H7 => [HR' Hl'].
       by rewrite Hl' //.
@@ -242,9 +243,9 @@ Theorem transfer_presburger_set_sound {PSet PwAff: Type} (P: PresburgerImpl PSet
   forall prog R l R' l',
     step prog (R, l) (R', l') ->
     forall inst, Some inst = List.nth_error prog l ->
-            forall a, Ensembles.In (total_map Z) (gamma a) R ->
+            forall a, Ensembles.In (total_map) (gamma a) R ->
                  exists a', In (a', l') (transfer_presburger_set inst a l) /\
-                       Ensembles.In (total_map Z) (gamma a') R'.
+                       Ensembles.In (total_map) (gamma a') R'.
 Proof.
   move => prog R l R' l' Hstep inst.
   move: prog R l R' l' Hstep.

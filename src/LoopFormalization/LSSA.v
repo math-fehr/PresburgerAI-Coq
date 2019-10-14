@@ -12,7 +12,7 @@ Definition vid := string.
 Definition bbid := string.
 
 (* Every variable has a value, even the non defined ones *)
-Definition RegisterMap := total_map Z.
+Definition RegisterMap := @total_map string_eqType Z.
 
 (* The label is the program counter *)
 Definition state := bbid * nat * RegisterMap.
@@ -40,7 +40,7 @@ Definition BasicBlock :=
   (list vid) * (list Inst) * Term.
 
 (* A program is a set of basic blocks indexed by their bbid *)
-Definition Program := total_map (option BasicBlock).
+Definition Program := @total_map string_eqType (option BasicBlock).
 
 (* A program structure is either a basic block, a loop that contains a header and
  a body, or the concatenation of two program strutures *)

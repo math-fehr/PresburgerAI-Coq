@@ -3,13 +3,13 @@ From PolyAI.LoopFormalization Require Export LAbstractDomain.
 From Coq Require Import ssreflect ssrfun ssrbool.
 
 Definition gamma_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} :=
-  fun pl (R: total_map Z) => forall s, in_V (R s) (eval_pfunc (pl s) (pointwise_un_op R VVal)).
+  fun pl (R: total_map) => forall s, in_V (R s) (eval_pfunc (pl s) (pointwise_un_op R VVal)).
 
 Definition le_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} :=
   fun a1 a2 => forall_bin_op a1 a2 le_pfunc.
 
 Definition join_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} :=
-  fun p1 p2 => pointwise_bin_op p1 p2 join_pfunc.
+  fun (p1 p2: @total_map string_eqType PFunc) => pointwise_bin_op p1 p2 join_pfunc.
 
 Theorem le_pfunc_map_refl {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall a, le_pfunc_map a a.
@@ -62,7 +62,7 @@ Proof.
   by simpl_pfunc.
 Qed.
 
-Instance PFuncMapAD {PFunc: Type} (PI: PFuncImpl PFunc) : adom (total_map PFunc) :=
+Instance PFuncMapAD {PFunc: Type} (PI: PFuncImpl PFunc) : adom (@total_map string_eqType PFunc) :=
   {
     le := le_pfunc_map;
     bot := (_ !-> constant_pfunc VBot);

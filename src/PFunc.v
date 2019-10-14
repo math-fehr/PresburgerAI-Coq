@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 From Coq Require Export Strings.String ZArith.BinInt.
-From PolyAI Require Export TotalMap.
+From PolyAI Require Export TotalMap ssrZ.
 Local Open Scope Z_scope.
 
 Local Set Warnings "-notation-overridden".
@@ -14,7 +14,7 @@ Definition eq_V (v1 v2: V) :=
   match (v1, v2) with
   | (VTop, VTop) => true
   | (VBot, VBot) => true
-  | (VVal v1, VVal v2) => v1 =? v2
+  | (VVal v1, VVal v2) => v1 == v2
   | _ => false
   end.
 
@@ -22,7 +22,7 @@ Definition le_V (v1 v2: V) :=
   match (v1, v2) with
   | (_, VTop) => true
   | (VBot, _) => true
-  | (VVal n1, VVal n2) => n1 =? n2
+  | (VVal n1, VVal n2) => n1 == n2
   | _ => false
   end.
 
@@ -46,7 +46,7 @@ Qed.
 Definition in_V (n: Z) (v: V) :=
   match v with
   | VTop => true
-  | VVal n' => n =? n'
+  | VVal n' => n == n'
   | VBot => false
   end.
 
@@ -58,21 +58,20 @@ Proof.
   - case v1; case v2 => // n n0.
     rewrite /le_V => /Z.eqb_spec -> //.
   - case v1; case v2 => //.
-    + move => n /= /(_ (n+1) is_true_true) Himpossible.
-        by rewrite /is_true Z.add_1_r Z.eqb_compare Zcompare.Zcompare_succ_Gt in Himpossible.
+    + move => n /= /(_ (n+1) is_true_true) /eqP Himpossible.
+      by apply Z.neq_succ_diag_l in Himpossible.
     + move => Hle.
         by have /Hle : (in_V 0 VTop) by [] => Himpossible.
     + move => n n0 Hin.
       case (Z.eqb_spec n n0).
       * move => Heq.
-          by rewrite Heq /le_V Z.eqb_refl.
+          by rewrite Heq /le_V.
       * move => /Z.eqb_spec Hne.
         move: (Hin n0) => Himpossible.
-        have /Himpossible : (in_V n0 (VVal n0)). by rewrite /in_V Z.eqb_refl.
-          by rewrite /in_V.
+        have /Himpossible : (in_V n0 (VVal n0)); by rewrite /in_V.
     + move => n Hin.
       move: (Hin n) => Hin'.
-      have /Hin' : (in_V n (VVal n)). by rewrite /in_V Z.eqb_refl.
+      have /Hin' : (in_V n (VVal n)). by rewrite /in_V.
         by move => Himpossible.
 Qed.
 
@@ -95,8 +94,7 @@ Proof.
   rewrite /in_V /add_V /binop_V.
   case v1 eqn:Hv1; case v2 eqn:Hv2 => //.
   rewrite /= in H1 H2.
-  move: H1 H2 => /Z.eqb_spec -> /Z.eqb_spec ->.
-    by rewrite Z.eqb_refl.
+  by move: H1 H2 => /eqP -> /eqP ->.
 Qed.
 
 Definition sub_V (v1 v2: V) :=
@@ -111,8 +109,7 @@ Proof.
   rewrite /in_V /sub_V /binop_V.
   case v1 eqn:Hv1; case v2 eqn:Hv2 => //.
   rewrite /= in H1 H2.
-  move: H1 H2 => /Z.eqb_spec -> /Z.eqb_spec ->.
-    by rewrite Z.eqb_refl.
+  by move: H1 H2 => /eqP -> /eqP ->.
 Qed.
 
 Definition le_binop_V (v1 v2: V) :=
@@ -127,8 +124,7 @@ Proof.
   rewrite /in_V /le_binop_V /binop_V.
   case v1 eqn:Hv1; case v2 eqn:Hv2 => //.
   rewrite /= in H1 H2.
-  move: H1 H2 => /Z.eqb_spec -> /Z.eqb_spec ->.
-    by rewrite Z.eqb_refl.
+  by move: H1 H2 => /eqP -> /eqP ->.
 Qed.
 
 Definition unop_V (v: V) (op: Z -> Z) :=
@@ -157,7 +153,7 @@ Class PFuncImpl (PFunc: Type) :=
     is_constant_on_var: PFunc -> string -> bool;
     is_constant_on_var_spec:
       forall p v, is_constant_on_var p v <->
-             forall m m', (forall v', v <> v' -> m v' = m' v') -> eval_pfunc p m = eval_pfunc p m';
+             forall m m', (forall v', v != v' -> m v' = m' v') -> eval_pfunc p m = eval_pfunc p m';
 
     add_pfunc: PFunc -> PFunc -> PFunc;
     add_pfunc_spec:
@@ -225,11 +221,11 @@ Proof.
 Qed.
 
 (* A useful lemma used in the next tactic *)
-Lemma t_update_other : forall {A : Type} (m : total_map A),
-    forall x v v', v <> v' ->
+Lemma t_update_other {Value: Type} (m : @total_map string_eqType Value):
+    forall x v v', v != v' ->
               (v !-> x; m) v' = m v'.
 Proof.
-  move => A m x v v' Hne.
+  move => x v v' Hne.
     by simpl_totalmap.
 Qed.
 
@@ -255,5 +251,5 @@ Ltac simpl_pfunc :=
            rewrite (add_V_spec x1 v1 H1 x2 v2 H2)
          | [ H1: is_true (in_V ?x1 ?v1), H2: is_true (in_V ?x2 ?v2) |- context[in_V (if (?x1 <=? ?x2)%Z then 1%Z else _) (le_binop_V ?v1 ?v2)]] =>
            rewrite (le_binop_V_spec x1 v1 H1 x2 v2 H2)
-         | _ => simpl_totalmap_Z
+         | _ => simpl_totalmap
          end.

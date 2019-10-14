@@ -1,5 +1,7 @@
-Require Import PolyAI.TotalMap.
-From Coq Require Export Bool.Bool Strings.String Numbers.BinNums ZArith.BinInt.
+From Coq Require Import ssreflect ssrfun ssrbool.
+Local Set Warnings "-notation-overridden".
+From PolyAI Require Import TotalMap ssrZ.
+From Coq Require Export Bool.Bool Strings.String Numbers.BinNums.
 Require Import Coq.Arith.PeanoNat.
 
 
@@ -18,7 +20,7 @@ Definition variable := string.
 Definition label := nat.
 
 (* Every variable has a value, even the non defined ones *)
-Definition RegisterMap := total_map Z.
+Definition RegisterMap := @total_map string_eqType Z.
 
 (* The label is the program counter *)
 Definition state := RegisterMap * label.
@@ -44,7 +46,7 @@ Definition bin_op_eval (op : BinArithOpCode) (v1 v2 : Z) :=
 (* An SSA instruction *)
 Inductive Instruction :=
 | Const (v: variable) (c: Z)
-| BinOp (v: variable) (b: BinArithOpCode) (op1 op2: variable): v <> op1 -> v <> op2 -> Instruction
+| BinOp (v: variable) (b: BinArithOpCode) (op1 op2: variable): v != op1 -> v != op2 -> Instruction
 | Br (l: label) (params: list (variable * variable))
 | BrC (c: variable) (l1: label) (params1: list (variable * variable))
       (l2: label) (params2: list (variable * variable)).
@@ -67,7 +69,7 @@ Definition ssa_step (inst : Instruction) (R : RegisterMap) (l : label) :=
   | BinOp v op x1 x2 _ _ => (v !-> bin_op_eval op (R x1) (R x2) ; R, Nat.add l 1)
   | Br l' params => (affect_variables R params, l')
   | BrC c l1 params1 l2 params2 =>
-    if R c =? 0 then
+    if R c == 0 then
       (affect_variables R params2, l2)
     else
       (affect_variables R params1, l1)
