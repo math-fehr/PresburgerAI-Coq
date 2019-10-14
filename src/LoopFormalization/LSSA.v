@@ -1,5 +1,5 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
-From PolyAI Require Export TotalMap.
+From PolyAI Require Export TotalMap ssrstring.
 From Coq Require Export Bool.Bool Strings.String Numbers.BinNums ZArith.BinInt.
 
 Local Open Scope type_scope.
@@ -10,6 +10,7 @@ This is the definition of a loop aware SSA language.
 
 Definition vid := string.
 Definition bbid := string.
+Definition bbid_eqType := string_eqType.
 
 (* Every variable has a value, even the non defined ones *)
 Definition RegisterMap := @total_map string_eqType Z.

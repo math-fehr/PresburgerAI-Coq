@@ -324,7 +324,10 @@ repeat match goal with
        | [ |- context[eval_map (_ !-> _) _] ] => rewrite t_apply_empty
        | [ |- context[eval_map (?k !-> _ ; _) ?k]] => rewrite t_update_eq
        | [ H : ?k1 <> ?k2 |- _ ] => move: H => /eqP H
-       | [ H : ?k1 != ?k2 |- context[eval_map (?k1 !-> _ ; _) ?k2] ] => rewrite (t_update_neq _ _ _ _ H)
+
+       | [ H : is_true (?k1 != ?k2) |- context[eval_map (?k1 !-> _ ; _) ?k2] ] => rewrite (t_update_neq _ _ _ _ H)
+       | [ H : is_true (?k2 != ?k1) |- context[eval_map (?k1 !-> _ ; _) ?k2] ] =>
+         rewrite eq_sym in H; rewrite (t_update_neq _ _ _ _ H); rewrite eq_sym in H
        | [ |- context[eval_map (?k1 !-> _ ; ?m) ?k2]] => rewrite (t_update_neq m k1 k2 _); last first; [ by [] | idtac ]
        | [ |- context[eval_map (?k !-> _ ; ?k !-> _ ; _)]] => rewrite t_update_shadow
        | [ |- context[eval_map (?k !-> eval_map ?m ?k ; ?m)]] => rewrite t_update_same
