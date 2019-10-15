@@ -1,3 +1,4 @@
+From Coq Require Export ssrbool.
 From PolyAI Require Export LAbstractDomain LSSA.
 Require Export Coq.Lists.List.
 
@@ -17,5 +18,8 @@ Class transfer_function {ab: Type} (A: adom ab) :=
         forall a, Ensembles.In RegisterMap (gamma a) R ->
              exists a', In (a', bb) (transfer_term term a) /\
                    Ensembles.In RegisterMap (gamma a') R';
-
+    transfer_term_only_successors :
+      forall term bb a,
+        (exists a', In (a', bb) (transfer_term term a)) ->
+        list_string_in (term_successors term) bb;
   }.

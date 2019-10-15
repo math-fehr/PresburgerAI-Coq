@@ -12,6 +12,14 @@ Definition inst_fixpoint {ab: Type} {ad: adom ab} {tf: transfer_function ad} (p:
         forall inst, Some inst = nth_error bb.1.2 pos ->
                 le (transfer_inst inst (state bb_id pos)) (state bb_id (S pos)).
 
+Definition term_fixpoint {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+           (p: Program) (state: AbstractState ab) (bb_id: bbid) :=
+  forall bb, Some bb = p bb_id ->
+        forallb (fun abbbid => match abbbid with
+                            | (ab, out_id) => le ab (state out_id 0)
+                            end )
+                (transfer_term bb.2 (state bb_id (length bb.1.2))).
+
 Fixpoint abstract_interpret_inst_list {ab: Type} {ad: adom ab} {tf: transfer_function ad}
          (l: list Inst) (bb_id: bbid) (pos: nat) (state: AbstractState ab) :=
   match l with
@@ -72,4 +80,123 @@ Proof.
         rewrite -Hinst0 in Hinst.
         move: Hinst => [->].
         apply LAbstractDomain.le_refl.
+Qed.
+
+Definition abstract_interpret_join_term_succ {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+           (state: AbstractState ab) (abs: list (ab * bbid)) :=
+    fold_right (fun abid state =>
+               match abid with
+               | (ab, out_id) => (out_id !-> (O !-> join ab (state out_id O); state out_id); state)
+               end
+              ) state abs.
+
+Lemma abstract_interpret_join_term_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+      (state: AbstractState ab) (abs: list (ab * bbid)) (bb_id: bbid) (pos: nat) :
+  pos != O -> (abstract_interpret_join_term_succ state abs) bb_id pos = state bb_id pos.
+Proof.
+  move => Hpos.
+  elim: abs => [ // | [a out_id] l Hind ].
+  case (out_id =P bb_id) => [-> | Hne]; by simpl_totalmap.
+Qed.
+
+Lemma abstract_interpret_join_term_bb_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+      (p: Program) (bb_id: bbid) (bb: BasicBlock):
+  (Some bb = p bb_id) ->
+  forall abs, (forall a', not (In (a', bb_id) abs)) ->
+         forall state pos, (abstract_interpret_join_term_succ state abs) bb_id pos = state bb_id pos.
+Proof.
+  move => Hbb HnotIn.
+  elim: HnotIn => [// | [a out_id] abs' Hind /=].
+  case (bb_id =P out_id) => [<- /(_ a) /Decidable.not_or [Himpossible _]// | Hne HnotIn].
+  have: (forall a', ~ In (a', bb_id) abs').
+    by move => a'; move: HnotIn => /(_ a') /Decidable.not_or[_ Hgoal].
+  move => HnotIn' state pos.
+  apply Hind with (state := state) (pos := pos) in HnotIn'.
+    by simpl_totalmap.
+Qed.
+
+Lemma abstract_interpret_join_term_monotone {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+      (state: AbstractState ab) (abs: list (ab * bbid)) (bb_id: bbid) (pos: nat) :
+  le (state bb_id pos) ((abstract_interpret_join_term_succ state abs) bb_id pos).
+Proof.
+  elim: abs => [ /= | [a' bb] l /=]. by apply LAbstractDomain.le_refl.
+  case (bb_id =P bb) => [-> | Hne Hind].
+  - case pos => [Hind | n Hind].
+    + simpl_totalmap.
+      eapply LAbstractDomain.le_trans.
+      * by apply Hind.
+      * apply join_sound_r.
+    + by simpl_totalmap.
+  - by simpl_totalmap.
+Qed.
+
+Lemma abstract_interpret_join_term_join {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+      (abs: list (ab * bbid)) (a: ab) (bb_id: bbid) :
+  In (a, bb_id) abs ->
+  forall state, le a ((abstract_interpret_join_term_succ state abs) bb_id O).
+Proof.
+  elim: abs => [// | [a0 out_id] l Hind /= [[-> ->] | HIn] state].
+  - simpl_totalmap. apply join_sound_l.
+  - case (out_id =P bb_id) => [-> | Hne].
+    + simpl_totalmap.
+      eapply LAbstractDomain.le_trans.
+      * by apply Hind.
+      * apply join_sound_r.
+    + simpl_totalmap.
+        by apply Hind.
+Qed.
+
+Definition abstract_interpret_term {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+           (bb: BasicBlock) (bb_id: bbid) (state: AbstractState ab) :=
+  let pos := length bb.1.2 in
+  let new_abs := transfer_term bb.2 (state bb_id pos) in
+  abstract_interpret_join_term_succ state new_abs.
+
+  (*(Some bb = p bb_id) ->
+  forall abs, (forall a', not (In (a', bb_id) abs)) ->
+  forall state pos, (abstract_interpret_join_term_succ state abs) bb_id pos = state bb_id pos.*)
+
+
+Theorem abstract_interpret_term_spec {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+        (p: Program) (bb: BasicBlock) (bb_id: bbid) (state: AbstractState ab):
+  Some bb = p bb_id ->
+  ~~(list_string_in (term_successors bb.2) bb_id) ->
+  term_fixpoint p (abstract_interpret_term bb bb_id state) bb_id.
+Proof.
+  move => Hbb Hbbnotsucc.
+  move => bb0 Hbb0.
+  rewrite -Hbb0 in Hbb.
+  move: Hbb Hbb0 => [<-] => Hbb.
+  apply forallb_forall => [[a out_id]].
+  rewrite /abstract_interpret_term.
+  move Hterm: bb.2 => term.
+  rewrite Hterm in Hbbnotsucc.
+  move Hpos: (length bb.1.2) => pos.
+  move Htransfer: (transfer_term term ((state bb_id) pos)) => transfer.
+  case (pos =P 0) => [Heq | /eqP Hne]; last first.
+  - rewrite abstract_interpret_join_term_unchanged => [ | //].
+    rewrite Htransfer => HIn.
+      by apply abstract_interpret_join_term_join.
+  - rewrite Heq in Hpos Htransfer *.
+    case (out_id =P bb_id) => [-> HIn | Hne ].
+    + have: (list_string_in (term_successors term) bb_id) => [ | Hcontra].
+      * eapply transfer_term_only_successors.
+        exists a.
+        by apply HIn.
+      * rewrite /is_true in Hcontra.
+          by rewrite Hcontra in Hbbnotsucc.
+    + move: (@abstract_interpret_join_term_bb_unchanged ab ad tf p bb_id bb Hbb transfer).
+      have: (forall a' : ab, ~ In (a', bb_id) transfer).
+      * move => a' HIn.
+        rewrite -Htransfer in HIn.
+        move: (@transfer_term_only_successors ab ad tf term bb_id (state bb_id 0)).
+        have: ((exists a'0 : ab, In (a'0, bb_id) (transfer_term term ((state bb_id) 0)))).
+          by exists a'.
+        move => HexistsIn /(_ HexistsIn).
+        rewrite /is_true.
+        move => HbbInsucc.
+          by rewrite HbbInsucc in Hbbnotsucc.
+      * move => HnotIn /(_ HnotIn) Hunchanged.
+        rewrite Hunchanged Htransfer => HIn.
+        by apply abstract_interpret_join_term_join.
 Qed.
