@@ -299,7 +299,10 @@ Theorem abstract_interpret_program_unchanged {ab: Type} {ad: adom ab} {tf: trans
 Proof.
   elim: ps.
   - admit.
-  - admit.
+  - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP [Hsound1 Hsound2]] HsoundDAG bb_id.
+    rewrite !list_string_in_append => /norP[Hinsucc1 Hinsucc2] /norP[Hinprog1 Hinprog2] state pos.
+    rewrite Hind2 => //.
+    by rewrite Hind1 => //.
   - move => bb_id Hsound bb_id' Hnot_in_succ /norP [/eqP Hnebb _] state pos /=.
     case_eq (p bb_id) => [[[params insts] term] | //] => Hbb.
     move => /eqP in Hnebb.
