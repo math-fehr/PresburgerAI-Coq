@@ -151,6 +151,13 @@ Proof.
     + apply /orP. right. by apply /Hind.
 Qed.
 
+Theorem list_string_in_append:
+  forall l1 l2 s, list_string_in (l1++l2) s = list_string_in l1 s || list_string_in l2 s.
+Proof.
+  elim => [ s l // | s l Hind l2 s' /=].
+    by case (s' =? s) => //=.
+Qed.
+
 Fixpoint list_string_forall (f: string -> bool) (l: list string) :=
   match l with
   | nil => true
