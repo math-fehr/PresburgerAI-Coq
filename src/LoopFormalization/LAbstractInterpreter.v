@@ -82,6 +82,19 @@ Proof.
         apply LAbstractDomain.le_refl.
 Qed.
 
+Theorem abstract_interpret_inst_list_0_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+         (l: list Inst) (bb_id bb_id': bbid) (pos: nat) (state: AbstractState ab) :
+  state bb_id' 0 = (abstract_interpret_inst_list l bb_id pos state) bb_id' 0.
+Proof.
+  elim: l state pos => [ // | i l Hind state pos /=].
+  case (bb_id' =P bb_id) => [ Heq | /eqP Hne ].
+  - rewrite Heq in Hind *.
+    rewrite -Hind.
+      by simpl_totalmap.
+  - rewrite -Hind.
+      by simpl_totalmap.
+Qed.
+
 Theorem abstract_interpret_inst_list_bb_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
         (p: Program) (l: list Inst) (bb_id: bbid) :
   forall bb_id', bb_id != bb_id' ->
@@ -207,7 +220,16 @@ Proof.
         by apply abstract_interpret_join_term_join.
 Qed.
 
-Lemma abstract_interpret_bb_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Lemma abstract_interpret_term_monotone {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+      (state: AbstractState ab) (bb: BasicBlock) (bb_id bb_id': bbid) (pos: nat) :
+  le (state bb_id' pos) ((abstract_interpret_term bb bb_id state) bb_id' pos).
+Proof.
+  rewrite /abstract_interpret_term.
+  by apply abstract_interpret_join_term_monotone.
+Qed.
+
+
+Lemma abstract_interpret_term_bb_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
       (p: Program) (bb_id: bbid) (bb: BasicBlock):
   (Some bb = p bb_id) ->
   forall bb_id', bb_id' != bb_id ->
@@ -276,6 +298,15 @@ Proof.
           by rewrite HexistsIn in HnotIn.
 Qed.
 
+Theorem abstract_interpret_bb_monotone_0 {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+        (bb: BasicBlock) (bb_id bb_id': bbid) (state: AbstractState ab):
+  le (state bb_id' 0) ((abstract_interpret_bb bb bb_id state) bb_id' 0).
+Proof.
+  rewrite /abstract_interpret_bb.
+  erewrite abstract_interpret_inst_list_0_unchanged.
+  apply abstract_interpret_term_monotone.
+Qed.
+
 Fixpoint abstract_interpret_program {ab: Type} {ad: adom ab} {tf: transfer_function ad}
            (p: Program) (ps: ProgramStructure) (state: AbstractState ab) :=
   match ps with
@@ -290,6 +321,22 @@ Fixpoint abstract_interpret_program {ab: Type} {ad: adom ab} {tf: transfer_funct
   | _ => state
   end.
 
+Theorem abstract_interpret_program_monotone_0 {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+        (p: Program) (ps: ProgramStructure) (state: AbstractState ab) (bb_id: bbid) :
+  le (state bb_id 0) ((abstract_interpret_program p ps state) bb_id 0).
+Proof.
+  elim: ps state.
+  - admit.
+  - move => ps1 Hind1 ps2 Hind2 state /=.
+    eapply LAbstractDomain.le_trans.
+    + by apply Hind1.
+    + by apply Hind2.
+  - rewrite /abstract_interpret_program => bb state.
+    case: (p bb) => [a | ].
+    + by apply abstract_interpret_bb_monotone_0.
+    + by apply LAbstractDomain.le_refl.
+Admitted.
+
 Theorem abstract_interpret_program_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
         (p: Program) (ps: ProgramStructure) :
   structure_sound p ps ->
@@ -299,7 +346,7 @@ Theorem abstract_interpret_program_unchanged {ab: Type} {ad: adom ab} {tf: trans
 Proof.
   elim: ps.
   - admit.
-  - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP [Hsound1 Hsound2]] HsoundDAG bb_id.
+  - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[_ Hsound1] Hsound2] bb_id.
     rewrite !list_string_in_append => /norP[Hinsucc1 Hinsucc2] /norP[Hinprog1 Hinprog2] state pos.
     rewrite Hind2 => //.
     by rewrite Hind1 => //.
@@ -307,7 +354,7 @@ Proof.
     case_eq (p bb_id) => [[[params insts] term] | //] => Hbb.
     move => /eqP in Hnebb.
     rewrite /abstract_interpret_bb.
-    erewrite abstract_interpret_bb_unchanged; eauto.
+    erewrite abstract_interpret_term_bb_unchanged; eauto.
     rewrite abstract_interpret_inst_list_bb_unchanged => //. by rewrite eq_sym.
     rewrite /= in Hnot_in_succ.
     rewrite Hbb in Hnot_in_succ.
@@ -322,12 +369,29 @@ Theorem abstract_interpret_program_spec_term {ab: Type} {ad: adom ab} {tf: trans
 Proof.
   elim ps => [ | | bb_id' /=].
   - admit.
-  - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[Hsound1 Hsound2] Hdominance] bb_id.
+  - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/andP[H2notin1 H1notin2] Hloops] Hdominance] Hsound1] Hsound2] bb_id.
     rewrite list_string_in_append => /orP [ HIn1 | HIn2 ] state; last first.
       by apply Hind2.
     have: (term_fixpoint p (abstract_interpret_program p ps1 state) bb_id) by apply Hind1.
     move => Hfixpoint1.
-    admit.
+    rewrite /term_fixpoint in Hfixpoint1 *.
+    move => bb Hbb.
+    apply forallb_forall => [[a bb_id']] HIn.
+    rewrite abstract_interpret_program_unchanged in HIn => //.
+    + move: (Hfixpoint1 bb Hbb) => {Hfixpoint1} Hfixpoint1.
+      eapply forallb_forall with (x := (a, bb_id')) in Hfixpoint1; auto.
+      eapply LAbstractDomain.le_trans.
+      apply Hfixpoint1.
+      apply abstract_interpret_program_monotone_0.
+    + apply list_string_forall_spec in Hdominance.
+      move: HIn1. move => /list_string_in_spec HIn1.
+      apply /list_string_in_spec => Hinsucc2.
+      eapply Forall_forall in Hdominance; eauto.
+      move: Hdominance => /list_string_in_spec Hdominance.
+      eauto.
+    + apply list_string_forall_spec in H2notin1.
+      apply Forall_forall with (x := bb_id) in H2notin1; auto.
+      by apply /list_string_in_spec.
   - case_eq (p bb_id') => [ [[params insts] term] Hbb Hbbnotinterm bb_id /orP [/eqP ->| //] state /= | //].
       by apply abstract_interpret_bb_spec_term.
 Admitted.
