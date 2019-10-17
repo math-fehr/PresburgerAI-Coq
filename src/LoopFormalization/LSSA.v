@@ -110,7 +110,10 @@ Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
   match ps with
   | Loop header (Some body) =>
     structure_sound p body
-  | DAG ps1 ps2 => list_string_forall (fun s => ~~list_string_in (bbs_in_loops ps2) s) (program_successors p ps1)
+  | DAG ps1 ps2 =>
+    structure_sound p ps1 &&
+    structure_sound p ps2 &&
+    list_string_forall (fun s => ~~list_string_in (bbs_in_loops ps2) s) (program_successors p ps1)
   | BB bb =>
     match p bb with
     | None => false
