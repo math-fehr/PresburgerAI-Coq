@@ -152,10 +152,6 @@ Definition abstract_interpret_term {ab: Type} {ad: adom ab} {tf: transfer_functi
   let new_abs := transfer_term bb.2 (state bb_id pos) in
   abstract_interpret_join_term_succ state new_abs.
 
-  (*(Some bb = p bb_id) ->
-  forall abs, (forall a', not (In (a', bb_id) abs)) ->
-  forall state pos, (abstract_interpret_join_term_succ state abs) bb_id pos = state bb_id pos.*)
-
 
 Theorem abstract_interpret_term_spec {ab: Type} {ad: adom ab} {tf: transfer_function ad}
         (p: Program) (bb: BasicBlock) (bb_id: bbid) (state: AbstractState ab):
@@ -199,4 +195,54 @@ Proof.
       * move => HnotIn /(_ HnotIn) Hunchanged.
         rewrite Hunchanged Htransfer => HIn.
         by apply abstract_interpret_join_term_join.
+Qed.
+
+Definition abstract_interpret_bb {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+           (bb: BasicBlock) (bb_id: bbid) (state: AbstractState ab) :=
+  let state' := abstract_interpret_inst_list bb.1.2 bb_id 0 state in
+  abstract_interpret_term bb bb_id state'.
+
+Theorem abstract_interpret_bb_spec_term {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+        (p: Program) (bb: BasicBlock) (bb_id: bbid) (state: AbstractState ab) :
+    Some bb = p bb_id ->
+    ~~(list_string_in (term_successors bb.2) bb_id) ->
+    term_fixpoint p (abstract_interpret_bb bb bb_id state) bb_id.
+Proof.
+  move => Hbb HnotIn.
+    by apply abstract_interpret_term_spec.
+Qed.
+
+Theorem abstract_interpret_bb_spec_inst {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+        (p: Program) (bb: BasicBlock) (bb_id: bbid) (state: AbstractState ab) :
+    Some bb = p bb_id ->
+    ~~(list_string_in (term_successors bb.2) bb_id) ->
+    (forall n, inst_fixpoint p (abstract_interpret_bb bb bb_id state) bb_id n).
+Proof.
+  move => Hbb HnotIn n.
+  rewrite /abstract_interpret_bb.
+  assert (inst_fixpoint p (abstract_interpret_inst_list bb.1.2 bb_id 0 state) bb_id n).
+  - eapply abstract_interpret_inst_list_spec => [ | n0 | n' Hn0].
+      + by apply Hbb.
+      + by rewrite addn0.
+      + by rewrite ltn0 in Hn0.
+  - move: H. case: n => [ H | n H] bb0 Hbb0 inst0 Hinst0; last first.
+    + rewrite !abstract_interpret_join_term_unchanged => //.
+      rewrite /inst_fixpoint in H.
+      eapply H.
+        by apply Hbb0.
+        by apply Hinst0.
+    + rewrite (abstract_interpret_join_term_unchanged _ _ _ 1) => //.
+      rewrite /abstract_interpret_term.
+      rewrite -Hbb in Hbb0. move: Hbb0 => [Hbbeq].
+      rewrite !Hbbeq in Hinst0 *.
+      rewrite (abstract_interpret_join_term_bb_unchanged p bb_id bb) => //.
+      * eapply abstract_interpret_inst_list_spec with (p0 := p) (bb1 := bb) (bb2 := bb) => //.
+          move => n. by rewrite addn0.
+      * move => a' HIna'.
+        have: (exists a'0 : ab, In (a'0, bb_id) (transfer_term bb.2
+              (((abstract_interpret_inst_list bb.1.2 bb_id 0 state) bb_id) (Datatypes.length bb.1.2)))).
+        by eexists; apply HIna'.
+        move => HexistsIn.
+        apply transfer_term_only_successors in HexistsIn.
+          by rewrite HexistsIn in HnotIn.
 Qed.
