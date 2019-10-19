@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 From PolyAI Require Export TotalMap ssrstring.
-From Coq Require Export Bool.Bool Strings.String Numbers.BinNums ZArith.BinInt.
+From Coq Require Export Bool.Bool Strings.String Numbers.BinNums ZArith.BinInt Lists.List.
 
 Local Open Scope type_scope.
 
@@ -111,10 +111,10 @@ Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
   | Loop header (Some body) =>
     structure_sound p body
   | DAG ps1 ps2 =>
-    list_string_forall (fun s => ~~list_string_in (bbs_in_program ps2) s) (bbs_in_program ps1) &&
-    list_string_forall (fun s => ~~list_string_in (bbs_in_program ps1) s) (bbs_in_program ps2) &&
-    list_string_forall (fun s => ~~list_string_in (bbs_in_loops ps2) s) (program_successors p ps1) &&
-    list_string_forall (fun s => ~~list_string_in (bbs_in_program ps1) s) (program_successors p ps2) &&
+    forallb (fun s => ~~list_string_in (bbs_in_program ps2) s) (bbs_in_program ps1) &&
+    forallb (fun s => ~~list_string_in (bbs_in_program ps1) s) (bbs_in_program ps2) &&
+    forallb (fun s => ~~list_string_in (bbs_in_loops ps2) s) (program_successors p ps1) &&
+    forallb (fun s => ~~list_string_in (bbs_in_program ps1) s) (program_successors p ps2) &&
     structure_sound p ps1 &&
     structure_sound p ps2
 

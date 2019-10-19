@@ -83,6 +83,8 @@ Qed.
 
 Require Import Coq.ZArith.BinInt.
 
+(* Pointwise operations on one or multiple maps *)
+
 Fixpoint pointwise_un_op {Key: eqType} {Value Value': Type} (m: @total_map Key Value) (f: Value -> Value') :=
   match m with
   | TEmpty v => (_ !-> f v)
@@ -144,8 +146,7 @@ Theorem list_string_in_spec:
 Proof.
   elim => [s // | a l Hind s /=].
   - apply: (iffP idP) => [// | Hne // ].
-  - apply: (iffP idP) => [ /orP[/eqb_spec Heq | HIn] | [-> | HIn]].
-    + by left.
+  - apply: (iffP idP) => [ /orP[/eqb_spec Heq | HIn] | [-> | HIn]]; auto.
     + right. by apply /Hind.
     + apply /orP. left. by apply eqb_refl.
     + apply /orP. right. by apply /Hind.
@@ -156,24 +157,6 @@ Theorem list_string_in_append:
 Proof.
   elim => [ s l // | s l Hind l2 s' /=].
     by case (s' =? s) => //=.
-Qed.
-
-Fixpoint list_string_forall (f: string -> bool) (l: list string) :=
-  match l with
-  | nil => true
-  | a::l' => f a && list_string_forall f l'
-  end.
-
-Theorem list_string_forall_spec :
-  forall l f, list_string_forall f l <-> List.Forall f l.
-Proof.
-  elim => [// | s l Hind f].
-  split => [/= /andP [Hfs Hforall] | HForall /=].
-  - apply List.Forall_cons => [// | ].
-      by apply Hind.
-  - inversion HForall. subst.
-    apply Hind in H2.
-      by apply /andP.
 Qed.
 
 Local Open Scope string_scope.
@@ -203,7 +186,7 @@ Lemma repeat_string_length :
   forall n, length (repeat_string n) = n.
 Proof.
   elim => [// | n Hind /=].
-    by rewrite Hind.
+  by auto.
 Qed.
 
 Fixpoint construct_not_in_list (l: list string) :=
@@ -223,13 +206,12 @@ Qed.
 Theorem construct_not_in_list_length_forall :
   forall l x, List.In x l -> length (construct_not_in_list l) > length x.
 Proof.
-  elim => [x Hin /= | a l Hind x /= [Heqxa | Hinl]].
-  - by apply List.in_nil in Hin.
+  elim => [x Hin /= // | a l Hind x /= [Heqxa | Hinl]].
   - rewrite Heqxa string_append_length repeat_string_length.
     rewrite {1}(plus_n_O (length x)).
     by rewrite ltn_add2l construct_not_in_list_length.
-  - rewrite string_append_length ltn_addl => [// | ].
-      by apply Hind.
+  - rewrite string_append_length ltn_addl => //.
+    by auto.
 Qed.
 
 Theorem construct_not_in_list_spec:
@@ -258,21 +240,19 @@ Lemma forall_bin_op_aux_spec {Value: Type} {m1: total_map} (v2: Value)
 Proof.
   elim: m1 seen => [v seen /= | m Hind k v1 seen /=].
     by split => [// | H]; apply (H (construct_not_in_list seen)), construct_not_in_list_spec.
-  case (list_string_in seen k) eqn:Hseen.
+  case (list_string_in_spec seen k) => Hseen.
   - rewrite Hind.
-    split => [Hin k0 HnotIn| Hin k0 Hf].
-    + case (k == k0) eqn: Hkk0; last first. by apply Hin.
-        by move: Hkk0 Hseen => /eqb_spec -> /list_string_in_spec Hseen.
-    + case (k == k0) eqn: Hkk0; last first. apply Hin in Hf. by rewrite Hkk0 in Hf.
-        by move: Hkk0 Hseen => /eqb_spec -> /list_string_in_spec Hseen.
+    split => [Hin k0 HnotIn | Hin k0 Hf]; move: Hseen.
+    + case (k =P k0) => [-> | //]; by auto.
+    + case (k =P k0) => [-> // | /eqP /negb_true_iff Hkk0].
+      apply Hin in Hf.
+        by rewrite Hkk0 in Hf.
   - split => [/andP[Hf /Hind Hforall] k0 Hk0notin | H ].
-    + case (k == k0) eqn:Hkk0 => [// | ].
-      move: Hkk0 => /eqb_spec Hkk0.
+    + case (k =P k0) => [// | Hkk0 ].
       apply Hforall.
       by case.
     + apply /andP. split.
-      * move: Hseen => /list_string_in_spec Hseen.
-        apply H in Hseen.
+      * apply H in Hseen.
           by rewrite eq_refl in Hseen.
       * apply Hind => k0 /= /Decidable.not_or [/eqP /negb_true_iff Hkk0 /H Hnotin].
           by rewrite Hkk0 in Hnotin.
@@ -291,18 +271,17 @@ Fixpoint forall_bin_op_fix {Value: Type} (m1 m2: total_map) (f: Value -> Value -
 Lemma forall_bin_op_fix_spec {Value: Type} (m1 m2: total_map) (f: Value -> Value -> bool) (seen: list string) :
   forall_bin_op_fix m1 m2 f seen <-> forall k, not (List.In k seen) -> f (m1 k) (m2 k).
 Proof.
-  move: m2 m1 seen.
-  elim => [v1 m2 seen /= | m2 Hind k v1 m1 seen /=].
+  elim: m2 m1 seen => [v1 m2 seen /= | m2 Hind k v1 m1 seen /=].
     by split => /forall_bin_op_aux_spec.
-  case (list_string_in seen k) eqn:Hseen; move: Hseen => /list_string_in_spec Hseen.
+  case (list_string_in_spec seen k) => Hseen.
   - rewrite Hind.
-    split => [Hin k0 HnotIn| Hin k0 Hf].
-    + case (k == k0) eqn: Hkk0; last first. by apply Hin.
-        by move: Hkk0 Hseen => /eqb_spec ->.
-    + case (k == k0) eqn: Hkk0; last first. apply Hin in Hf. by rewrite Hkk0 in Hf.
-        by move: Hkk0 Hseen => /eqb_spec ->.
+    split => [Hin k0 HnotIn| HIn k0 Hf]; move: Hseen.
+    + case (k =P k0) => [-> | //]; by auto.
+    + case (k =P k0) => [-> // | Hkk0].
+      move: Hf => /HIn.
+      by move: Hkk0 => /eqP /negb_true_iff ->.
   - split => [/andP[Hf /Hind Hforall] k0 Hk0notin | H ].
-    + case_eq (k == k0) => [ /eqP <- // | /eqP Hkk0 ].
+    + case (k =P k0) => [<- // | Hkk0].
       apply Hforall.
       by case.
     + apply /andP. split.
@@ -319,9 +298,7 @@ Theorem forall_bin_op_spec {Value: Type} (m1 m2: total_map) (f: Value -> Value -
   forall_bin_op m1 m2 f <-> forall k, f (m1 k) (m2 k).
 Proof.
   rewrite forall_bin_op_fix_spec /=.
-  split => [H // | H k _].
-  - auto.
-  - by apply H.
+  split; auto.
 Qed.
 
 (* Useful tactic which apply known lemmas *)

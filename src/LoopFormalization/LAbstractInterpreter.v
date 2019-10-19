@@ -383,14 +383,13 @@ Proof.
       eapply LAbstractDomain.le_trans.
       apply Hfixpoint1.
       apply abstract_interpret_program_monotone_0.
-    + apply list_string_forall_spec in Hdominance.
-      move: HIn1. move => /list_string_in_spec HIn1.
+    + move: HIn1. move => /list_string_in_spec HIn1.
       apply /list_string_in_spec => Hinsucc2.
-      eapply Forall_forall in Hdominance; eauto.
+      rewrite /is_true in Hdominance.
+      eapply forallb_forall in Hdominance; eauto.
       move: Hdominance => /list_string_in_spec Hdominance.
       eauto.
-    + apply list_string_forall_spec in H2notin1.
-      apply Forall_forall with (x := bb_id) in H2notin1; auto.
+    + eapply forallb_forall in H2notin1; eauto.
       by apply /list_string_in_spec.
   - case_eq (p bb_id') => [ [[params insts] term] Hbb Hbbnotinterm bb_id /orP [/eqP ->| //] state /= | //].
       by apply abstract_interpret_bb_spec_term.
