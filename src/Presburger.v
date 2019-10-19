@@ -7,12 +7,16 @@ Require Import String.
 Local Open Scope string_scope.
 Local Open Scope Z_scope.
 
+(* An affine function *)
+
 Inductive Aff :=
 | AConst (c: Z)
 | AVar (v: string)
 | APlus (a1 a2: Aff)
 | AMinus (a1 a2: Aff)
 | AMul (c: Z) (a: Aff).
+
+(* Check if a variable is used in an affine function *)
 
 Fixpoint used_in_aff (a: Aff) (v: string) :=
   match a with
@@ -23,6 +27,8 @@ Fixpoint used_in_aff (a: Aff) (v: string) :=
   | AMul c a' => used_in_aff a' v
   end.
 
+(* Evaluate an affine function given values for each variable *)
+
 Fixpoint eval_aff (a: Aff) (m: string -> Z) :=
   match a with
   | AConst c => c
@@ -31,6 +37,8 @@ Fixpoint eval_aff (a: Aff) (m: string -> Z) :=
   | AMinus a1 a2 => (eval_aff a1 m) - (eval_aff a2 m)
   | AMul c a => c * (eval_aff a m)
   end.
+
+(* Implementation of a Presburger set / pw_aff library *)
 
 Class PresburgerImpl (PSet PwAff: Type) :=
   {
@@ -115,7 +123,7 @@ Theorem is_subset_refl `{PI: PresburgerImpl PSet PwAff}:
   forall p, is_subset p p.
 Proof.
   move => p.
-    by rewrite is_subset_spec.
+    by apply is_subset_spec.
 Qed.
 
 Theorem is_subset_trans `{PI: PresburgerImpl PSet PwAff}:
@@ -143,6 +151,8 @@ Proof.
   rewrite is_subset_spec => x Hp2.
     by rewrite union_set_spec Hp2 orbT.
 Qed.
+
+(* Tactic to simplify proofs that use presburger sets or pw_aff *)
 
 Ltac simpl_presburger :=
   repeat match goal with
