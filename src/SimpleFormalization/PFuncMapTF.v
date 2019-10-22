@@ -247,10 +247,8 @@ Proof.
       case (is_constant_on_var (eval_map a c) c); last first.
         by simpl_pfunc.
       move: Hin => /(_ c) Hin.
-      case (eq_V (eval_pfunc (a c) (pointwise_un_op R VVal)) (VVal 0)) eqn:HeqV => [ | //].
-      rewrite /eq_V in HeqV.
-      move: HeqV.
-      case (eval_pfunc (a c) ((pointwise_un_op R VVal))) eqn:HV0 => [//| /Z.eqb_eq Himpossible|//].
+      case ((eval_pfunc (a c) (pointwise_un_op R VVal)) =P (VVal 0)) => [ | //].
+      case (eval_pfunc (a c) ((pointwise_un_op R VVal))) eqn:HV0 => [//| Himpossible |//].
       rewrite Himpossible in Hin.
       by case (eval_map R c) eqn:HeRc0.
     + rewrite /pfunc_map_assign_pfunc.
