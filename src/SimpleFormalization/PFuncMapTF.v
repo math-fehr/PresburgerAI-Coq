@@ -260,7 +260,7 @@ Proof.
 Qed.
 
 
-Definition transfer_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} {A: adom (@total_map string_eqType PFunc)} (inst: Instruction) (a: total_map) (l: label):=
+Definition transfer_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} {A: adom RegisterMap (@total_map string_eqType PFunc)} (inst: Instruction) (a: total_map) (l: label):=
   match inst with
   | Const v c => (pfunc_assign_const a v c, l + 1)::nil
   | BinOp v opc op1 op2 op1_ne_v op2_ne_v => (pfunc_assign_arith a v op1 op2 opc, l+1)::nil

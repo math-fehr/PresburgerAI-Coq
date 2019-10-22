@@ -1,4 +1,5 @@
 From PolyAI Require Export Presburger AbstractDomain PFunc.
+From PolyAI.SimpleFormalization Require Export SSA.
 Require Export Coq.Sets.Ensembles.
 From Coq Require Import ssreflect ssrfun ssrbool.
 
@@ -62,7 +63,7 @@ Proof.
   by simpl_pfunc.
 Qed.
 
-Instance PFuncMapAD {PFunc: Type} (PI: PFuncImpl PFunc) : adom (@total_map string_eqType PFunc) :=
+Instance PFuncMapAD {PFunc: Type} (PI: PFuncImpl PFunc) : adom RegisterMap (@total_map string_eqType PFunc) :=
   {
     le := le_pfunc_map;
     bot := (_ !-> constant_pfunc VBot);

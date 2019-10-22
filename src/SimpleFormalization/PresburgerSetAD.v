@@ -1,4 +1,5 @@
 From PolyAI Require Export Presburger AbstractDomain.
+From PolyAI.SimpleFormalization Require Export SSA.
 From Coq Require Import ssreflect ssrfun ssrbool.
 
 Require Import String.
@@ -24,7 +25,7 @@ Proof.
   by simpl_presburger.
 Qed.
 
-Instance PresburgerSetAD {PSet PwAff: Type} (PI : PresburgerImpl PSet PwAff) : adom PSet :=
+Instance PresburgerSetAD {PSet PwAff: Type} (PI : PresburgerImpl PSet PwAff) : adom RegisterMap PSet :=
   {
     le := is_subset;
     bot := empty_set;

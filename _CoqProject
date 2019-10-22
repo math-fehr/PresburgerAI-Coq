@@ -7,18 +7,16 @@ src/ssrZ.v
 src/TotalMap.v
 src/PFunc.v
 src/Presburger.v
+src/AbstractDomain.v
 
 src/SimpleFormalization/SSA.v
-src/SimpleFormalization/AbstractDomain.v
 src/SimpleFormalization/PresburgerSetAD.v
 src/SimpleFormalization/PFuncMapAD.v
 src/SimpleFormalization/TransferFunction.v
 src/SimpleFormalization/PresburgerSetTF.v
 src/SimpleFormalization/PFuncMapTF.v
-src/SimpleFormalization/AbstractInterpreter.v
 
 src/LoopFormalization/LSSA.v
-src/LoopFormalization/LAbstractDomain.v
 src/LoopFormalization/LTransferFunction.v
 src/LoopFormalization/LPFuncMapAD.v
 src/LoopFormalization/LAbstractInterpreter.v

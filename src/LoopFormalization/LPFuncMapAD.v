@@ -1,6 +1,7 @@
-From PolyAI Require Export PFunc.
-From PolyAI.LoopFormalization Require Export LAbstractDomain.
+From PolyAI Require Export PFunc AbstractDomain.
+From PolyAI.LoopFormalization Require Export LSSA.
 From Coq Require Import ssreflect ssrfun ssrbool.
+From Coq Require Import Ensembles.
 
 Definition gamma_pfunc_map {PFunc: Type} {PI: PFuncImpl PFunc} :=
   fun pl (R: total_map) => forall s, in_V (R s) (eval_pfunc (pl s) (pointwise_un_op R VVal)).
@@ -62,7 +63,7 @@ Proof.
   by simpl_pfunc.
 Qed.
 
-Instance PFuncMapAD {PFunc: Type} (PI: PFuncImpl PFunc) : adom (@total_map string_eqType PFunc) :=
+Instance PFuncMapAD {PFunc: Type} (PI: PFuncImpl PFunc) : adom RegisterMap (@total_map string_eqType PFunc) :=
   {
     le := le_pfunc_map;
     bot := (_ !-> constant_pfunc VBot);

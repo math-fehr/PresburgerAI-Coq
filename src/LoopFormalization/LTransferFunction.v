@@ -1,9 +1,10 @@
 From Coq Require Export ssrbool.
-From PolyAI Require Export LAbstractDomain LSSA.
+From PolyAI Require Export AbstractDomain.
+From PolyAI.LoopFormalization Require Export LSSA.
 Require Export Coq.Lists.List.
 
 (* Transfer functions for our language *)
-Class transfer_function {ab: Type} (A: adom ab) :=
+Class transfer_function {ab: Type} (A: adom RegisterMap ab) :=
   {
     transfer_inst : Inst -> ab -> ab;
     transfer_inst_sound :

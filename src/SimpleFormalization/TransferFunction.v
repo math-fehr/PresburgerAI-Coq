@@ -1,10 +1,10 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 From PolyAI Require Export AbstractDomain.
+From PolyAI.SimpleFormalization Require Export SSA.
 Require Export Coq.Lists.List.
-Open Scope string_scope.
 
 (* Transfer functions for our language *)
-Class transfer_function {ab: Type} (A: adom ab) :=
+Class transfer_function {ab: Type} (A: adom RegisterMap ab) :=
   {
     transfer : Instruction -> ab -> label -> list (ab * label);
     transfer_sound :

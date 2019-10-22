@@ -6,13 +6,13 @@ From Coq Require Import Lists.List.
 
 Definition AbstractState (ab: Type) := @total_map bbid_eqType (@total_map nat_eqType ab).
 
-Definition inst_fixpoint {ab: Type} {ad: adom ab} {tf: transfer_function ad} (p: Program) (state: AbstractState ab)
+Definition inst_fixpoint {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad} (p: Program) (state: AbstractState ab)
            (bb_id: bbid) (pos: nat) :=
   forall bb, Some bb = p bb_id ->
         forall inst, Some inst = nth_error bb.1.2 pos ->
                 le (transfer_inst inst (state bb_id pos)) (state bb_id (S pos)).
 
-Definition term_fixpoint {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Definition term_fixpoint {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
            (p: Program) (state: AbstractState ab) (bb_id: bbid) :=
   forall bb, Some bb = p bb_id ->
         forallb (fun abbbid => match abbbid with
@@ -20,7 +20,7 @@ Definition term_fixpoint {ab: Type} {ad: adom ab} {tf: transfer_function ad}
                             end )
                 (transfer_term bb.2 (state bb_id (length bb.1.2))).
 
-Fixpoint abstract_interpret_inst_list {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Fixpoint abstract_interpret_inst_list {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
          (l: list Inst) (bb_id: bbid) (pos: nat) (state: AbstractState ab) :=
   match l with
   | nil => state
@@ -29,7 +29,7 @@ Fixpoint abstract_interpret_inst_list {ab: Type} {ad: adom ab} {tf: transfer_fun
               abstract_interpret_inst_list l' bb_id (S pos) new_state
   end.
 
-Theorem abstract_interpret_inst_list_spec {ab: Type} {ad: adom ab} {tf: transfer_function ad} :
+Theorem abstract_interpret_inst_list_spec {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad} :
   forall(p: Program) bb bb_id, Some bb = p bb_id ->
       forall (l: list Inst) pos , (forall n, nth_error l n = nth_error bb.1.2 (n + pos)) ->
           forall state, (forall n', n' < pos -> inst_fixpoint p state bb_id n') ->
@@ -79,10 +79,10 @@ Proof.
         rewrite [pos]/(0 + pos) in Hinst0.
         rewrite -Hinst0 in Hinst.
         move: Hinst => [->].
-        apply LAbstractDomain.le_refl.
+        apply AbstractDomain.le_refl.
 Qed.
 
-Theorem abstract_interpret_inst_list_0_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Theorem abstract_interpret_inst_list_0_unchanged {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
          (l: list Inst) (bb_id bb_id': bbid) (pos: nat) (state: AbstractState ab) :
   state bb_id' 0 = (abstract_interpret_inst_list l bb_id pos state) bb_id' 0.
 Proof.
@@ -95,7 +95,7 @@ Proof.
       by simpl_totalmap.
 Qed.
 
-Theorem abstract_interpret_inst_list_bb_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Theorem abstract_interpret_inst_list_bb_unchanged {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
         (p: Program) (l: list Inst) (bb_id: bbid) :
   forall bb_id', bb_id != bb_id' ->
             forall state pos n, (abstract_interpret_inst_list l bb_id pos state) bb_id' n = state bb_id' n.
@@ -106,7 +106,7 @@ Proof.
     by simpl_totalmap.
 Qed.
 
-Definition abstract_interpret_join_term_succ {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Definition abstract_interpret_join_term_succ {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
            (state: AbstractState ab) (abs: list (ab * bbid)) :=
     fold_right (fun abid state =>
                match abid with
@@ -114,7 +114,7 @@ Definition abstract_interpret_join_term_succ {ab: Type} {ad: adom ab} {tf: trans
                end
               ) state abs.
 
-Lemma abstract_interpret_join_term_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Lemma abstract_interpret_join_term_unchanged {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
       (state: AbstractState ab) (abs: list (ab * bbid)) (bb_id: bbid) (pos: nat) :
   pos != O -> (abstract_interpret_join_term_succ state abs) bb_id pos = state bb_id pos.
 Proof.
@@ -123,7 +123,7 @@ Proof.
   case (out_id =P bb_id) => [-> | Hne]; by simpl_totalmap.
 Qed.
 
-Lemma abstract_interpret_join_term_bb_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Lemma abstract_interpret_join_term_bb_unchanged {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
       (p: Program) (bb_id: bbid):
   forall abs, (forall a', not (In (a', bb_id) abs)) ->
          forall state pos, (abstract_interpret_join_term_succ state abs) bb_id pos = state bb_id pos.
@@ -138,22 +138,22 @@ Proof.
     by simpl_totalmap.
 Qed.
 
-Lemma abstract_interpret_join_term_monotone {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Lemma abstract_interpret_join_term_monotone {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
       (state: AbstractState ab) (abs: list (ab * bbid)) (bb_id: bbid) (pos: nat) :
   le (state bb_id pos) ((abstract_interpret_join_term_succ state abs) bb_id pos).
 Proof.
-  elim: abs => [ /= | [a' bb] l /=]. by apply LAbstractDomain.le_refl.
+  elim: abs => [ /= | [a' bb] l /=]. by apply AbstractDomain.le_refl.
   case (bb_id =P bb) => [-> | Hne Hind].
   - case pos => [Hind | n Hind].
     + simpl_totalmap.
-      eapply LAbstractDomain.le_trans.
+      eapply AbstractDomain.le_trans.
       * by apply Hind.
       * apply join_sound_r.
     + by simpl_totalmap.
   - by simpl_totalmap.
 Qed.
 
-Lemma abstract_interpret_join_term_join {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Lemma abstract_interpret_join_term_join {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
       (abs: list (ab * bbid)) (a: ab) (bb_id: bbid) :
   In (a, bb_id) abs ->
   forall state, le a ((abstract_interpret_join_term_succ state abs) bb_id O).
@@ -162,21 +162,21 @@ Proof.
   - simpl_totalmap. apply join_sound_l.
   - case (out_id =P bb_id) => [-> | Hne].
     + simpl_totalmap.
-      eapply LAbstractDomain.le_trans.
+      eapply AbstractDomain.le_trans.
       * by apply Hind.
       * apply join_sound_r.
     + simpl_totalmap.
         by apply Hind.
 Qed.
 
-Definition abstract_interpret_term {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Definition abstract_interpret_term {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
            (bb: BasicBlock) (bb_id: bbid) (state: AbstractState ab) :=
   let pos := length bb.1.2 in
   let new_abs := transfer_term bb.2 (state bb_id pos) in
   abstract_interpret_join_term_succ state new_abs.
 
 
-Theorem abstract_interpret_term_spec {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Theorem abstract_interpret_term_spec {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
         (p: Program) (bb: BasicBlock) (bb_id: bbid) (state: AbstractState ab):
   Some bb = p bb_id ->
   ~~(list_string_in (term_successors bb.2) bb_id) ->
@@ -220,7 +220,7 @@ Proof.
         by apply abstract_interpret_join_term_join.
 Qed.
 
-Lemma abstract_interpret_term_monotone {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Lemma abstract_interpret_term_monotone {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
       (state: AbstractState ab) (bb: BasicBlock) (bb_id bb_id': bbid) (pos: nat) :
   le (state bb_id' pos) ((abstract_interpret_term bb bb_id state) bb_id' pos).
 Proof.
@@ -229,7 +229,7 @@ Proof.
 Qed.
 
 
-Lemma abstract_interpret_term_bb_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Lemma abstract_interpret_term_bb_unchanged {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
       (p: Program) (bb_id: bbid) (bb: BasicBlock):
   (Some bb = p bb_id) ->
   forall bb_id', bb_id' != bb_id ->
@@ -248,12 +248,12 @@ Proof.
       by rewrite Himpossible in Hbb_not_term.
 Qed.
 
-Definition abstract_interpret_bb {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Definition abstract_interpret_bb {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
            (bb: BasicBlock) (bb_id: bbid) (state: AbstractState ab) :=
   let state' := abstract_interpret_inst_list bb.1.2 bb_id 0 state in
   abstract_interpret_term bb bb_id state'.
 
-Theorem abstract_interpret_bb_spec_term {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Theorem abstract_interpret_bb_spec_term {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
         (p: Program) (bb: BasicBlock) (bb_id: bbid) (state: AbstractState ab) :
     Some bb = p bb_id ->
     ~~(list_string_in (term_successors bb.2) bb_id) ->
@@ -263,7 +263,7 @@ Proof.
     by apply abstract_interpret_term_spec.
 Qed.
 
-Theorem abstract_interpret_bb_spec_inst {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Theorem abstract_interpret_bb_spec_inst {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
         (p: Program) (bb: BasicBlock) (bb_id: bbid) (state: AbstractState ab) :
     Some bb = p bb_id ->
     ~~(list_string_in (term_successors bb.2) bb_id) ->
@@ -298,7 +298,7 @@ Proof.
           by rewrite HexistsIn in HnotIn.
 Qed.
 
-Theorem abstract_interpret_bb_monotone_0 {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Theorem abstract_interpret_bb_monotone_0 {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
         (bb: BasicBlock) (bb_id bb_id': bbid) (state: AbstractState ab):
   le (state bb_id' 0) ((abstract_interpret_bb bb bb_id state) bb_id' 0).
 Proof.
@@ -307,7 +307,7 @@ Proof.
   apply abstract_interpret_term_monotone.
 Qed.
 
-Fixpoint abstract_interpret_program {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Fixpoint abstract_interpret_program {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
            (p: Program) (ps: ProgramStructure) (state: AbstractState ab) :=
   match ps with
   | BB bb_id =>
@@ -321,23 +321,23 @@ Fixpoint abstract_interpret_program {ab: Type} {ad: adom ab} {tf: transfer_funct
   | _ => state
   end.
 
-Theorem abstract_interpret_program_monotone_0 {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Theorem abstract_interpret_program_monotone_0 {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
         (p: Program) (ps: ProgramStructure) (state: AbstractState ab) (bb_id: bbid) :
   le (state bb_id 0) ((abstract_interpret_program p ps state) bb_id 0).
 Proof.
   elim: ps state.
   - admit.
   - move => ps1 Hind1 ps2 Hind2 state /=.
-    eapply LAbstractDomain.le_trans.
+    eapply AbstractDomain.le_trans.
     + by apply Hind1.
     + by apply Hind2.
   - rewrite /abstract_interpret_program => bb state.
     case: (p bb) => [a | ].
     + by apply abstract_interpret_bb_monotone_0.
-    + by apply LAbstractDomain.le_refl.
+    + by apply AbstractDomain.le_refl.
 Admitted.
 
-Theorem abstract_interpret_program_unchanged {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Theorem abstract_interpret_program_unchanged {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
         (p: Program) (ps: ProgramStructure) :
   structure_sound p ps ->
   forall bb_id, ~~(list_string_in (program_successors p ps) bb_id) ->
@@ -361,7 +361,7 @@ Proof.
       by [].
 Admitted.
 
-Theorem abstract_interpret_program_spec_term {ab: Type} {ad: adom ab} {tf: transfer_function ad}
+Theorem abstract_interpret_program_spec_term {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
         (p: Program) (ps: ProgramStructure):
   structure_sound p ps ->
   forall bb_id, list_string_in (bbs_in_program ps) bb_id ->
@@ -380,7 +380,7 @@ Proof.
     rewrite abstract_interpret_program_unchanged in HIn => //.
     + move: (Hfixpoint1 bb Hbb) => {Hfixpoint1} Hfixpoint1.
       eapply forallb_forall with (x := (a, bb_id')) in Hfixpoint1; auto.
-      eapply LAbstractDomain.le_trans.
+      eapply AbstractDomain.le_trans.
       apply Hfixpoint1.
       apply abstract_interpret_program_monotone_0.
     + move: HIn1. move => /list_string_in_spec HIn1.
