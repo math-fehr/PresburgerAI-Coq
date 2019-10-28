@@ -48,7 +48,7 @@ Definition le_V (v1 v2: V) :=
   | (VVal n1, VVal n2) => n1 == n2
   | _ => false
   end.
-Hint Unfold le_V.
+Hint Unfold le_V: PFuncHint.
 
 Theorem le_V_refl : forall v, (le_V v v).
 Proof.
@@ -139,7 +139,7 @@ Definition unop_V (v: V) (op: Z -> Z) :=
 Definition mul_V (z: Z) (v: V) :=
   unop_V v (fun v => z * v).
 
-Hint Resolve le_V_refl add_V_spec sub_V_spec le_binop_V_spec.
+Hint Resolve le_V_refl add_V_spec sub_V_spec le_binop_V_spec: PFuncHint.
 
 (* Specification of a PFunc *)
 
@@ -199,14 +199,14 @@ Class PFuncImpl (PFunc: Type) :=
                  (eval_pfunc p m);
   }.
 
-Hint Resolve le_pfunc_spec join_pfunc_spec_l join_pfunc_spec_r.
+Hint Resolve le_pfunc_spec join_pfunc_spec_l join_pfunc_spec_r: PFuncHint.
 
 Theorem le_pfunc_refl {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall a, le_pfunc a a.
 Proof.
   move => a.
   apply le_pfunc_spec => x.
-  by auto.
+  by auto with PFuncHint.
 Qed.
 
 Theorem le_pfunc_trans {PFunc: Type} {PI: PFuncImpl PFunc} :
