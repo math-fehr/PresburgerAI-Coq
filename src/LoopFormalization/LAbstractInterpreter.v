@@ -378,7 +378,7 @@ Proof.
     move => bb Hbb.
     apply forallb_forall => [[a bb_id']] HIn.
     rewrite abstract_interpret_program_unchanged in HIn => //.
-    + move: (Hfixpoint1 bb Hbb) => {Hfixpoint1} Hfixpoint1.
+    + move: (Hfixpoint1 bb Hbb) => {}Hfixpoint1.
       eapply forallb_forall with (x := (a, bb_id')) in Hfixpoint1; auto.
       eapply AbstractDomain.le_trans.
       apply Hfixpoint1.
