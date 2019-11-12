@@ -321,7 +321,7 @@ repeat match goal with
        | [ |- is_true (forall_bin_op _ _ _)] => apply forall_bin_op_spec
        | [ H : is_true ?x |- context[?x]] => rewrite H
        | [ H : is_true (?x != ?y) |- context[?x == ?y]] => rewrite ?(ifN_eq _ _ H) ?(ifN_eqC _ _ H)
-       | _ => rewrite //=
+       | _ => rewrite //=; auto
        end.
 
 Global Opaque eval_map.

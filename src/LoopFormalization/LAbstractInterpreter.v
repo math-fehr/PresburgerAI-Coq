@@ -166,7 +166,6 @@ Proof.
       * by apply Hind.
       * apply join_sound_r.
     + simpl_totalmap.
-        by apply Hind.
 Qed.
 
 Definition abstract_interpret_term {ab: Type} {ad: adom RegisterMap ab} {tf: transfer_function ad}
