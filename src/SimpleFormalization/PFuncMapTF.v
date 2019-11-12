@@ -40,8 +40,7 @@ Proof.
     by simpl_pfunc.
   have Hconstant': (is_true (is_constant_on_var (a v') v)).
     by [].
-    simpl_pfunc.
-  apply HInR.
+  by simpl_pfunc.
 Qed.
 
 
