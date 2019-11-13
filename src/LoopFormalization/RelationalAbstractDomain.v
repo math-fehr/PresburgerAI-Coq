@@ -3,8 +3,8 @@ From Coq Require Import ssrbool.
 From PolyAI Require Export AbstractDomain.
 
 (* The abstract domain over relations of concrete states *)
-Class adom_relational {concrete_state abstract_state: Type}
-      (A: adom (concrete_state * concrete_state) abstract_state) :=
+Class adom_relational {concrete_state abstract_state: eqType}
+      (A: adom (prod_eqType concrete_state concrete_state) abstract_state) :=
   {
     (* The identity relation *)
     id_relation : abstract_state;

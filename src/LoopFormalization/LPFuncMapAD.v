@@ -63,7 +63,7 @@ Proof.
   by simpl_pfunc.
 Qed.
 
-Instance PFuncMapAD {PFunc: Type} (PI: PFuncImpl PFunc) : adom RegisterMap (@total_map string_eqType PFunc) :=
+Instance PFuncMapAD {PFunc: eqType} (PI: PFuncImpl PFunc) : adom RegisterMap (@total_map_eqType string_eqType PFunc) :=
   {
     le := le_pfunc_map;
     bot := (_ !-> constant_pfunc VBot);

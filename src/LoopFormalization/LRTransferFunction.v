@@ -3,8 +3,12 @@ From PolyAI Require Export AbstractDomain.
 From PolyAI.LoopFormalization Require Export LSSA.
 Require Export Coq.Lists.List.
 
+Local Open Scope type_scope.
+
+Definition PairRegisterMap := prod_eqType RegisterMap RegisterMap.
+
 (* Transfer functions for our language, using relational abstract domain *)
-Class transfer_function_relational {ab: Type} (A: adom (RegisterMap * RegisterMap) ab) :=
+Class transfer_function_relational {ab: eqType} (A: adom PairRegisterMap ab) :=
   {
     transfer_inst : Inst -> ab -> ab;
     transfer_inst_sound :
@@ -22,5 +26,5 @@ Class transfer_function_relational {ab: Type} (A: adom (RegisterMap * RegisterMa
     transfer_term_only_successors :
       forall term bb a,
         (exists a', In (a', bb) (transfer_term term a)) ->
-        list_string_in (term_successors term) bb;
+        bb \in (term_successors term);
   }.

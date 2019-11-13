@@ -3,53 +3,59 @@ Local Set Warnings "-notation-overridden".
 From mathcomp Require Import ssrnat.
 From PolyAI.LoopFormalization Require Export LRTransferFunction LSSA.
 From Coq Require Import Lists.List.
+From mathcomp.ssreflect Require Import seq.
 
 Require Import Lia.
 
 Section AbstractInterpreter.
 
-  Context {ab: Type}
-          {ad: adom (RegisterMap * RegisterMap) ab}
+  Context {ab: eqType}
+          {ad: adom PairRegisterMap ab}
           (tf: transfer_function_relational ad)
           (p: Program).
 
   (* Associate for every control location an abstract state *)
-  Definition AbstractState : Type := @total_map bbid_eqType (@total_map nat_eqType ab).
+  Definition ASValues : Type := @total_map bbid_eqType (@total_map nat_eqType ab).
+  Definition ASEdges : Type := @total_map bbid_eqType (@total_map bbid_eqType ab).
+  Definition AS : Type := ASValues * ASEdges.
 
-  Definition inst_fixpoint (state: AbstractState) (bb_id: bbid) (pos: nat) :=
+  (* Properties we want at the end of our analysis *)
+  Definition inst_fixpoint (stateV: ASValues) (bb_id: bbid) (pos: nat) :=
     if p bb_id is Some bb then
       if nth_error bb.1.2 pos is Some inst then
-        le (transfer_inst inst (state bb_id pos)) (state bb_id (S pos))
+        le (transfer_inst inst (stateV bb_id pos)) (stateV bb_id (S pos))
       else
         true
     else
       true.
 
-  Definition term_fixpoint (state: AbstractState) (bb_id: bbid) :=
+  Definition term_fixpoint (state: AS) (bb_id: bbid) :=
     if p bb_id is Some bb then
-      forallb (fun abbbid => match abbbid with
-                          | (ab, out_id) => le ab (state out_id 0)
-                          end)
-              (transfer_term bb.2 (state bb_id (length bb.1.2)))
+      all (fun (abbbid: (ab * bbid)) => le abbbid.1 (state.2 bb_id abbbid.2))
+              (transfer_term bb.2 (state.1 bb_id (length bb.1.2)))
     else
       true.
 
-  Fixpoint abstract_interpret_inst_list (l: list Inst) (bb_id: bbid) (pos: nat) (state: AbstractState) :=
+  Definition edge_fixpoint (state: AS) (bb_id: bbid) :=
+    forall in_id, le (state.2 in_id bb_id) (state.1 bb_id 0).
+
+  (* interpretation of a list of instruction *)
+  Fixpoint abstract_interpret_inst_list (l: list Inst) (bb_id: bbid) (pos: nat) (stateV: ASValues) :=
     match l with
-    | nil => state
-    | inst::l' => let new_ab := transfer_inst inst (state bb_id pos) in
-                let new_state := (bb_id !-> (S pos !-> new_ab; state bb_id); state) in
+    | nil => stateV
+    | inst::l' => let new_ab := transfer_inst inst (stateV bb_id pos) in
+                let new_state := (bb_id !-> (S pos !-> new_ab; stateV bb_id); stateV) in
                 abstract_interpret_inst_list l' bb_id (S pos) new_state
     end.
 
   Theorem abstract_interpret_inst_list_spec (bb: BasicBlock) (bb_id: bbid):
     Some bb = p bb_id ->
     forall (l: list Inst) pos, (forall n, nth_error l n = nth_error bb.1.2 (n + pos)) ->
-      forall state, (forall n', n' < pos -> inst_fixpoint state bb_id n') ->
-        forall n'', inst_fixpoint (abstract_interpret_inst_list l bb_id pos state) bb_id n''.
+      forall stateV, (forall n', n' < pos -> inst_fixpoint stateV bb_id n') ->
+        forall n'', inst_fixpoint (abstract_interpret_inst_list l bb_id pos stateV) bb_id n''.
   Proof.
     move => Hbb.
-    elim => [ /= pos Hnth state Hfixpoint n''| inst l Hind pos Hnth state Hfixpoint n'' /=].
+    elim => [ /= pos Hnth stateV Hfixpoint n''| inst l Hind pos Hnth stateV Hfixpoint n'' /=].
     - case_eq (n'' < pos) => [/Hfixpoint // | /negb_true_iff Hge].
       rewrite /inst_fixpoint -Hbb.
       move: (Hnth (n'' - pos)).
@@ -79,15 +85,15 @@ Section AbstractInterpreter.
         auto.
   Qed.
 
-  Theorem abstract_interpret_inst_list_0_unchanged (l: list Inst) (bb_id bb_id': bbid) (pos: nat) (state: AbstractState) :
-  state bb_id' 0 = (abstract_interpret_inst_list l bb_id pos state) bb_id' 0.
+  Theorem abstract_interpret_inst_list_0_unchanged (l: list Inst) (bb_id bb_id': bbid) (pos: nat) (stateV: ASValues) :
+    (abstract_interpret_inst_list l bb_id pos stateV) bb_id' 0 = stateV bb_id' 0.
   Proof.
-    elim: l state pos => [ // | i l Hind state pos].
+    elim: l stateV pos => [ // | i l Hind stateV pos].
     case (bb_id' =P bb_id) => [Heq | /eqP Hne].
     - rewrite Heq in Hind *.
-      rewrite -Hind.
+      rewrite Hind.
         by simpl_totalmap.
-    - rewrite -Hind.
+    - rewrite Hind.
         by simpl_totalmap.
   Qed.
 
@@ -101,166 +107,148 @@ Section AbstractInterpreter.
       by simpl_totalmap.
   Qed.
 
-  Definition abstract_interpret_join_term_succ (state: AbstractState) (abs: list (ab * bbid)) :=
-    fold_right (fun abid state =>
-               match abid with
-               | (ab, out_id) => (out_id !-> (O !-> join ab (state out_id O); state out_id); state)
-               end
-               ) state abs.
+  (* Interpretation of a terminator *)
+  Definition abstract_interpret_term_join_edges (stateE: ASEdges) (bb_id: bbid) (edges: list (ab * bbid)) :=
+    fold_right (fun (abid: (ab * bbid)) state =>
+                  let (ab, out_id) := abid in (bb_id !-> (out_id !-> join ab (state bb_id out_id); state bb_id); state)
+               ) stateE edges.
 
-  Lemma abstract_interpret_join_term_unchanged (state: AbstractState) (abs: list (ab * bbid)) (bb_id: bbid) (pos: nat) :
-    pos != O -> (abstract_interpret_join_term_succ state abs) bb_id pos = state bb_id pos.
+  Theorem abstract_interpret_term_join_edges_spec (in_id: bbid) (stateE: ASEdges) (edges: list (ab * bbid)):
+    forall a out_id, In (a, out_id) edges ->
+                le a (abstract_interpret_term_join_edges stateE in_id edges in_id out_id).
   Proof.
-    move => Hpos.
-    elim: abs => [ // | [a out_id] l Hind ].
-    case (out_id =P bb_id) => [-> | Hne]; by simpl_totalmap.
-  Qed.
-
-  Lemma abstract_interpret_join_term_bb_unchanged (bb_id: bbid):
-    forall abs, (forall a', not (In (a', bb_id) abs)) ->
-           forall state pos, (abstract_interpret_join_term_succ state abs) bb_id pos = state bb_id pos.
-  Proof.
-    move => HnotIn.
-    elim: HnotIn => [// | [a out_id] abs' Hind /=].
-    case (bb_id =P out_id) => [<- /(_ a) /Decidable.not_or [Himpossible _]// | Hne HnotIn].
-    have: (forall a', ~ In (a', bb_id) abs'). by move => a'; move: HnotIn => /(_ a') /Decidable.not_or[_ Hgoal].
-    move => HnotIn' state pos.
-    apply Hind with (state := state) (pos := pos) in HnotIn'.
-      by simpl_totalmap.
-  Qed.
-
-  Lemma abstract_interpret_join_term_monotone (state: AbstractState) (abs: list (ab * bbid)) (bb_id: bbid) (pos: nat) :
-    le (state bb_id pos) ((abstract_interpret_join_term_succ state abs) bb_id pos).
-  Proof.
-    elim: abs => [ /= | [a' bb] l /=]. by apply AbstractDomain.le_refl.
-    case (bb_id =P bb) => [-> | Hne Hind]; [ | by simpl_totalmap].
-    case pos => [Hind | n Hind]; [ |by simpl_totalmap].
-    simpl_totalmap.
-    eapply AbstractDomain.le_trans; eauto.
-    apply join_sound_r.
-  Qed.
-
-  Lemma abstract_interpret_join_term_join (abs: list (ab * bbid)) (a: ab) (bb_id: bbid) :
-    In (a, bb_id) abs ->
-    forall state, le a ((abstract_interpret_join_term_succ state abs) bb_id O).
-  Proof.
-    elim: abs => [// | [a0 out_id] l Hind /= [[-> ->] | HIn] state].
-    - simpl_totalmap. apply join_sound_l.
-    - case (out_id =P bb_id) => [-> | Hne].
+    elim edges => [ // | [a out_id] l Hind a0 out_id0 HIn ].
+    - simpl_totalmap.
+      case: HIn => [ [-> ->] | HIn ].
       + simpl_totalmap.
-        eapply AbstractDomain.le_trans.
-        * by apply Hind.
-        * apply join_sound_r.
-      + simpl_totalmap. auto.
+      + apply Hind in HIn.
+        by case (out_id =P out_id0) => [ -> | /eqP Hne ]; simpl_totalmap.
   Qed.
 
-  Definition abstract_interpret_term (bb: BasicBlock) (bb_id: bbid) (state: AbstractState) :=
-    let pos := length bb.1.2 in
-    let new_abs := transfer_term bb.2 (state bb_id pos) in
-    abstract_interpret_join_term_succ state new_abs.
-
-  Theorem abstract_interpret_term_spec (bb: BasicBlock) (bb_id: bbid) (state: AbstractState):
-    Some bb = p bb_id ->
-    ~~(list_string_in (term_successors bb.2) bb_id) ->
-    term_fixpoint (abstract_interpret_term bb bb_id state) bb_id.
+  Theorem abstract_interpret_term_join_edges_unchanged (in_id out_id: bbid) (stateE: ASEdges) (edges: list (ab * bbid)):
+    (forall a , ~ In (a, out_id) edges) ->
+    forall id, stateE id out_id = (abstract_interpret_term_join_edges stateE in_id edges id out_id).
   Proof.
-    move => Hbb Hbbnotsucc. rewrite /term_fixpoint -Hbb.
+    elim edges => [ // | /= [a id] l Hind HnotIn id0].
+    move: (HnotIn a) => /Decidable.not_or [Hne HanotIn].
+    have: (id <> out_id) => Heq. by rewrite Heq in Hne.
+    case (in_id =P id0) => [ <- | Hneid ]; simpl_totalmap; apply Hind => a0;
+        by move: HnotIn => /(_ a0) /Decidable.not_or [_ HnotIn].
+  Qed.
+
+  Definition abstract_interpret_term (bb: BasicBlock) (bb_id: bbid) (state: AS) :=
+    let pos := length bb.1.2 in
+    let new_edges := transfer_term bb.2 (state.1 bb_id pos) in
+    abstract_interpret_term_join_edges state.2 bb_id new_edges.
+
+  Theorem abstract_interpret_term_spec (bb: BasicBlock) (bb_id: bbid) (state: AS):
+    Some bb = p bb_id ->
+    term_fixpoint (state.1, (abstract_interpret_term bb bb_id state)) bb_id.
+  Proof.
+    move => Hbb. rewrite /term_fixpoint -Hbb.
     apply forallb_forall => [[a out_id]].
     rewrite /abstract_interpret_term.
-    move: Hbbnotsucc.
-    move Hterm: bb.2 => term Hbbnotsucc.
-    move Hpos: (length bb.1.2) => pos.
-    move Htransfer: (transfer_term term ((state bb_id) pos)) => transfer.
-    case (pos =P 0) => [Heq | /eqP Hne]; last first.
-    - rewrite abstract_interpret_join_term_unchanged => [ | //].
-      rewrite Htransfer => HIn.
-        by apply abstract_interpret_join_term_join.
-    - rewrite Heq in Hpos Htransfer *.
-      case (out_id =P bb_id) => [-> HIn | Hne].
-      + have: (list_string_in (term_successors term) bb_id) => [ | Hcontra].
-        * eapply transfer_term_only_successors.
-          eauto.
-        * by rewrite Hcontra in Hbbnotsucc.
-      + move: (abstract_interpret_join_term_bb_unchanged bb_id transfer).
-        have: (forall a' : ab, ~ In (a', bb_id) transfer).
-        * move => a' HIn.
-          rewrite -Htransfer in HIn.
-          move: (@transfer_term_only_successors ab ad tf term bb_id (state bb_id 0)).
-          have: ((exists a'0 : ab, In (a'0, bb_id) (transfer_term term ((state bb_id) 0)))). by (exists a').
-          move => HexistsIn /(_ HexistsIn).
-          move => HbbInsucc.
-            by rewrite HbbInsucc in Hbbnotsucc.
-        * move => HnotIn /(_ HnotIn) Hunchanged.
-          rewrite Hunchanged Htransfer => HIn.
-            by apply abstract_interpret_join_term_join.
-  Qed.
-
-  Lemma abstract_interpret_term_monotone (state: AbstractState) (bb: BasicBlock) (bb_id bb_id': bbid) (pos: nat) :
-    le (state bb_id' pos) ((abstract_interpret_term bb bb_id state) bb_id' pos).
-  Proof.
-    rewrite /abstract_interpret_term.
-      by apply abstract_interpret_join_term_monotone.
+    by apply abstract_interpret_term_join_edges_spec.
   Qed.
 
   Lemma abstract_interpret_term_bb_unchanged (bb_id: bbid) (bb: BasicBlock):
     (Some bb = p bb_id) ->
-    forall bb_id', bb_id' != bb_id ->
-              ~~(list_string_in (term_successors bb.2) bb_id') ->
-              forall state pos, (abstract_interpret_term bb bb_id state) bb_id' pos = state bb_id' pos.
+    forall bb_id', bb_id' \notin (term_successors bb.2) ->
+              forall state bb_id'', (abstract_interpret_term bb bb_id state) bb_id'' bb_id' = state.2 bb_id'' bb_id'.
   Proof.
-    move => Hbb bb_id' Hbb_ne Hbb_not_term state pos.
-    rewrite /abstract_interpret_term.
-    rewrite abstract_interpret_join_term_bb_unchanged => [// | a' HIn].
-    have: (list_string_in (term_successors bb.2) bb_id').
-    - eapply transfer_term_only_successors.
-      eauto.
-    - move => Himpossible.
-        by rewrite Himpossible in Hbb_not_term.
+    move => Hbb bb_id' /negP Hbb_not_term state bb_id''.
+    rewrite /abstract_interpret_term. symmetry.
+    apply abstract_interpret_term_join_edges_unchanged => a HIn.
+    apply Hbb_not_term.
+    eapply transfer_term_only_successors. eauto.
   Qed.
 
-  Definition abstract_interpret_bb (bb: BasicBlock) (bb_id: bbid) (state: AbstractState) :=
-    let state' := abstract_interpret_inst_list bb.1.2 bb_id 0 state in
-    abstract_interpret_term bb bb_id state'.
+  (* Interpretation of a list of edges *)
+  Fixpoint join_map_aux {T: eqType} (m: @total_map T (@total_map T ab)) (seen: seq T) (x: T) :=
+    match m with
+    | TEmpty v => v x
+    | TUpdate m' k v =>
+      if k \in seen then
+        join_map_aux m' seen x
+      else
+        join (v x) (join_map_aux m' (k::seen) x)
+    end.
 
-  Theorem abstract_interpret_bb_spec_term (bb: BasicBlock) (bb_id: bbid) (state: AbstractState) :
+  Theorem join_map_aux_spec {T: eqType} (m: @total_map T (@total_map T ab)) (seen: list T) (x: T):
+    forall y, y \notin seen ->
+    le (m y x) (join_map_aux m seen x).
+  Proof.
+    elim: m seen => [ v seen y _ | m Hind k v seen y Hnotin ].
+    - simpl_totalmap.
+    - case (k =P y) => [ -> | Hne ].
+      + simpl_totalmap.
+        move => /negb_true_iff in Hnotin.
+        by rewrite Hnotin.
+      + simpl_totalmap.
+        case: (k \in seen); auto.
+        eapply AbstractDomain.le_trans.
+        * apply (Hind (k::seen)).
+          by rewrite in_cons negb_orb Hnotin eq_sym Hne.
+        * by [].
+  Qed.
+
+  Definition join_map {T: eqType} (m: @total_map T (@total_map T ab)) (x: T) :=
+    join_map_aux m nil x.
+
+  Theorem join_map_spec {T: eqType} (m: @total_map T (@total_map T ab)) (x: T):
+    forall y, le (m y x) (join_map m x).
+  Proof.
+    move => y.
+      by apply join_map_aux_spec.
+  Qed.
+
+  (* Interpretation of a basic block *)
+  Definition abstract_interpret_bb (bb: BasicBlock) (bb_id: bbid) (state: AS) :=
+    let stateV1 := ( bb_id !-> (0 !-> join (state.1 bb_id 0) (join_map state.2 bb_id); state.1 bb_id) ; state.1) in
+    let stateV2 := abstract_interpret_inst_list bb.1.2 bb_id 0 stateV1 in
+    let stateE' := abstract_interpret_term bb bb_id (stateV2, state.2) in
+    (stateV2, stateE').
+
+  Theorem abstract_interpret_bb_spec_term (bb: BasicBlock) (bb_id: bbid) (state: AS):
     Some bb = p bb_id ->
-    ~~(list_string_in (term_successors bb.2) bb_id) ->
     term_fixpoint (abstract_interpret_bb bb bb_id state) bb_id.
   Proof.
-    move => Hbb HnotIn.
+    move => Hbb.
       by apply abstract_interpret_term_spec.
   Qed.
 
-  Theorem abstract_interpret_bb_spec_inst (bb: BasicBlock) (bb_id: bbid) (state: AbstractState) :
+  Theorem abstract_interpret_bb_spec_inst (bb: BasicBlock) (bb_id: bbid) (state: AS):
     Some bb = p bb_id ->
-    ~~(list_string_in (term_successors bb.2) bb_id) ->
-    (forall n, inst_fixpoint (abstract_interpret_bb bb bb_id state) bb_id n).
+    (forall n, inst_fixpoint (abstract_interpret_bb bb bb_id state).1 bb_id n).
   Proof.
-    move => Hbb HnotIn n.
-    rewrite /abstract_interpret_bb.
-    have: (inst_fixpoint (abstract_interpret_inst_list bb.1.2 bb_id 0 state) bb_id n).
-    - eapply abstract_interpret_inst_list_spec => [| n0 |]; eauto.
+    move => /= Hbb n.
+    eapply abstract_interpret_inst_list_spec => [ | n0 | ]; eauto.
       by rewrite addn0.
-    - case: n => [ H | n H]; last first.
-      + rewrite /inst_fixpoint !abstract_interpret_join_term_unchanged => //.
-      + rewrite /inst_fixpoint (abstract_interpret_join_term_unchanged _ _ _ 1) /abstract_interpret_term => //.
-        rewrite (abstract_interpret_join_term_bb_unchanged bb_id) => //.
-        move => a' HIna'.
-        have: (exists a'0 : ab, In (a'0, bb_id) (transfer_term bb.2 (((abstract_interpret_inst_list bb.1.2 bb_id 0 state) bb_id) (Datatypes.length bb.1.2)))). by eauto.
-        move => HexistsIn.
-        apply transfer_term_only_successors in HexistsIn.
-          by rewrite HexistsIn in HnotIn.
   Qed.
 
-  Theorem abstract_interpret_bb_monotone_0 (bb: BasicBlock) (bb_id bb_id': bbid) (state: AbstractState):
-    le (state bb_id' 0) ((abstract_interpret_bb bb bb_id state) bb_id' 0).
+  Theorem abstract_interpret_bb_spec_edge (bb: BasicBlock) (bb_id: bbid) (state: AS):
+    Some bb = p bb_id ->
+    bb_id \notin (term_successors bb.2) ->
+    edge_fixpoint (abstract_interpret_bb bb bb_id state) bb_id.
+  Proof.
+    move => Hbb Hotin /=.
+    rewrite /edge_fixpoint => in_id.
+    rewrite abstract_interpret_term_bb_unchanged; auto.
+    rewrite abstract_interpret_inst_list_0_unchanged.
+    simpl_totalmap.
+    by apply le_join_r, join_map_spec.
+  Qed.
+
+  Theorem abstract_interpret_bb_monotone_0 (bb: BasicBlock) (bb_id bb_id': bbid) (state: AS):
+    le (state.1 bb_id' 0) ((abstract_interpret_bb bb bb_id state).1 bb_id' 0).
   Proof.
     rewrite /abstract_interpret_bb.
+    simpl_totalmap.
     erewrite abstract_interpret_inst_list_0_unchanged.
-    apply abstract_interpret_term_monotone.
+    by case (bb_id =P bb_id') => [ -> | Hne ]; simpl_totalmap.
   Qed.
 
-  Fixpoint abstract_interpret_program (ps: ProgramStructure) (state: AbstractState) :=
+  Fixpoint abstract_interpret_program (ps: ProgramStructure) (state: AS) :=
     match ps with
     | BB bb_id =>
       match p bb_id with
@@ -268,71 +256,15 @@ Section AbstractInterpreter.
       | None => state
       end
     | DAG ps1 ps2 =>
-      let state' := abstract_interpret_program ps1 state in
-      abstract_interpret_program ps2 state'
+      abstract_interpret_program ps2 (abstract_interpret_program ps1 state)
     | _ => state
     end.
 
-  Theorem abstract_interpret_program_monotone_0 (ps: ProgramStructure) (state: AbstractState) (bb_id: bbid) :
-    le (state bb_id 0) ((abstract_interpret_program ps state) bb_id 0).
-  Proof.
-    elim: ps state.
-    - admit.
-    - move => ps1 Hind1 ps2 Hind2 state /=.
-      eapply AbstractDomain.le_trans; eauto.
-    - rewrite /abstract_interpret_program => bb state.
-      case: (p bb) => [a | ].
-      + by apply abstract_interpret_bb_monotone_0.
-      + by apply AbstractDomain.le_refl.
-  Admitted.
-
-  Theorem abstract_interpret_program_unchanged (ps: ProgramStructure) :
-    structure_sound p ps ->
-    forall bb_id, ~~(list_string_in (program_successors p ps) bb_id) ->
-             ~~(list_string_in (bbs_in_program ps) bb_id) ->
-             forall state pos, (abstract_interpret_program ps state) bb_id pos = state bb_id pos.
-  Proof.
-    elim: ps.
-    - admit.
-    - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[_ Hsound1] Hsound2] bb_id.
-      rewrite !list_string_in_append => /norP[Hinsucc1 Hinsucc2] /norP[Hinprog1 Hinprog2] state pos.
-      rewrite Hind2 => //.
-        by rewrite Hind1 => //.
-    - move => bb_id Hsound bb_id' Hnot_in_succ /norP [Hnebb _] state pos /=.
-      case_eq (p bb_id) => [[[params insts] term] | //] => Hbb.
-      rewrite /abstract_interpret_bb.
-      erewrite abstract_interpret_term_bb_unchanged; eauto.
-      rewrite abstract_interpret_inst_list_bb_unchanged => //. by rewrite eq_sym.
-      by rewrite /= Hbb in Hnot_in_succ.
-  Admitted.
-
   Theorem abstract_interpret_program_spec_term (ps: ProgramStructure):
     structure_sound p ps ->
-    forall bb_id, list_string_in (bbs_in_program ps) bb_id ->
+    forall bb_id, (bb_id \in (bbs_in_program ps)) ->
              forall state, term_fixpoint (abstract_interpret_program ps state) bb_id.
   Proof.
-    elim ps => [ | | bb_id' /=].
-    - admit.
-    - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/andP[H2notin1 H1notin2] Hloops] Hdominance] Hsound1] Hsound2] bb_id.
-      rewrite list_string_in_append => /orP [ HIn1 | HIn2 ] state; auto.
-      have: (term_fixpoint (abstract_interpret_program ps1 state) bb_id) by auto.
-      move => Hfixpoint1.
-      rewrite /term_fixpoint in Hfixpoint1 *.
-      case: (p bb_id) Hfixpoint1 => [ bb Hfixpoint1 | //].
-      apply forallb_forall => [[a bb_id']] HIn.
-      rewrite abstract_interpret_program_unchanged in HIn => //.
-      + eapply forallb_forall with (x := (a, bb_id')) in Hfixpoint1; auto.
-        eapply AbstractDomain.le_trans; eauto.
-        by apply abstract_interpret_program_monotone_0.
-      + move => /list_string_in_spec in HIn1.
-        apply /list_string_in_spec => Hinsucc2.
-        eapply forallb_forall in Hdominance; eauto.
-        move => /list_string_in_spec in Hdominance.
-        eauto.
-      + eapply forallb_forall in H2notin1; eauto.
-          by apply /list_string_in_spec.
-    - case_eq (p bb_id') => [ [[params insts] term] Hbb Hbbnotinterm bb_id /orP [/eqP ->| //] state /= | //].
-        by apply abstract_interpret_bb_spec_term.
   Admitted.
 
 End AbstractInterpreter.

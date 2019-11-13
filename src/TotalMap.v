@@ -23,7 +23,31 @@ Notation "'_' '!->' v" := (TEmpty v)
 
 (* Notation for a map update *)
 Notation "k '!->' v ';' m" := (TUpdate m k v)
-                              (at level 100, v at next level, right associativity).
+                                (at level 100, v at next level, right associativity).
+
+Fixpoint eqmap {Key: eqType} {Value: eqType} (m1 m2: @total_map Key Value) :=
+  match (m1, m2) with
+  | (TEmpty v1, TEmpty v2) => v1 == v2
+  | (TUpdate m1' k1 v1, TUpdate m2' k2 v2) => (eqmap m1' m2') && (k1 == k2) && (v1 == v2)
+  | _ => false
+  end.
+
+Theorem eqmapP {Key: eqType} {Value: eqType} :
+  Equality.axiom (@eqmap Key Value).
+Proof.
+  elim => [ v1 m2 /= | m1' Hind1 k1 v1 m2 /= ].
+  - apply (iffP idP).
+    + by case m2 => [ v2 /eqP -> // | // ].
+    + case m2 => [ v2 Heq | // ].
+        by injection Heq => ->.
+  - apply (iffP idP) => [ | <- ].
+    + by case m2 => [ // | m2' k2 v2 /andP[/andP[/Hind1 -> /eqP ->] /eqP ->]].
+    + rewrite !eq_refl.
+        by have -> : (eqmap m1' m1') by apply /Hind1.
+Qed.
+
+Canonical total_map_eqMixin {Key Value: eqType} := EqMixin (@eqmapP Key Value).
+Canonical total_map_eqType {Key Value: eqType} := Eval hnf in EqType (@total_map Key Value) total_map_eqMixin.
 
 (* Evaluate a map on a point*)
 Fixpoint eval_map {Key: eqType} {Value: Type} (m: @total_map Key Value) (k: Key) :=

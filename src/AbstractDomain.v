@@ -1,8 +1,10 @@
+From Coq Require Import ssreflect ssrfun ssrbool.
 Require Export Coq.Sets.Ensembles.
 From Coq Require Import ssrbool.
+From mathcomp Require Export eqtype.
 
 (* The abstract domain *)
-Class adom (concrete_state abstract_state: Type) :=
+Class adom (concrete_state abstract_state: eqType) :=
   {
     le : abstract_state -> abstract_state -> bool;
     bot : abstract_state;
@@ -18,3 +20,25 @@ Class adom (concrete_state abstract_state: Type) :=
     join_sound_l : forall a1 a2, le a1 (join a1 a2);
     join_sound_r : forall a1 a2, le a2 (join a1 a2);
   }.
+
+Hint Resolve le_refl gamma_monotone gamma_top join_sound_l join_sound_r : core.
+
+Theorem le_join_l {concrete_state abstract_state: eqType} (ad: adom concrete_state abstract_state) :
+  forall a1 a2 a3, le a1 a2 -> le a1 (join a2 a3).
+Proof.
+  move => a1 a2 a3 Hle.
+  eapply le_trans.
+  - apply Hle.
+  - auto.
+Qed.
+
+Theorem le_join_r {concrete_state abstract_state: eqType} (ad: adom concrete_state abstract_state) :
+  forall a1 a2 a3, le a1 a2 -> le a1 (join a3 a2).
+Proof.
+  move => a1 a2 a3 Hle.
+  eapply le_trans.
+  - apply Hle.
+  - auto.
+Qed.
+
+Hint Resolve le_join_l le_join_r : core.

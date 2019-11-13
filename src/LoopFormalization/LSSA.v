@@ -1,6 +1,7 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
-From PolyAI Require Export TotalMap ssrstring.
-From Coq Require Export Bool.Bool Strings.String Numbers.BinNums ZArith.BinInt Lists.List.
+From PolyAI Require Export TotalMap ssrstring ssrZ.
+From Coq Require Export Bool.Bool Strings.String Numbers.BinNums ZArith.BinInt.
+From mathcomp.ssreflect Require Export seq.
 
 Local Open Scope type_scope.
 
@@ -13,7 +14,7 @@ Definition bbid := string.
 Definition bbid_eqType := string_eqType.
 
 (* Every variable has a value, even the non defined ones *)
-Definition RegisterMap := @total_map string_eqType Z.
+Definition RegisterMap := @total_map_eqType string_eqType Z_eqType.
 
 (* The label is the program counter *)
 Definition state := bbid * nat * RegisterMap.
@@ -31,14 +32,14 @@ Inductive Inst :=
 
 (* A terminator of a basic block *)
 Inductive Term :=
-| Br (bb: bbid) (params: list vid)
-| BrC (c: vid) (bbT: bbid) (paramsT: list vid)
-      (bbF: bbid) (paramsF: list vid).
+| Br (bb: bbid) (params: seq vid)
+| BrC (c: vid) (bbT: bbid) (paramsT: seq vid)
+      (bbF: bbid) (paramsF: seq vid).
 
 (* A basic block. Has a list of parameters,
  a list of instructions, and a terminator *)
 Definition BasicBlock :=
-  (list vid) * (list Inst) * Term.
+  (seq vid) * (seq Inst) * Term.
 
 (* A program is a set of basic blocks indexed by their bbid *)
 Definition Program := @total_map string_eqType (option BasicBlock).
@@ -51,10 +52,10 @@ Inductive ProgramStructure :=
 | BB (bb: bbid).
 
 Local Open Scope string_scope.
-Local Open Scope list_scope.
+Local Open Scope seq_scope.
 
 (* [affect_variables R [(o1,i1); ... ; (oN, iN)]] will affect i1 to o1, then i2 to o2... *)
-Fixpoint affect_variables (R: RegisterMap) (vars inputs: list vid) :=
+Fixpoint affect_variables (R: RegisterMap) (vars inputs: seq vid) :=
   match (vars, inputs) with
   | (nil, _) => R
   | (_, nil) => R
@@ -111,17 +112,16 @@ Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
   | Loop header (Some body) =>
     structure_sound p body
   | DAG ps1 ps2 =>
-    forallb (fun s => ~~list_string_in (bbs_in_program ps2) s) (bbs_in_program ps1) &&
-    forallb (fun s => ~~list_string_in (bbs_in_program ps1) s) (bbs_in_program ps2) &&
-    forallb (fun s => ~~list_string_in (bbs_in_loops ps2) s) (program_successors p ps1) &&
-    forallb (fun s => ~~list_string_in (bbs_in_program ps1) s) (program_successors p ps2) &&
+    all (fun s => s \notin (bbs_in_program ps2)) (bbs_in_program ps1) &&
+    all (fun s => s \notin (bbs_in_program ps1)) (bbs_in_program ps2) &&
+    all (fun s => s \notin (bbs_in_loops ps2)) (program_successors p ps1) &&
+    all (fun s => s \notin (bbs_in_program ps1)) (program_successors p ps2) &&
     structure_sound p ps1 &&
     structure_sound p ps2
-
   | BB bb =>
     match p bb with
     | None => false
-    | Some (_,_,term) => ~~list_string_in (term_successors term) bb
+    | Some (_,_,term) => bb \notin (term_successors term)
     end
   | _ => true
   end.
@@ -202,7 +202,7 @@ Definition interpret_term (p: Program) (t: Term) (R: RegisterMap) :=
   match t with
   | Br bb params => (bb, affect_variables R (get_inputs p bb) params)
   | BrC c bbT paramsT bbF paramsF =>
-    if R c =? 0 then
+    if R c == 0 then
       (bbF, affect_variables R (get_inputs p bbF) paramsF)
     else
       (bbT, affect_variables R (get_inputs p bbT) paramsT)
@@ -214,7 +214,9 @@ Proof.
   move => p t R.
   case t => [ bb params | c bbT paramsT bbF paramsF /=].
   - constructor.
-  - case (Z.eqb_spec (R c) 0); by constructor.
+  - case ((R c) =P 0) => [ H | /eqP /negb_true_iff H].
+    + rewrite H. by constructor.
+    + rewrite H. constructor => H1. by rewrite H1 in H.
 Qed.
 
 (* Interpretation of a single step *)
@@ -291,14 +293,14 @@ Inductive program_big_step: Program -> ProgramStructure -> (bbid * RegisterMap) 
     bb_big_step p (params, insts, term) R (out_id, R') ->
     program_big_step p (BB bb_id) (bb_id, R) (out_id, R')
 | BBNotInBigStep (p: Program) (in_id bb_id: bbid) (R: RegisterMap):
-    ~~(bb_id =? in_id)%string ->
+    bb_id != in_id ->
     program_big_step p (BB bb_id) (in_id, R) (in_id, R)
 | DAGBigStep (p: Program) (ps1 ps2: ProgramStructure) (R R' R'': RegisterMap) (id id' id'': bbid):
     program_big_step p ps1 (id, R) (id', R') ->
     program_big_step p ps2 (id', R') (id'', R'') ->
     program_big_step p (DAG ps1 ps2) (id, R) (id'', R'')
 | LoopNotInBigStep (p: Program) (header_id: bbid) (body: option ProgramStructure) (id: bbid) (R: RegisterMap):
-    ~~(header_id =? id)%string ->
+    header_id != id ->
     program_big_step p (Loop header_id body) (id, R) (id, R)
 | LoopSingleInBigStep (p: Program) (header_id: bbid) (params: list vid) (insts: list Inst)
                     (term: Term) (id1 id2: bbid) (R0 R1 R2: RegisterMap):
@@ -351,7 +353,7 @@ Fixpoint interpret_program (fuel: nat) (p: Program) (ps: ProgramStructure) (id: 
   if fuel is S fuel' then
     match ps with
     | BB bb =>
-      if (id =? bb)%string then
+      if id == bb then
         option_map (fun bb => interpret_bb p bb R) (p bb)
       else
         Some (id, R)
@@ -361,7 +363,7 @@ Fixpoint interpret_program (fuel: nat) (p: Program) (ps: ProgramStructure) (id: 
       else
         None
     | Loop h None =>
-      if (id =? h)%string then
+      if id == h then
         if p h is Some (params, insts, term) then
           let (id', R') := interpret_bb p (params, insts, term) R in
           interpret_program fuel' p (Loop h None) id' R'
@@ -370,7 +372,7 @@ Fixpoint interpret_program (fuel: nat) (p: Program) (ps: ProgramStructure) (id: 
       else
         Some (id, R)
     | Loop h (Some body) =>
-      if (id =? h)%string then
+      if id == h then
         if p h is Some (params, insts, term) then
           let (id', R') := interpret_bb p (params, insts, term) R in
           if interpret_program fuel' p body id' R' is Some (id'', R'') then
@@ -392,11 +394,11 @@ Theorem interpret_program_spec :
 Proof.
   elim => [ p sub_p id R id' R' Hsome // | n Hind p sub_p id R id' R'].
   case sub_p => [ header_id [ body | ] /= | p1 p2 /= HDAG | bb_id].
-  - case_eq (id =? header_id)%string; last first.
-    + move => Hne [-> ->].
+  - case (id =P header_id); last first.
+    + move => /eqP Hne [-> ->].
       apply LoopNotInBigStep.
-      by rewrite eqb_sym Hne.
-    + move => /eqb_eq ->.
+      by rewrite eq_sym.
+    + move => ->.
       case_eq (p header_id) => [[[params insts] term] Hpheader_id | //].
       move Hbb_interpret: (interpret_bb p (params, insts, term) R) => bb_interpret.
       move: bb_interpret Hbb_interpret => [id_bb_interpret R_bb_interpret] Hbb_interpret.
@@ -405,9 +407,9 @@ Proof.
       * symmetry. by apply Hpheader_id.
       * rewrite -Hbb_interpret.
         by apply interpret_bb_spec.
-      * by apply Hind.
-      * by apply Hind.
-  - case_eq (id =? header_id)%string => [ /eqb_eq -> | Hne [-> ->]].
+      * auto.
+      * auto.
+  - case (id =P header_id) => [ -> | /eqP Hne [-> ->]].
     + case_eq (p header_id) => [[[params insts] term] Hpheader_id Hinterpret | //].
       move Hp0: (interpret_bb p (params, insts, term) R) => [p0_id p0_R].
       eapply LoopSingleInBigStep with (id1 := p0_id) (R1 := p0_R).
@@ -417,7 +419,7 @@ Proof.
       * rewrite Hp0 in Hinterpret.
           by apply Hind.
     + apply LoopNotInBigStep.
-      by rewrite eqb_sym Hne.
+      by rewrite eq_sym.
   - case (interpret_program n p p1 id R) eqn:Hp1 in HDAG.
     move: p0 => [p0_id p0_R] in HDAG Hp1.
     eapply DAGBigStep.
@@ -427,7 +429,7 @@ Proof.
     + by apply Hind.
     + by [].
   - rewrite /interpret_program /=.
-    case (eqb_spec id bb_id)%string => [-> HBB | /eqb_spec Hne [-> ->]].
+    case (id =P bb_id) => [-> HBB | /eqP Hne [-> ->]].
     move: HBB.
     rewrite /option_map.
     case_eq (p bb_id) => [ [[params insts] term] Hpbb_id [HBB] | //].
@@ -437,7 +439,7 @@ Proof.
       * rewrite HBB.
         by apply interpret_bb_spec.
     + apply BBNotInBigStep.
-        by rewrite eqb_sym.
+        by rewrite eq_sym.
 Qed.
 
 Section Example.
