@@ -25,6 +25,6 @@ Class transfer_function_relational {ab: eqType} (A: adom PairRegisterMap ab) :=
                    Ensembles.In _ (gamma a') (R_begin, R');
     transfer_term_only_successors :
       forall term bb a,
-        (exists a', In (a', bb) (transfer_term term a)) ->
+        (exists a', (a', bb) \in (transfer_term term a)) ->
         bb \in (term_successors term);
   }.
