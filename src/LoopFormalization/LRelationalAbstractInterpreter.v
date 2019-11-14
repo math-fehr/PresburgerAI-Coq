@@ -39,6 +39,12 @@ Section AbstractInterpreter.
   Definition edge_fixpoint (state: AS) (bb_id: bbid) :=
     forall in_id, le (state.2 in_id bb_id) (state.1 bb_id 0).
 
+  (*   _           _   _ _     _    *)
+  (*  (_)_ __  ___| |_| (_)___| |_  *)
+  (*  | | '_ \/ __| __| | / __| __| *)
+  (*  | | | | \__ \ |_| | \__ \ |_  *)
+  (*  |_|_| |_|___/\__|_|_|___/\__| *)
+
   (* interpretation of a list of instruction *)
   Fixpoint abstract_interpret_inst_list (l: list Inst) (bb_id: bbid) (pos: nat) (stateV: ASValues) :=
     match l with
@@ -107,6 +113,13 @@ Section AbstractInterpreter.
       by simpl_totalmap.
   Qed.
 
+  (*  _                               _             *)
+  (* | |_ ___ _ __ _ __ ___   ___  __| | __ _  ___  *)
+  (* | __/ _ \ '__| '_ ` _ \ / _ \/ _` |/ _` |/ _ \ *)
+  (* | ||  __/ |  | | | | | |  __/ (_| | (_| |  __/ *)
+  (*  \__\___|_|  |_| |_| |_|\___|\__,_|\__, |\___| *)
+  (*                                    |___/       *)
+
   (* Interpretation of a terminator *)
   Definition abstract_interpret_term_join_edges (stateE: ASEdges) (bb_id: bbid) (edges: list (ab * bbid)) :=
     fold_right (fun (abid: (ab * bbid)) state =>
@@ -145,6 +158,12 @@ Section AbstractInterpreter.
     elim edges => [ // | [a out_id0] l Hind ].
       by simpl_totalmap.
   Qed.
+
+  (*  _                       *)
+  (* | |_ ___ _ __ _ __ ___   *)
+  (* | __/ _ \ '__| '_ ` _ \  *)
+  (* | ||  __/ |  | | | | | | *)
+  (*  \__\___|_|  |_| |_| |_| *)
 
   Definition abstract_interpret_term (bb: BasicBlock) (bb_id: bbid) (state: AS) :=
     let pos := length bb.1.2 in
@@ -213,6 +232,12 @@ Section AbstractInterpreter.
       by apply join_map_aux_spec.
   Qed.
 
+  (*  ____            _      ____  _            _     *)
+  (* | __ )  __ _ ___(_) ___| __ )| | ___   ___| | __ *)
+  (* |  _ \ / _` / __| |/ __|  _ \| |/ _ \ / __| |/ / *)
+  (* | |_) | (_| \__ \ | (__| |_) | | (_) | (__|   <  *)
+  (* |____/ \__,_|___/_|\___|____/|_|\___/ \___|_|\_\ *)
+
   (* Interpretation of a basic block *)
   Definition abstract_interpret_bb (bb: BasicBlock) (bb_id: bbid) (state: AS) :=
     let stateV1 := ( bb_id !-> (0 !-> join (state.1 bb_id 0) (join_map state.2 bb_id); state.1 bb_id) ; state.1) in
@@ -276,6 +301,13 @@ Section AbstractInterpreter.
     move => Hbb Hbbne pos /=.
     by rewrite abstract_interpret_inst_list_bb_unchanged; simpl_totalmap.
   Qed.
+
+  (*  ____                                       *)
+  (* |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___   *)
+  (* | |_) | '__/ _ \ / _` | '__/ _` | '_ ` _ \  *)
+  (* |  __/| | | (_) | (_| | | | (_| | | | | | | *)
+  (* |_|   |_|  \___/ \__, |_|  \__,_|_| |_| |_| *)
+  (*                  |___/                      *)
 
   Fixpoint abstract_interpret_program (ps: ProgramStructure) (state: AS) :=
     match ps with
