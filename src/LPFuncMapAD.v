@@ -1,5 +1,4 @@
-From PolyAI Require Export PFunc AbstractDomain.
-From PolyAI.LoopFormalization Require Export LSSA.
+From PolyAI Require Export PFunc AbstractDomain LSSA.
 From Coq Require Import ssreflect ssrfun ssrbool.
 From Coq Require Import Ensembles.
 

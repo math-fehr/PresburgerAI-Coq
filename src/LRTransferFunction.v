@@ -1,6 +1,5 @@
 From Coq Require Export ssrbool.
-From PolyAI Require Export AbstractDomain.
-From PolyAI.LoopFormalization Require Export LSSA.
+From PolyAI Require Export AbstractDomain LSSA.
 Require Export Coq.Lists.List.
 
 Local Open Scope type_scope.

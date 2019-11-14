@@ -3,7 +3,7 @@
 docs: coq2html
 	# make the .v files
 	make ../
-	coq2html/coq2html -base PolyAI -external http://math-comp.github.io/math-comp/htmldoc mathcomp ../*.glob ../*.v -redirect
+	coq2html/coq2html -base PolyAI -external http://math-comp.github.io/math-comp/htmldoc mathcomp ../src/*.v -redirect
 
 coq2html: 
 	(cd coq2html; make)

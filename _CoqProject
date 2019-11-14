@@ -8,9 +8,8 @@ src/TotalMap.v
 src/PFunc.v
 src/Presburger.v
 src/AbstractDomain.v
-
-src/LoopFormalization/LSSA.v
-src/LoopFormalization/LPFuncMapAD.v
-src/LoopFormalization/LRTransferFunction.v
-src/LoopFormalization/RelationalAbstractDomain.v
-src/LoopFormalization/LRelationalAbstractInterpreter.v
+src/LSSA.v
+src/LPFuncMapAD.v
+src/LRTransferFunction.v
+src/RelationalAbstractDomain.v
+src/LRelationalAbstractInterpreter.v
