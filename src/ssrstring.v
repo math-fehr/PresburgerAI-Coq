@@ -13,5 +13,4 @@ Proof.
   by case (string_dec x y) => e /=; apply (iffP idP).
 Qed.
 
-Canonical string_eqMixin := EqMixin eqstringP.
-Canonical string_eqType := Eval hnf in EqType string string_eqMixin.
+Canonical string_eqType := Eval hnf in EqType string (EqMixin eqstringP).
