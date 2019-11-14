@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 Local Set Warnings "-notation-overridden".
-From mathcomp Require Import ssreflect.ssrnat eqtype.
+From mathcomp Require Import ssreflect.ssrnat eqtype seq.
 From Coq Require Export Arith.Arith Bool.Bool.
 From Coq Require Import Logic.FunctionalExtensionality.
 From PolyAI Require Export ssrstring.
@@ -159,30 +159,6 @@ Proof.
     by case (k2 =P k) => [-> // | //].
 Qed.
 
-Fixpoint list_string_in (l: list string) (s: string) :=
-  match l with
-  | nil => false
-  | s'::l' => (s =? s')%string || list_string_in l' s
-  end.
-
-Theorem list_string_in_spec:
-  forall l s, reflect (List.In s l) (list_string_in l s).
-Proof.
-  elim => [s // | a l Hind s /=].
-  - apply: (iffP idP) => [// | Hne // ].
-  - apply: (iffP idP) => [ /orP[/eqb_spec Heq | HIn] | [-> | HIn]]; auto.
-    + right. by apply /Hind.
-    + apply /orP. left. by apply eqb_refl.
-    + apply /orP. right. by apply /Hind.
-Qed.
-
-Theorem list_string_in_append:
-  forall l1 l2 s, list_string_in (l1++l2) s = list_string_in l1 s || list_string_in l2 s.
-Proof.
-  elim => [ s l // | s l Hind l2 s' /=].
-    by case (s' =? s) => //=.
-Qed.
-
 Local Open Scope string_scope.
 
 Lemma ne_length_impl_ne :
@@ -228,20 +204,21 @@ Proof.
 Qed.
 
 Theorem construct_not_in_list_length_forall :
-  forall l x, List.In x l -> length (construct_not_in_list l) > length x.
+  forall l x, x \in l -> length (construct_not_in_list l) > length x.
 Proof.
-  elim => [x Hin /= // | a l Hind x /= [Heqxa | Hinl]].
-  - rewrite Heqxa string_append_length repeat_string_length.
-    rewrite {1}(plus_n_O (length x)).
+  elim => [x Hin /= // | a l Hind x /=].
+  rewrite in_cons => /orP [/eqP -> | Hinl].
+  - rewrite string_append_length repeat_string_length.
+    rewrite {1}(plus_n_O (length a)).
     by rewrite ltn_add2l construct_not_in_list_length.
   - rewrite string_append_length ltn_addl => //.
     by auto.
 Qed.
 
 Theorem construct_not_in_list_spec:
-  forall l, not (List.In (construct_not_in_list l) l).
+  forall l, (construct_not_in_list l) \notin l.
 Proof.
-  move => l HIn.
+  move => l. apply /negP => HIn.
   apply construct_not_in_list_length_forall in HIn.
     by rewrite ltnn in HIn.
 Qed.
@@ -251,7 +228,7 @@ Fixpoint forall_bin_op_aux {Value: Type} (m1: total_map) (v2: Value)
   match m1 with
   | TEmpty v1 => f v1 v2
   | TUpdate m1' k v1 =>
-    if list_string_in seen k then
+    if k \in seen then
       forall_bin_op_aux m1' v2 f seen
     else
       f v1 v2 && forall_bin_op_aux m1' v2 f (k::seen)
@@ -260,59 +237,62 @@ Fixpoint forall_bin_op_aux {Value: Type} (m1: total_map) (v2: Value)
 Lemma forall_bin_op_aux_spec {Value: Type} {m1: total_map} (v2: Value)
       (f: Value -> Value -> bool) (seen: list string) :
   forall_bin_op_aux m1 v2 f seen <->
-                       (forall k, not (List.In k seen) -> f (m1 k) v2).
+                       (forall k, k \notin seen -> f (m1 k) v2).
 Proof.
   elim: m1 seen => [v seen /= | m Hind k v1 seen /=].
     by split => [// | H]; apply (H (construct_not_in_list seen)), construct_not_in_list_spec.
-  case (list_string_in_spec seen k) => Hseen.
-  - rewrite Hind.
-    split => [Hin k0 HnotIn | Hin k0 Hf]; move: Hseen.
-    + case (k =P k0) => [-> | //]; by auto.
+    case_eq (k \in seen) => Hseen.
+  - rewrite Hseen Hind.
+    split => [Hin k0 HnotIn | Hin k0 /negP Hf]; move: Hseen.
+    + case (k =P k0) => [-> Hin2 | //]; auto.
+      move => /negb_true_iff in HnotIn. by rewrite Hin2 in HnotIn.
     + case (k =P k0) => [-> // | /eqP /negb_true_iff Hkk0].
-      apply Hin in Hf.
+      move => /negP in Hf. apply Hin in Hf.
         by rewrite Hkk0 in Hf.
-  - split => [/andP[Hf /Hind Hforall] k0 Hk0notin | H ].
+  - rewrite Hseen. split => [/andP[Hf /Hind Hforall] k0 Hk0notin | H ].
     + case (k =P k0) => [// | Hkk0 ].
-      apply Hforall.
-      by case.
-    + apply /andP. split.
+      apply Hforall. rewrite in_cons. apply /norP. split; auto.
+      apply /eqP. auto.
+    + move => /negb_true_iff in Hseen.
+      apply /andP. split.
       * apply H in Hseen.
           by rewrite eq_refl in Hseen.
-      * apply Hind => k0 /= /Decidable.not_or [/eqP /negb_true_iff Hkk0 /H Hnotin].
-          by rewrite Hkk0 in Hnotin.
+      * apply Hind => k0 /=. rewrite in_cons => /norP [/negb_true_iff Hkk0 /H Hnotin].
+          by rewrite eq_sym Hkk0 in Hnotin.
 Qed.
 
 Fixpoint forall_bin_op_fix {Value: Type} (m1 m2: total_map) (f: Value -> Value -> bool) (seen: list string):=
   match m2 with
   | TEmpty v2 => forall_bin_op_aux m1 v2 f seen
   | TUpdate m2' k v2 =>
-    if list_string_in seen k then
+    if k \in seen then
       forall_bin_op_fix m1 m2' f seen
     else
       f (m1 k) v2 && forall_bin_op_fix m1 m2' f (k::seen)
   end.
 
 Lemma forall_bin_op_fix_spec {Value: Type} (m1 m2: total_map) (f: Value -> Value -> bool) (seen: list string) :
-  forall_bin_op_fix m1 m2 f seen <-> forall k, not (List.In k seen) -> f (m1 k) (m2 k).
+  forall_bin_op_fix m1 m2 f seen <-> forall k, k \notin seen -> f (m1 k) (m2 k).
 Proof.
   elim: m2 m1 seen => [v1 m2 seen /= | m2 Hind k v1 m1 seen /=].
     by split => /forall_bin_op_aux_spec.
-  case (list_string_in_spec seen k) => Hseen.
+  case_eq (k \in seen) => Hseen. rewrite Hseen.
   - rewrite Hind.
     split => [Hin k0 HnotIn| HIn k0 Hf]; move: Hseen.
-    + case (k =P k0) => [-> | //]; by auto.
+    + case (k =P k0) => [-> | //]; auto.
+      move => /negb_true_iff in HnotIn. by rewrite HnotIn.
     + case (k =P k0) => [-> // | Hkk0].
-      move: Hf => /HIn.
-      by move: Hkk0 => /eqP /negb_true_iff ->.
-  - split => [/andP[Hf /Hind Hforall] k0 Hk0notin | H ].
+      * move => /negb_true_iff in Hf. by rewrite Hf.
+      * move: Hf => /HIn.
+          by move: Hkk0 => /eqP /negb_true_iff ->.
+  - rewrite Hseen. split => [/andP[Hf /Hind Hforall] k0 Hk0notin | H ].
     + case (k =P k0) => [<- // | Hkk0].
-      apply Hforall.
-      by case.
+      apply Hforall. rewrite in_cons. apply /norP. split; auto. apply /eqP. auto.
     + apply /andP. split.
-      * apply H in Hseen.
+      * move => /negb_true_iff in Hseen. apply H in Hseen.
           by rewrite eq_refl in Hseen.
-      * apply Hind => v0 /= /Decidable.not_or [/eqP /negb_true_iff Hvv0 /H Hnotin].
-          by rewrite Hvv0 in Hnotin.
+      * apply Hind => v0 /=. rewrite in_cons => /norP [/negb_true_iff Hvv0 /H Hnotin].
+          by rewrite eq_sym Hvv0 in Hnotin.
 Qed.
 
 Definition forall_bin_op {Value: Type} (m1 m2: total_map) (f: Value -> Value -> bool) :=

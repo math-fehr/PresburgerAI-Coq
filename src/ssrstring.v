@@ -7,13 +7,10 @@ Local Open Scope string_scope.
 
 (* Define a canonical structure for string with equality *)
 
-Lemma eqstringP : Equality.axiom String.eqb.
+Lemma eqstringP : Equality.axiom String.string_dec.
 Proof.
-  elim => [ | a s Hind]; case => [ | a0 s0]; apply (iffP idP) => //.
-  - rewrite /=.
-      by case_eq (Ascii.eqb a a0) => [/Ascii.eqb_eq -> /eqb_spec -> | ].
-  - move ->.
-      by apply eqb_refl.
+  move => x y.
+  by case (string_dec x y) => e /=; apply (iffP idP).
 Qed.
 
 Canonical string_eqMixin := EqMixin eqstringP.

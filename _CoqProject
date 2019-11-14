@@ -10,7 +10,6 @@ src/Presburger.v
 src/AbstractDomain.v
 
 src/LoopFormalization/LSSA.v
-src/LoopFormalization/LTransferFunction.v
 src/LoopFormalization/LPFuncMapAD.v
 src/LoopFormalization/LRTransferFunction.v
 src/LoopFormalization/RelationalAbstractDomain.v

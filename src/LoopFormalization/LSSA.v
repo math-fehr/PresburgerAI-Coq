@@ -446,22 +446,22 @@ Section Example.
 
   Definition y_ne_x : "y" <> "x".
   Proof.
-      by apply eqb_neq.
+      by apply /eqP.
   Qed.
 
   Definition y_ne_one : "y" <> "one".
   Proof.
-      by apply eqb_neq.
+      by apply /eqP.
   Qed.
 
   Definition c_ne_y : "c" <> "y".
   Proof.
-      by apply eqb_neq.
+      by apply /eqP.
   Qed.
 
   Definition c_ne_one : "c" <> "one".
   Proof.
-      by apply eqb_neq.
+      by apply /eqP.
   Qed.
 
   Definition entry_bb := (@nil string,
