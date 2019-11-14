@@ -1,0 +1,26 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install opam
+      run: |
+        sudo apt-get install opam
+        opam init
+    - name: Install Coq
+      run: opam pin add coq 8.8.1
+    - name: Install ssreflect
+      run: |
+        opam repo add coq-released https://coq.inria.fr/opam/released
+        opam install coq-mathcomp-ssreflect
+    - name: Compile and run the proofs
+      run: |
+        eval `opam config env`
+        coq_makefile -f _CoqProject  -o Makefile
+        make all
