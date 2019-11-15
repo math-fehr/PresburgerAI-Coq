@@ -262,7 +262,7 @@ Section AbstractInterpreter.
     (stateV2, stateE').
 
   Theorem abstract_interpret_bb_spec_term (bb: BasicBlock) (bb_id: bbid) (state: AS):
-    Some bb = p bb_id ->
+    p bb_id = Some bb ->
     term_fixpoint (abstract_interpret_bb bb bb_id state) bb_id.
   Proof.
     move => Hbb.
@@ -401,14 +401,15 @@ Section AbstractInterpreter.
     (abstract_interpret_program ps state).2 in_id out_id = state.2 in_id out_id.
   Proof.
     elim: ps state.
-    - move => header_id body Hind state /= Hsound /negb_true_iff Hnotin.
+    - move => header_id body Hind state /= /andP [/andP[Hsound _] _] /negb_true_iff Hnotin.
       case H: (p header_id) => //=.
       rewrite compose_relation_in_program_edges_spec Hnotin /=.
       move: Hnotin. rewrite in_cons => /orb_false_iff[/negb_true_iff Hne /negb_true_iff Hnotin].
       rewrite Hind; auto.
         by rewrite abstract_interpret_bb_edge_in_unchanged.
-    - move => ps1 Hind1 ps2 Hind2 state /= /andP[/andP[_ Hsound1] Hsound2]. rewrite mem_cat => /norP [Hnotin1 Hnotin2].
-      by rewrite Hind2; auto.
+    - move => ps1 Hind1 ps2 Hind2 state /= /andP[/andP[_ Hsound1] Hsound2].
+      rewrite mem_cat => /norP [Hnotin1 Hnotin2].
+        by rewrite Hind2; auto.
     - move => bb_id state /=.
       case_eq (p bb_id); auto => bb Hsound Hbb /negb_true_iff Hnotin.
       rewrite mem_seq1 in Hnotin. move => /negb_true_iff in Hnotin.
@@ -421,7 +422,7 @@ Section AbstractInterpreter.
     forall pos, (abstract_interpret_program ps state).1 in_id pos = state.1 in_id pos.
   Proof.
     elim: ps state.
-    - move => header_id body Hind state /= Hsound /negb_true_iff Hnotin pos.
+    - move => header_id body Hind state /= /andP[/andP[Hsound _] _] /negb_true_iff Hnotin pos.
       case H: (p header_id) => //=.
       rewrite compose_relation_in_program_values_spec Hnotin /=.
       move: Hnotin. rewrite in_cons eq_sym => /orb_false_iff[/negb_true_iff Hne /negb_true_iff Hnotin].
@@ -441,7 +442,26 @@ Section AbstractInterpreter.
              forall state, term_fixpoint (abstract_interpret_program ps state) bb_id.
   Proof.
     elim: ps.
-    - admit.
+    - move => header body Hind /= /andP[/andP[Hsound Hheadernotinbody] HheaderSome] bb_id Hin state.
+      move: HheaderSome. case_eq (p header) => [ bb Hbb _ | //]. rewrite /term_fixpoint.
+      case_eq (p bb_id) => [ bb2 Hbb2 | //]. apply /allP => [[x bb_id']] Hin2.
+      rewrite compose_relation_in_program_edges_spec Hin.
+      rewrite compose_relation_in_program_values_spec Hin in Hin2.
+      apply transfer_term_compose in Hin2. move: Hin2 => [a'' [Hin2 Hle]] /=.
+      eapply AbstractDomain.le_trans. apply Hle.
+      apply compose_relation_le.
+      move: Hin. rewrite in_cons => /orP [/eqP Heq | Hin].
+      + rewrite -Heq in Hheadernotinbody.
+        rewrite abstract_interpret_program_edge_in_unchanged; auto.
+        rewrite abstract_interpret_program_value_unchanged in Hin2; auto.
+        move: (Hbb) => Htransfer_bb.
+        apply abstract_interpret_bb_spec_term with (state := (set_input_to_identity state header)) in Htransfer_bb.
+        rewrite /term_fixpoint Hbb in Htransfer_bb. move => /allP in Htransfer_bb.
+        rewrite Heq Hbb in Hbb2. move: Hbb2 => [Hbbeq]. subst.
+        by move => /(_ (a'', bb_id') Hin2) in Htransfer_bb.
+      + move => /(_ Hsound bb_id Hin (abstract_interpret_bb bb header (set_input_to_identity state header))) in Hind.
+        rewrite /term_fixpoint Hbb2 in Hind.
+        by move => /allP /(_ (a'', bb_id') Hin2) in Hind.
     - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/andP[/allP Hnotsame1 Hnotsame2] HsoundLoop] HsoundDAG] Hsound1] Hsound2] bb_id.
       rewrite mem_cat => /orP[Hin1 | Hin2] state; last first. apply Hind2; auto.
       move: (Hin1) => Hin1'. apply Hind1 with (state := state) in Hin1'; auto.
@@ -453,6 +473,6 @@ Section AbstractInterpreter.
     - move => bb_id /=. case_eq (p bb_id) => [ bb Hbb Hnotinsucc bb_id0 Hne state | // ].
       move: Hne. rewrite mem_seq1 => /eqP ->.
       by apply abstract_interpret_bb_spec_term.
-  Admitted.
+  Qed.
 
 End AbstractInterpreter.

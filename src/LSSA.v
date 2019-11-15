@@ -110,7 +110,12 @@ Fixpoint program_successors (p: Program) (ps: ProgramStructure) :=
 Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
   match ps with
   | Loop header body =>
-    structure_sound p body
+    (structure_sound p body) &&
+    (header \notin (bbs_in_program body)) &&
+    match p header with
+    | None => false
+    | Some _ => true
+    end
   | DAG ps1 ps2 =>
     all (fun s => s \notin (bbs_in_program ps2)) (bbs_in_program ps1) &&
     all (fun s => s \notin (bbs_in_program ps1)) (bbs_in_program ps2) &&

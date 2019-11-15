@@ -26,4 +26,9 @@ Class transfer_function_relational {abstract_state: eqType}
       forall term bb a,
         (exists a', (a', bb) \in (transfer_term term a)) ->
         bb \in (term_successors term);
+
+    transfer_term_compose :
+      forall term a a' comp_a bb,
+        (a', bb) \in (transfer_term term (compose_relation comp_a a)) ->
+        exists a'', (a'', bb) \in transfer_term term a /\ le a' (compose_relation comp_a a'');
   }.
