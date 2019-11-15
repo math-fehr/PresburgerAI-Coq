@@ -304,7 +304,24 @@ Section AbstractInterpreter.
     by rewrite abstract_interpret_inst_list_bb_unchanged; simpl_totalmap.
   Qed.
 
+  (*  _                       *)
+  (* | |    ___   ___  _ __   *)
+  (* | |   / _ \ / _ \| '_ \  *)
+  (* | |__| (_) | (_) | |_) | *)
+  (* |_____\___/ \___/| .__/  *)
+  (*                  |_|     *)
 
+  Definition compose_relation_in_program_edges (ps: ProgramStructure) (stateE: ASEdges) (relation: ab) :=
+    pointwise_un_op_in_seq stateE (fun m => pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
+
+  Theorem compose_relation_in_program_edges_spec (ps: ProgramStructure) (stateE: ASEdges) (relation: ab) (in_id out_id: bbid) :
+    compose_relation_in_program_edges ps stateE relation in_id out_id =
+    if (in_id \in bbs_in_program ps) then compose_relation relation (stateE in_id out_id) else stateE in_id out_id.
+  Proof.
+    rewrite pointwise_un_op_in_seq_spec.
+    case: (in_id \in bbs_in_program ps) => [ | // ].
+    by rewrite pointwise_un_op_spec.
+  Qed.
 
   (*  ____                                       *)
   (* |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___   *)
