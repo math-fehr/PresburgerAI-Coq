@@ -310,7 +310,7 @@ Section AbstractInterpreter.
     by rewrite /abstract_interpret_term /= -abstract_interpret_term_join_edges_in_unchanged.
   Qed.
 
-  Theorem abstract_interpret_bb_unchanged (bb: BasicBlock) (bb_id bb_id': bbid) (state: AS):
+  Theorem abstract_interpret_bb_value_unchanged (bb: BasicBlock) (bb_id bb_id': bbid) (state: AS):
     Some bb = p bb_id ->
     bb_id != bb_id' ->
     forall pos, (abstract_interpret_bb bb bb_id state).1 bb_id' pos = state.1 bb_id' pos.
@@ -353,6 +353,20 @@ Section AbstractInterpreter.
     by rewrite pointwise_un_op_spec.
   Qed.
 
+  Definition compose_relation_in_program (ps: ProgramStructure) (state: AS) (relation: ab) :=
+    let stateV := compose_relation_in_program_values ps state.1 relation in
+    let stateE := compose_relation_in_program_edges ps state.2 relation in
+    (stateV, stateE).
+
+  Definition compute_loop_effect (ps: ProgramStructure) (stateE: ASEdges) (header_id: bbid) :=
+    let loop_sym_effect := join_edges_cond stateE (fun bb_id => bb_id \in (bbs_in_program ps)) header_id in
+    transitive_closure loop_sym_effect.
+
+  Definition compute_loop_effect_with_enter (ps: ProgramStructure) (stateE: ASEdges) (header_id: bbid) :=
+    let loop_effect := compute_loop_effect ps stateE header_id in
+    let entering_loop := join_edges_cond stateE (fun bb_id => bb_id \notin (bbs_in_program ps)) header_id in
+    join loop_effect entering_loop.
+
   (*  ____                                       *)
   (* |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___   *)
   (* | |_) | '__/ _ \ / _` | '__/ _` | '_ ` _ \  *)
@@ -375,17 +389,9 @@ Section AbstractInterpreter.
       | Some header =>
         let state0 := set_input_to_identity state header_id in
         let state1 := abstract_interpret_bb header header_id state0 in
-        let state2 := match body with
-                     | Some body => abstract_interpret_program body state1
-                     | None => state1
-                     end in
-        let loop_sym_effect := join_edges_cond state2.2 (fun bb_id => bb_id \in (bbs_in_program ps)) header_id in
-        let loop_effect := transitive_closure loop_sym_effect in
-        let entering_loop := join_edges_cond state.2 (fun bb_id => bb_id \notin (bbs_in_program ps)) header_id in
-        let loop_effect_with_enter := join loop_effect entering_loop in
-        let stateV3 := compose_relation_in_program_values ps state2.1 loop_effect_with_enter in
-        let stateE3 := compose_relation_in_program_edges ps state2.2 loop_effect_with_enter in
-        (stateV3, stateE3)
+        let state2 := abstract_interpret_program body state1 in
+        let loop_effect_with_enter := compute_loop_effect_with_enter ps state2.2 header_id in
+        compose_relation_in_program ps state2 loop_effect_with_enter
       end
     end.
 
@@ -395,14 +401,19 @@ Section AbstractInterpreter.
     (abstract_interpret_program ps state).2 in_id out_id = state.2 in_id out_id.
   Proof.
     elim: ps state.
-    - admit.
+    - move => header_id body Hind state /= Hsound /negb_true_iff Hnotin.
+      case H: (p header_id) => //=.
+      rewrite compose_relation_in_program_edges_spec Hnotin /=.
+      move: Hnotin. rewrite in_cons => /orb_false_iff[/negb_true_iff Hne /negb_true_iff Hnotin].
+      rewrite Hind; auto.
+        by rewrite abstract_interpret_bb_edge_in_unchanged.
     - move => ps1 Hind1 ps2 Hind2 state /= /andP[/andP[_ Hsound1] Hsound2]. rewrite mem_cat => /norP [Hnotin1 Hnotin2].
       by rewrite Hind2; auto.
     - move => bb_id state /=.
       case_eq (p bb_id); auto => bb Hsound Hbb /negb_true_iff Hnotin.
       rewrite mem_seq1 in Hnotin. move => /negb_true_iff in Hnotin.
       apply abstract_interpret_bb_edge_in_unchanged; auto.
-  Admitted.
+  Qed.
 
   Theorem abstract_interpret_program_value_unchanged (ps: ProgramStructure) (in_id out_id: bbid) (state: AS):
     structure_sound p ps ->
@@ -410,14 +421,19 @@ Section AbstractInterpreter.
     forall pos, (abstract_interpret_program ps state).1 in_id pos = state.1 in_id pos.
   Proof.
     elim: ps state.
-    - admit.
+    - move => header_id body Hind state /= Hsound /negb_true_iff Hnotin pos.
+      case H: (p header_id) => //=.
+      rewrite compose_relation_in_program_values_spec Hnotin /=.
+      move: Hnotin. rewrite in_cons eq_sym => /orb_false_iff[/negb_true_iff Hne /negb_true_iff Hnotin].
+      rewrite Hind; auto. rewrite abstract_interpret_bb_value_unchanged; auto.
+      by simpl_totalmap.
     - move => ps1 Hind1 ps2 Hind2 state /= /andP[/andP[_ Hsound1] Hsound2].
       rewrite /= mem_cat => /norP[Hnotin1 Hnotin2] pos.
       rewrite Hind2; auto.
     - move => bb_id state /=. case_eq (p bb_id); auto => bb Hbb _.
-      rewrite mem_seq1 => Hne pos. apply abstract_interpret_bb_unchanged; auto.
+      rewrite mem_seq1 => Hne pos. apply abstract_interpret_bb_value_unchanged; auto.
         by rewrite eq_sym.
-  Admitted.
+  Qed.
 
   Theorem abstract_interpret_program_spec_term (ps: ProgramStructure):
     structure_sound p ps ->
@@ -437,6 +453,6 @@ Section AbstractInterpreter.
     - move => bb_id /=. case_eq (p bb_id) => [ bb Hbb Hnotinsucc bb_id0 Hne state | // ].
       move: Hne. rewrite mem_seq1 => /eqP ->.
       by apply abstract_interpret_bb_spec_term.
-  Admitted. 
+  Admitted.
 
 End AbstractInterpreter.

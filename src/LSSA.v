@@ -47,7 +47,7 @@ Definition Program := @total_map string_eqType (option BasicBlock).
 (* A program structure is either a basic block, a loop that contains a header and
  a body, or the concatenation of two program strutures *)
 Inductive ProgramStructure :=
-| Loop (header: bbid) (body: option ProgramStructure)
+| Loop (header: bbid) (body: ProgramStructure)
 | DAG (p1 p2: ProgramStructure)
 | BB (bb: bbid).
 
@@ -72,18 +72,18 @@ Fixpoint get_inputs (p: Program) (id: bbid) :=
 
 Fixpoint bbs_in_program (p: ProgramStructure) :=
   match p with
-  | Loop header (Some body) => header::(bbs_in_program body)
+  | Loop header body => header::(bbs_in_program body)
   | DAG p1 p2 => (bbs_in_program p1) ++ (bbs_in_program p2)
-  | Loop bb None | BB bb => bb::nil
+  | BB bb => bb::nil
   end.
 
 (* Return list of basic blocks that are inside a loop body.
    Note that the body does not contain the header. *)
 Fixpoint bbs_in_loops (p: ProgramStructure) :=
   match p with
-  | Loop header (Some body) => bbs_in_program body
+  | Loop header body => bbs_in_program body
   | DAG p1 p2 => (bbs_in_loops p1) ++ (bbs_in_loops p2)
-  | Loop _ None | BB _ => nil
+  | BB _ => nil
   end.
 
 Definition term_successors (term: Term) :=
@@ -94,13 +94,13 @@ Definition term_successors (term: Term) :=
 
 Fixpoint program_successors (p: Program) (ps: ProgramStructure) :=
   match ps with
-  | Loop header (Some body) =>
+  | Loop header body =>
     match (p header) with
     | Some (_, _, t) => (term_successors t) ++ (program_successors p body)
     | None => program_successors p body
     end
   | DAG ps1 ps2 => (program_successors p ps1) ++ (program_successors p ps2)
-  | BB bb | Loop bb None =>
+  | BB bb =>
     match (p bb) with
     | Some (_, _, t) => (term_successors t)
     | None => nil
@@ -109,7 +109,7 @@ Fixpoint program_successors (p: Program) (ps: ProgramStructure) :=
 
 Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
   match ps with
-  | Loop header (Some body) =>
+  | Loop header body =>
     structure_sound p body
   | DAG ps1 ps2 =>
     all (fun s => s \notin (bbs_in_program ps2)) (bbs_in_program ps1) &&
@@ -123,7 +123,6 @@ Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
     | None => false
     | Some (_,_,term) => bb \notin (term_successors term)
     end
-  | _ => true
   end.
 
 Local Open Scope Z_scope.
@@ -299,22 +298,16 @@ Inductive program_big_step: Program -> ProgramStructure -> (bbid * RegisterMap) 
     program_big_step p ps1 (id, R) (id', R') ->
     program_big_step p ps2 (id', R') (id'', R'') ->
     program_big_step p (DAG ps1 ps2) (id, R) (id'', R'')
-| LoopNotInBigStep (p: Program) (header_id: bbid) (body: option ProgramStructure) (id: bbid) (R: RegisterMap):
+| LoopNotInBigStep (p: Program) (header_id: bbid) (body: ProgramStructure) (id: bbid) (R: RegisterMap):
     header_id != id ->
     program_big_step p (Loop header_id body) (id, R) (id, R)
-| LoopSingleInBigStep (p: Program) (header_id: bbid) (params: list vid) (insts: list Inst)
-                    (term: Term) (id1 id2: bbid) (R0 R1 R2: RegisterMap):
-    Some (params, insts, term) = p header_id ->
-    bb_big_step p (params, insts, term) R0 (id1, R1) ->
-    program_big_step p (Loop header_id None) (id1, R1) (id2, R2) ->
-    program_big_step p (Loop header_id None) (header_id, R0) (id2, R2)
 | LoopInBigStep (p: Program) (body: ProgramStructure) (header_id: bbid) (params: list vid) (insts: list Inst)
               (term: Term) (id1 id2 id3: bbid) (R0 R1 R2 R3: RegisterMap):
     Some (params, insts, term) = p header_id ->
     bb_big_step p (params, insts, term) R0 (id1, R1) ->
     program_big_step p body (id1, R1) (id2, R2) ->
-    program_big_step p (Loop header_id (Some body)) (id2, R2) (id3, R3) ->
-    program_big_step p (Loop header_id (Some body)) (header_id, R0) (id3, R3).
+    program_big_step p (Loop header_id body) (id2, R2) (id3, R3) ->
+    program_big_step p (Loop header_id body) (header_id, R0) (id3, R3).
 
 
 Fixpoint interpret_inst_list (l: list Inst) (R: RegisterMap) :=
@@ -362,21 +355,12 @@ Fixpoint interpret_program (fuel: nat) (p: Program) (ps: ProgramStructure) (id: 
         interpret_program fuel' p p2 id' R'
       else
         None
-    | Loop h None =>
-      if id == h then
-        if p h is Some (params, insts, term) then
-          let (id', R') := interpret_bb p (params, insts, term) R in
-          interpret_program fuel' p (Loop h None) id' R'
-        else
-          None
-      else
-        Some (id, R)
-    | Loop h (Some body) =>
+    | Loop h body =>
       if id == h then
         if p h is Some (params, insts, term) then
           let (id', R') := interpret_bb p (params, insts, term) R in
           if interpret_program fuel' p body id' R' is Some (id'', R'') then
-            interpret_program fuel' p (Loop h (Some body)) id'' R''
+            interpret_program fuel' p (Loop h body) id'' R''
           else
             None
         else
@@ -393,7 +377,7 @@ Theorem interpret_program_spec :
     program_big_step p sub_p (id, R) (id', R').
 Proof.
   elim => [ p sub_p id R id' R' Hsome // | n Hind p sub_p id R id' R'].
-  case sub_p => [ header_id [ body | ] /= | p1 p2 /= HDAG | bb_id].
+  case sub_p => [ header_id body /= | p1 p2 /= HDAG | bb_id].
   - case (id =P header_id); last first.
     + move => /eqP Hne [-> ->].
       apply LoopNotInBigStep.
@@ -409,17 +393,6 @@ Proof.
         by apply interpret_bb_spec.
       * auto.
       * auto.
-  - case (id =P header_id) => [ -> | /eqP Hne [-> ->]].
-    + case_eq (p header_id) => [[[params insts] term] Hpheader_id Hinterpret | //].
-      move Hp0: (interpret_bb p (params, insts, term) R) => [p0_id p0_R].
-      eapply LoopSingleInBigStep with (id1 := p0_id) (R1 := p0_R).
-      * symmetry. apply Hpheader_id.
-      * rewrite -Hp0.
-          by apply interpret_bb_spec.
-      * rewrite Hp0 in Hinterpret.
-          by apply Hind.
-    + apply LoopNotInBigStep.
-      by rewrite eq_sym.
   - case (interpret_program n p p1 id R) eqn:Hp1 in HDAG.
     move: p0 => [p0_id p0_R] in HDAG Hp1.
     eapply DAGBigStep.
@@ -473,11 +446,13 @@ Section Example.
                          (BinOp "c" OpLe "y" "one" c_ne_y c_ne_one)::nil,
                          (BrC "c" "loop" ("y"::nil) "exit" ("y"::nil))).
 
+  Definition dummy_bb := (@nil string, @nil Inst, (Br "loop" ([::"y"]))).
+
   Definition exit_bb := ("exitvalue"::nil, @nil Inst, (Br "finished" nil)).
 
-  Definition prog := ("entry" !-> Some entry_bb; "loop" !-> Some loop_bb; "exit" !-> Some exit_bb ;_ !-> None).
+  Definition prog := ("entry" !-> Some entry_bb; "loop" !-> Some loop_bb; "dummy" !-> Some dummy_bb; "exit" !-> Some exit_bb ;_ !-> None).
 
-  Definition progstruct := DAG (BB "entry") (DAG (Loop "loop" None) (BB "exit")).
+  Definition progstruct := DAG (BB "entry") (DAG (Loop "loop" (BB "dummy")) (BB "exit")).
 
   (* We need to set eval_map transparent to simplify computations *)
   Transparent eval_map.
@@ -499,7 +474,7 @@ Section Example.
     | None => False
     end.
   Proof.
-      by compute.
+      by [].
   Qed.
 
 End Example.
