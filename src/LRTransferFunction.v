@@ -13,7 +13,12 @@ Class transfer_function_relational {abstract_state: eqType}
     transfer_inst_sound :
       forall inst R R', inst_step inst R R' ->
                    forall a R_begin, Ensembles.In _ (gamma a) (R_begin, R) ->
-                        Ensembles.In _ (gamma (transfer_inst inst a)) (R_begin, R');
+                                Ensembles.In _ (gamma (transfer_inst inst a)) (R_begin, R');
+
+    transfer_inst_compose :
+      forall inst a comp_a,
+        le (transfer_inst inst (compose_relation comp_a a))
+           (compose_relation comp_a (transfer_inst inst a));
 
     transfer_term : Term -> abstract_state -> list (abstract_state * bbid);
     transfer_term_sound :
