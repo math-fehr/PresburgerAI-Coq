@@ -270,7 +270,7 @@ Section AbstractInterpreter.
   Qed.
 
   Theorem abstract_interpret_bb_spec_inst (bb: BasicBlock) (bb_id: bbid) (state: AS):
-    Some bb = p bb_id ->
+    p bb_id = Some bb ->
     (forall n, inst_fixpoint (abstract_interpret_bb bb bb_id state).1 bb_id n).
   Proof.
     move => /= Hbb n.
@@ -481,7 +481,20 @@ Section AbstractInterpreter.
              forall state pos, inst_fixpoint (abstract_interpret_program ps state).1 bb_id pos.
   Proof.
     elim: ps.
-    - admit.
+    -  move => header body Hind /= /andP[/andP[Hsound Hheadernotinbody] HheaderSome] bb_id Hin state pos.
+      move: HheaderSome. case_eq (p header) => [ bb Hbb _ | //]. rewrite /inst_fixpoint.
+      case_eq (p bb_id) => [ bb2 Hbb2 | //]. case_eq (nth_error bb2.1.2 pos) => [ inst Hinst /= | //].
+      rewrite !compose_relation_in_program_values_spec !Hin.
+      eapply AbstractDomain.le_trans. apply transfer_inst_compose.
+      apply compose_relation_le.
+      move: Hin. rewrite in_cons => /orP [/eqP Heq | Hin].
+       + rewrite Heq Hbb in Hbb2. move: Hbb2 => [Hbb2]. subst.
+         rewrite !abstract_interpret_program_value_unchanged; auto.
+         move: (Hbb) => Htransfer_bb.
+         apply abstract_interpret_bb_spec_inst with (state := (set_input_to_identity state header)) (n := pos) in Htransfer_bb.
+         by rewrite /inst_fixpoint Hbb Hinst in Htransfer_bb.
+      + move => /(_ Hsound bb_id Hin (abstract_interpret_bb bb header (set_input_to_identity state header)) pos) in Hind.
+        by rewrite /inst_fixpoint Hbb2 Hinst in Hind.
     - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/andP[/allP Hnotsame1 Hnotsame2] _] HsoundDAG] Hsound1] Hsound2] bb_id.
       rewrite mem_cat => /orP[Hin1 | Hin2] state pos; last first. apply Hind2; auto.
       move: (Hin1) => Hin1'. apply Hind1 with (state := state) (pos := pos) in Hin1'; auto.
@@ -492,6 +505,6 @@ Section AbstractInterpreter.
     - move => bb_id /=. case_eq (p bb_id) => [ bb Hbb Hnotinsucc bb_id0 Hne state | // ].
       move: Hne. rewrite mem_seq1 => /eqP ->.
         by apply abstract_interpret_bb_spec_inst.
-  Admitted.
+  Qed.
 
 End AbstractInterpreter.
