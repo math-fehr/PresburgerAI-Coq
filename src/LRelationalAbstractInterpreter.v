@@ -258,8 +258,9 @@ Section AbstractInterpreter.
     (forall n, inst_fixpoint (abstract_interpret_bb bb bb_id state).1 bb_id n).
   Proof.
     move => /= Hbb n.
-    eapply abstract_interpret_inst_list_spec => [ | n0 | ]; eauto.
-      by rewrite addn0.
+    eapply abstract_interpret_inst_list_spec => [  | n0 | // ].
+    - by eauto.
+    - by rewrite addn0.
   Qed.
 
   Theorem abstract_interpret_bb_spec_edge (bb: BasicBlock) (bb_id: bbid) (state: AS):
