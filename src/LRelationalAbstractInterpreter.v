@@ -323,6 +323,19 @@ Section AbstractInterpreter.
     by rewrite pointwise_un_op_spec.
   Qed.
 
+  Definition compose_relation_in_program_values (ps: ProgramStructure) (stateV: ASValues) (relation: ab) :=
+    pointwise_un_op_in_seq stateV (fun m => pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
+
+  Theorem compose_relation_in_program_values_spec (ps: ProgramStructure) (stateV: ASValues) (relation: ab) (bb_id: bbid) (pos: nat) :
+    compose_relation_in_program_values ps stateV relation bb_id pos =
+    if (bb_id \in bbs_in_program ps) then compose_relation relation (stateV bb_id pos) else stateV bb_id pos.
+  Proof.
+    rewrite pointwise_un_op_in_seq_spec.
+    case: (bb_id \in bbs_in_program ps) => [ | // ].
+    by rewrite pointwise_un_op_spec.
+  Qed.
+
+
   (*  ____                                       *)
   (* |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___   *)
   (* | |_) | '__/ _ \ / _` | '__/ _` | '_ ` _ \  *)
