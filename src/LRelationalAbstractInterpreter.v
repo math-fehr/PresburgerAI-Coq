@@ -194,43 +194,58 @@ Section AbstractInterpreter.
     eapply transfer_term_only_successors; eauto.
   Qed.
 
-  (* Interpretation of a list of edges *)
-  Fixpoint join_map_aux {T: eqType} (m: @total_map T (@total_map T ab)) (seen: seq T) (x: T) :=
-    match m with
+  Fixpoint join_edges_cond_aux (stateE: ASEdges) (seen: seq bbid) (cond: bbid -> bool) (x: bbid) :=
+    match stateE with
     | TEmpty v => v x
-    | TUpdate m' k v =>
-      if k \in seen then
-        join_map_aux m' seen x
+    | TUpdate stateE' k v =>
+      if (k \in seen) && (cond k) then
+        join_edges_cond_aux stateE' seen cond x
       else
-        join (v x) (join_map_aux m' (k::seen) x)
+        join (v x) (join_edges_cond_aux stateE' (k::seen) cond x)
     end.
 
-  Theorem join_map_aux_spec {T: eqType} (m: @total_map T (@total_map T ab)) (seen: list T) (x: T):
-    forall y, y \notin seen ->
-    le (m y x) (join_map_aux m seen x).
+  Theorem join_edges_cond_aux_spec (stateE: ASEdges) (seen: seq bbid) (cond: bbid -> bool) (x y: bbid):
+    cond y ->
+    y \notin seen ->
+    le (stateE y x) (join_edges_cond_aux stateE seen cond x).
   Proof.
-    elim: m seen => [ v seen y _ | m Hind k v seen y Hnotin ].
+    elim: stateE seen => [ v seen Hcond _ | m Hind k v seen Hcond Hnotin ].
     - simpl_totalmap.
     - case (k =P y) => [ -> | Hne ].
       + simpl_totalmap.
         move => /negb_true_iff in Hnotin.
-        by rewrite Hnotin.
+        by rewrite Hnotin /=.
       + simpl_totalmap.
-        case: (k \in seen); auto.
-        eapply AbstractDomain.le_trans.
-        * apply (Hind (k::seen)).
-          by rewrite in_cons negb_orb Hnotin eq_sym Hne.
-        * by [].
+        case: (k \in seen) => /=.
+        * case: (cond k); auto.
+          eapply AbstractDomain.le_trans.
+          { apply (Hind (k::seen)); auto.
+              by rewrite in_cons negb_orb Hnotin eq_sym Hne. }
+          { by []. }
+        * eapply AbstractDomain.le_trans.
+          { apply (Hind (k::seen)); auto.
+              by rewrite in_cons negb_orb Hnotin eq_sym Hne. }
+          { by []. }
   Qed.
 
-  Definition join_map {T: eqType} (m: @total_map T (@total_map T ab)) (x: T) :=
-    join_map_aux m nil x.
+  Definition join_edges_cond (stateE: ASEdges) (cond: bbid -> bool) (bb_id: bbid) :=
+    join_edges_cond_aux stateE [::] cond bb_id.
 
-  Theorem join_map_spec {T: eqType} (m: @total_map T (@total_map T ab)) (x: T):
-    forall y, le (m y x) (join_map m x).
+  Theorem join_edges_cond_spec (stateE: ASEdges) (cond: bbid -> bool) (bb_id bb_id': bbid) :
+    cond bb_id' ->
+    le (stateE bb_id' bb_id) (join_edges_cond stateE cond bb_id).
   Proof.
-    move => y.
-      by apply join_map_aux_spec.
+    move => Hcond.
+      by apply join_edges_cond_aux_spec.
+  Qed.
+
+  Definition join_edges (stateE: ASEdges) (bb_id: bbid) :=
+    join_edges_cond_aux stateE [::] (fun _ => true) bb_id.
+
+  Theorem join_edges_spec (stateE: ASEdges) (bb_id bb_id': bbid) :
+    le (stateE bb_id' bb_id) (join_edges stateE bb_id).
+  Proof.
+      by apply join_edges_cond_aux_spec.
   Qed.
 
   (*  ____            _      ____  _            _     *)
@@ -241,7 +256,7 @@ Section AbstractInterpreter.
 
   (* Interpretation of a basic block *)
   Definition abstract_interpret_bb (bb: BasicBlock) (bb_id: bbid) (state: AS) :=
-    let stateV1 := ( bb_id !-> (0 !-> join (state.1 bb_id 0) (join_map state.2 bb_id); state.1 bb_id) ; state.1) in
+    let stateV1 := ( bb_id !-> (0 !-> join (state.1 bb_id 0) (join_edges state.2 bb_id); state.1 bb_id) ; state.1) in
     let stateV2 := abstract_interpret_inst_list bb.1.2 bb_id 0 stateV1 in
     let stateE' := abstract_interpret_term bb bb_id (stateV2, state.2) in
     (stateV2, stateE').
@@ -274,7 +289,7 @@ Section AbstractInterpreter.
     rewrite abstract_interpret_term_bb_edge_out_unchanged; auto.
     rewrite abstract_interpret_inst_list_0_unchanged.
     simpl_totalmap.
-    by apply le_join_r, join_map_spec.
+    by apply le_join_r, join_edges_spec.
   Qed.
 
   Theorem abstract_interpret_bb_monotone_0 (bb: BasicBlock) (bb_id bb_id': bbid) (state: AS):
@@ -311,6 +326,9 @@ Section AbstractInterpreter.
   (* |_____\___/ \___/| .__/  *)
   (*                  |_|     *)
 
+  Definition set_input_to_identity (state: AS) (entry_id: bbid) :=
+    ((entry_id !-> (0 !-> id_relation ; state.1 entry_id); state.1), state.2).
+
   Definition compose_relation_in_program_edges (ps: ProgramStructure) (stateE: ASEdges) (relation: ab) :=
     pointwise_un_op_in_seq stateE (fun m => pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
 
@@ -335,7 +353,6 @@ Section AbstractInterpreter.
     by rewrite pointwise_un_op_spec.
   Qed.
 
-
   (*  ____                                       *)
   (* |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___   *)
   (* | |_) | '__/ _ \ / _` | '__/ _` | '_ ` _ \  *)
@@ -352,7 +369,24 @@ Section AbstractInterpreter.
       end
     | DAG ps1 ps2 =>
       abstract_interpret_program ps2 (abstract_interpret_program ps1 state)
-    | _ => state
+    | Loop header_id body =>
+      match p header_id with
+      | None => state
+      | Some header =>
+        let state0 := set_input_to_identity state header_id in
+        let state1 := abstract_interpret_bb header header_id state0 in
+        let state2 := match body with
+                     | Some body => abstract_interpret_program body state1
+                     | None => state1
+                     end in
+        let loop_sym_effect := join_edges_cond state2.2 (fun bb_id => bb_id \in (bbs_in_program ps)) header_id in
+        let loop_effect := transitive_closure loop_sym_effect in
+        let entering_loop := join_edges_cond state.2 (fun bb_id => bb_id \notin (bbs_in_program ps)) header_id in
+        let loop_effect_with_enter := join loop_effect entering_loop in
+        let stateV3 := compose_relation_in_program_values ps state2.1 loop_effect_with_enter in
+        let stateE3 := compose_relation_in_program_edges ps state2.2 loop_effect_with_enter in
+        (stateV3, stateE3)
+      end
     end.
 
   Theorem abstract_interpret_program_edge_in_unchanged (ps: ProgramStructure) (in_id out_id: bbid) (state: AS):
