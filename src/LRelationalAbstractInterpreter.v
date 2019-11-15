@@ -10,8 +10,9 @@ Require Import Lia.
 Section AbstractInterpreter.
 
   Context {ab: eqType}
-          {ad: adom PairRegisterMap ab}
-          (tf: transfer_function_relational ad)
+          {ad: adom (prod_eqType RegisterMap RegisterMap) ab}
+          {adr: adom_relational ad}
+          (tf: transfer_function_relational adr)
           (p: Program).
 
   (* Associate for every control location an abstract state *)
@@ -302,6 +303,8 @@ Section AbstractInterpreter.
     move => Hbb Hbbne pos /=.
     by rewrite abstract_interpret_inst_list_bb_unchanged; simpl_totalmap.
   Qed.
+
+
 
   (*  ____                                       *)
   (* |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___   *)
