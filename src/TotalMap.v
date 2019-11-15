@@ -124,6 +124,23 @@ Proof.
   by case (k == k').
 Qed.
 
+Fixpoint pointwise_un_op_in_seq {Key: eqType} {Value: Type} (m: @total_map Key Value) (f: Value -> Value) (l: seq Key) :=
+  match l with
+  | [::] => m
+  | a::l' => (a !-> f (m a); pointwise_un_op_in_seq m f l')
+  end.
+
+Theorem pointwise_un_op_in_seq_spec {Key: eqType} {Value: Type} (m: @total_map Key Value) (f: Value -> Value) (l: seq Key) :
+  forall x, (pointwise_un_op_in_seq m f l) x = if x \in l then f (m x) else (m x).
+Proof.
+  move => x. elim: l => [// | k l'].
+  rewrite in_cons. case: (x \in l') => Hind /=; case: (x =P k) => [-> | /eqP /negb_true_iff].
+  - by rewrite eq_refl.
+  - by rewrite eq_sym => ->.
+  - by rewrite eq_refl.
+  - by rewrite eq_sym => ->.
+Qed.
+
 Fixpoint pointwise_bin_op_aux {Key: eqType} {Value1 Value2 Value3: Type} (m1: @total_map Key Value1)
          (k2: Value2) (f: Value1 -> Value2 -> Value3) :=
   match m1 with
