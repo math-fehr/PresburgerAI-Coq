@@ -475,4 +475,23 @@ Section AbstractInterpreter.
       by apply abstract_interpret_bb_spec_term.
   Qed.
 
+  Theorem abstract_interpret_program_spec_inst (ps: ProgramStructure):
+    structure_sound p ps ->
+    forall bb_id, (bb_id \in (bbs_in_program ps)) ->
+             forall state pos, inst_fixpoint (abstract_interpret_program ps state).1 bb_id pos.
+  Proof.
+    elim: ps.
+    - admit.
+    - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/andP[/allP Hnotsame1 Hnotsame2] _] HsoundDAG] Hsound1] Hsound2] bb_id.
+      rewrite mem_cat => /orP[Hin1 | Hin2] state pos; last first. apply Hind2; auto.
+      move: (Hin1) => Hin1'. apply Hind1 with (state := state) (pos := pos) in Hin1'; auto.
+      move: Hin1'. rewrite /inst_fixpoint. case (p bb_id); auto => bb_id'.
+      case (nth_error bb_id'.1.2 pos) => [ inst Hle1 | //].
+      move => /(_ bb_id Hin1) in Hnotsame1.
+        by rewrite !(abstract_interpret_program_value_unchanged ps2) => //.
+    - move => bb_id /=. case_eq (p bb_id) => [ bb Hbb Hnotinsucc bb_id0 Hne state | // ].
+      move: Hne. rewrite mem_seq1 => /eqP ->.
+        by apply abstract_interpret_bb_spec_inst.
+  Admitted.
+
 End AbstractInterpreter.
