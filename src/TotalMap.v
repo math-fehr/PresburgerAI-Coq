@@ -460,7 +460,7 @@ End PartialMapTheorems.
 
 Section PartialMapCast.
 
-  Context (Key Value: eqType).
+  Context {Key Value: eqType}.
 
   (* Cast the partialmap to a list of (keys, values) *)
 
