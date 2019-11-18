@@ -107,6 +107,30 @@ Fixpoint program_successors (p: Program) (ps: ProgramStructure) :=
     end
   end.
 
+Definition program_predecessors (p: Program) (bb_id: bbid) :=
+  let keys := keys_list p in
+  filter (fun k => match p k with
+                | Some (_,_,t) => bb_id \in (term_successors t)
+                | None => false
+                end ) keys.
+
+Theorem program_predecessors_spec (p: Program) (bb_id: bbid) :
+  forall bb_id', bb_id' \in (program_predecessors p bb_id) =
+                       match (p bb_id') with
+                       | Some (_, _, t) => bb_id \in (term_successors t)
+                       | None => false
+                       end.
+Proof.
+  move => bb_id'.
+  rewrite mem_filter.
+  apply/idP/idP.
+  - by move => /andP[].
+  - move => Hbb. apply /andP.
+    split; auto. apply keys_list_spec. move: Hbb.
+      by case (p bb_id').
+Qed.
+
+
 Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
   match ps with
   | Loop header body =>
