@@ -49,15 +49,49 @@ Qed.
 
 Theorem compose_relation_id {concrete_state abstract_state: eqType}
         {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
-        (a a2: abstract_state) :
-  le a (compose_relation a2 id_relation) <-> le a a2.
+        (a: abstract_state) :
+  le a (compose_relation a id_relation).
 Proof.
-  split.
-  - move => Hle. apply gamma_monotone in Hle. apply gamma_monotone => [[x1 x2]] Hin.
-    apply Hle in Hin.
-    apply compose_relation_spec in Hin.
-    case: Hin => x [Hin Hinid]. apply id_relation_spec in Hinid. by subst.
-  - move => /gamma_monotone Hle. apply gamma_monotone => [[x1 x2]] Hin.
-    apply Hle in Hin. apply compose_relation_spec.
-    exists x2. split => //. by apply id_relation_spec.
+  apply gamma_monotone => [[x0 x1] Hin].
+  apply compose_relation_spec. exists x1. split; eauto.
+  by apply id_relation_spec.
 Qed.
+
+Theorem compose_assoc_l {concrete_state abstract_state: eqType}
+        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
+        (a1 a2 a3: abstract_state) :
+  le (compose_relation a1 (compose_relation a2 a3)) (compose_relation (compose_relation a1 a2) a3).
+Proof.
+  apply gamma_monotone => [[x0 x1]] /compose_relation_spec[x2 [H1 /compose_relation_spec[x3 [H2 H3]]]].
+  apply compose_relation_spec. exists x3. split; auto. apply compose_relation_spec. eauto.
+Qed.
+
+Theorem compose_assoc_r {concrete_state abstract_state: eqType}
+        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
+        (a1 a2 a3: abstract_state) :
+  le (compose_relation (compose_relation a1 a2) a3) (compose_relation a1 (compose_relation a2 a3)).
+Proof.
+  apply gamma_monotone => [[x0 x1]] /compose_relation_spec[x2 [/compose_relation_spec[x3 [H2 H3]] H1]].
+  apply compose_relation_spec. exists x3. split; auto. apply compose_relation_spec. eauto.
+Qed.
+
+Theorem compose_relation_quotient_right {concrete_state abstract_state: eqType}
+        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
+        (a1 a2 a3: abstract_state) :
+  le a2 a3 -> le (compose_relation a1 a2) (compose_relation a1 a3).
+Proof.
+  move => /gamma_monotone Hle. apply gamma_monotone => [[x1 x2]] /compose_relation_spec[x3 [Hin1 Hin2]].
+  apply compose_relation_spec.
+  eauto.
+Qed.
+
+Theorem compose_relation_quotient_left {concrete_state abstract_state: eqType}
+        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
+        (a1 a2 a3: abstract_state) :
+  le a1 a2 -> le (compose_relation a1 a3) (compose_relation a2 a3).
+Proof.
+  move => /gamma_monotone Hle. apply gamma_monotone => [[x1 x2]] /compose_relation_spec[x3 [Hin1 Hin2]].
+  apply compose_relation_spec.
+  eauto.
+Qed.
+
