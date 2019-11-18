@@ -10,6 +10,15 @@ From PolyAI Require Export ssrstring.
 Local Open Scope string_scope.
 Local Open Scope list_scope.
 
+
+(*  _____     _        _ __  __              *)
+(* |_   _|__ | |_ __ _| |  \/  | __ _ _ __   *)
+(*   | |/ _ \| __/ _` | | |\/| |/ _` | '_ \  *)
+(*   | | (_) | || (_| | | |  | | (_| | |_) | *)
+(*   |_|\___/ \__\__,_|_|_|  |_|\__,_| .__/  *)
+(*                                   |_|     *)
+
+
 (* Representation of a total map with finite non-default values *)
 
 Inductive total_map {Key: eqType} {Value} :=
@@ -346,3 +355,151 @@ repeat match goal with
        end.
 
 Global Opaque eval_map.
+
+(*  ____            _   _       _ __  __              *)
+(* |  _ \ __ _ _ __| |_(_) __ _| |  \/  | __ _ _ __   *)
+(* | |_) / _` | '__| __| |/ _` | | |\/| |/ _` | '_ \  *)
+(* |  __/ (_| | |  | |_| | (_| | | |  | | (_| | |_) | *)
+(* |_|   \__,_|_|   \__|_|\__,_|_|_|  |_|\__,_| .__/  *)
+(*                                            |_|     *)
+
+
+Section PartialMapDefinition.
+
+  Context {Key: eqType}
+          {Value: Type}.
+
+  (* Representation of a total map with finite non-default values *)
+
+  Inductive partial_map :=
+  | PEmpty
+  | PUpdate (m: partial_map) (k: Key) (v: Value).
+
+  (* Evaluate a map on a point*)
+  Fixpoint eval_partial_map (m: partial_map) (k: Key) :=
+    match m with
+    | PEmpty => None
+    | PUpdate m' k' v => if k' == k then Some v else eval_partial_map m' k
+    end.
+
+  (* Coercion for evaluation *)
+  Coercion eval_partial_map : partial_map >-> Funclass.
+
+End PartialMapDefinition.
+
+
+(* Notation for a default map *)
+Notation "k '!!->' v" := (PUpdate PEmpty k v)
+                           (at level 100, right associativity).
+
+(* Notation for a map update *)
+Notation "k '!!->' v ';' m" := (PUpdate m k v)
+                                 (at level 100, v at next level, right associativity).
+
+Section PartialMapTheorems.
+
+  Context {Key: eqType}
+          {Value Value' Value'': Type}.
+
+  (* Useful lemmas and theorems *)
+
+  Lemma p_apply_empty (k: Key) :
+    @PEmpty Key Value k = None.
+  Proof.
+      by [].
+  Qed.
+
+  Lemma p_update_eq (m : partial_map) (k: Key) (v: Value) :
+    (k !!-> v ; m) k = Some v.
+  Proof.
+      by rewrite /= eq_refl.
+  Qed.
+
+  Theorem p_update_neq (m : partial_map) (k1 k2: Key) (v: Value) :
+    k1 != k2 ->
+    (k1 !!-> v ; m) k2 = m k2.
+  Proof.
+      by move => /negb_true_iff /= ->.
+  Qed.
+
+  Lemma p_update_shadow (m : partial_map) (k: Key) (v1 v2: Value) :
+    eval_partial_map (k !!-> v2 ; k !!-> v1 ; m) = eval_partial_map (k !!-> v2 ; m).
+  Proof.
+    extensionality k' => /=.
+      by case (k =P k').
+  Qed.
+
+  Theorem p_update_permute (m : partial_map) (k1 k2: Key) (v1 v2: Value) :
+    k2 != k1 ->
+    eval_partial_map (k1 !!-> v1 ; k2 !!-> v2 ; m) =
+    eval_partial_map (k2 !!-> v2 ; k1 !!-> v1 ; m).
+  Proof.
+    move => /negb_true_iff Hne /=.
+    extensionality k'.
+    case (k1 =P k') => [ <- /= | _ //].
+      by rewrite Hne.
+  Qed.
+
+  (* Pointwise operations on one or multiple maps *)
+
+  Fixpoint p_pointwise_un_op (m: @partial_map Key Value) (f: Value -> Value') :=
+    match m with
+    | PEmpty => PEmpty
+    | PUpdate m1' k v => (k !!-> f v; p_pointwise_un_op m1' f)
+    end.
+
+  Theorem p_pointwise_un_op_spec (m: @partial_map Key Value) (f: Value -> Value') (k: Key) :
+    (p_pointwise_un_op m f) k = option_map f (m k).
+  Proof.
+    elim: m f k => [// | m Hind k v f k' /=].
+    rewrite Hind.
+      by case (k == k').
+  Qed.
+
+End PartialMapTheorems.
+
+
+(* Equality definition *)
+
+Fixpoint eq_partial_map {Key Value: eqType} (m1 m2: @partial_map Key Value) :=
+  match (m1, m2) with
+  | (PEmpty, PEmpty) => true
+  | (PUpdate m1' k1 v1, PUpdate m2' k2 v2) => (eq_partial_map m1' m2') && (k1 == k2) && (v1 == v2)
+  | _ => false
+  end.
+
+Theorem eq_partial_mapP (Key Value: eqType) :
+  Equality.axiom (@eq_partial_map Key Value).
+Proof.
+  elim => [ m2 /= | m1' Hind1 k1 v1 m2 /= ].
+  - apply (iffP idP); by case m2.
+  - apply (iffP idP) => [ | <- ].
+    + by case m2 => [ // | m2' k2 v2 /andP[/andP[/Hind1 -> /eqP ->] /eqP ->]].
+    + rewrite !eq_refl.
+        by have -> : (eq_partial_map m1' m1') by apply /Hind1.
+Qed.
+
+Canonical partial_map_eqMixin {Key Value: eqType} := EqMixin (@eq_partial_mapP Key Value).
+Canonical partial_map_eqType {Key Value: eqType} := Eval hnf in EqType (@partial_map Key Value) partial_map_eqMixin.
+
+
+(* Useful tactic which apply known lemmas *)
+
+Ltac simpl_partialmap :=
+repeat match goal with
+       | [ |- context[eval_partial_map PEmpty _] ] => rewrite p_apply_empty
+       | [ |- context[eval_partial_map (?k !!-> _ ; _) ?k]] => rewrite p_update_eq
+       | [ H : ?k1 <> ?k2 |- _ ] => move: H => /eqP H
+       | [ H : is_true (?k1 != ?k2) |- context[eval_partial_map (?k1 !!-> _ ; _) ?k2] ] => rewrite (p_update_neq _ _ _ _ H)
+       | [ H : is_true (?k2 != ?k1) |- context[eval_partial_map (?k1 !!-> _ ; _) ?k2] ] =>
+         rewrite eq_sym in H; rewrite (p_update_neq _ _ _ _ H); rewrite eq_sym in H
+       | [ |- context[eval_partial_map (?k1 !!-> _ ; ?m) ?k2]] => rewrite (p_update_neq m k1 k2 _); last first; [ by [] | idtac ]
+       | [ |- context[eval_partial_map (?k !!-> _ ; ?k !!-> _ ; _)]] => rewrite p_update_shadow
+       | [ |- context[(?k == ?k)]] => rewrite eq_refl
+       | [ |- context[eval_partial_map (p_pointwise_un_op _ _) _]] => rewrite p_pointwise_un_op_spec
+       | [ H : is_true ?x |- context[?x]] => rewrite H
+       | [ H : is_true (?x != ?y) |- context[?x == ?y]] => rewrite ?(ifN_eq _ _ H) ?(ifN_eqC _ _ H)
+       | _ => rewrite //=; auto
+       end.
+
+Global Opaque eval_partial_map.
