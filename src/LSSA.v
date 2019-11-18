@@ -42,7 +42,7 @@ Definition BasicBlock :=
   (seq vid) * (seq Inst) * Term.
 
 (* A program is a set of basic blocks indexed by their bbid *)
-Definition Program := @total_map string_eqType (option BasicBlock).
+Definition Program := @partial_map string_eqType BasicBlock.
 
 (* A program structure is either a basic block, a loop that contains a header and
  a body, or the concatenation of two program strutures *)
@@ -454,7 +454,7 @@ Section Example.
 
   Definition exit_bb := ("exitvalue"::nil, @nil Inst, (Br "finished" nil)).
 
-  Definition prog := ("entry" !-> Some entry_bb; "loop" !-> Some loop_bb; "dummy" !-> Some dummy_bb; "exit" !-> Some exit_bb ;_ !-> None).
+  Definition prog := ("entry" !!-> entry_bb; "loop" !!-> loop_bb; "dummy" !!-> dummy_bb; "exit" !!-> exit_bb).
 
   Definition progstruct := DAG (BB "entry") (DAG (Loop "loop" (BB "dummy")) (BB "exit")).
 
