@@ -401,7 +401,7 @@ Section AbstractInterpreter.
     (abstract_interpret_program ps state).2 in_id out_id = state.2 in_id out_id.
   Proof.
     elim: ps state.
-    - move => header_id body Hind state /= /andP [/andP[Hsound _] _] /negb_true_iff Hnotin.
+    - move => header_id body Hind state /= /andP [/andP[/andP[Hsound _] _] _] /negb_true_iff Hnotin.
       case H: (p header_id) => //=.
       rewrite compose_relation_in_program_edges_spec Hnotin /=.
       move: Hnotin. rewrite in_cons => /orb_false_iff[/negb_true_iff Hne /negb_true_iff Hnotin].
@@ -422,7 +422,7 @@ Section AbstractInterpreter.
     forall pos, (abstract_interpret_program ps state).1 in_id pos = state.1 in_id pos.
   Proof.
     elim: ps state.
-    - move => header_id body Hind state /= /andP[/andP[Hsound _] _] /negb_true_iff Hnotin pos.
+    - move => header_id body Hind state /= /andP[/andP[/andP[Hsound _] _] _] /negb_true_iff Hnotin pos.
       case H: (p header_id) => //=.
       rewrite compose_relation_in_program_values_spec Hnotin /=.
       move: Hnotin. rewrite in_cons eq_sym => /orb_false_iff[/negb_true_iff Hne /negb_true_iff Hnotin].
@@ -442,7 +442,7 @@ Section AbstractInterpreter.
              forall state, term_fixpoint (abstract_interpret_program ps state) bb_id.
   Proof.
     elim: ps.
-    - move => header body Hind /= /andP[/andP[Hsound Hheadernotinbody] HheaderSome] bb_id Hin state.
+    - move => header body Hind /= /andP[/andP[/andP[Hsound Hheadernotinbody] _] HheaderSome] bb_id Hin state.
       move: HheaderSome. case_eq (p header) => [ bb Hbb _ | //]. rewrite /term_fixpoint.
       case_eq (p bb_id) => [ bb2 Hbb2 | //]. apply /allP => [[x bb_id']] Hin2.
       rewrite compose_relation_in_program_edges_spec Hin.
@@ -481,7 +481,7 @@ Section AbstractInterpreter.
              forall state pos, inst_fixpoint (abstract_interpret_program ps state).1 bb_id pos.
   Proof.
     elim: ps.
-    -  move => header body Hind /= /andP[/andP[Hsound Hheadernotinbody] HheaderSome] bb_id Hin state pos.
+    - move => header body Hind /= /andP[/andP[/andP[Hsound Hheadernotinbody] _] HheaderSome] bb_id Hin state pos.
       move: HheaderSome. case_eq (p header) => [ bb Hbb _ | //]. rewrite /inst_fixpoint.
       case_eq (p bb_id) => [ bb2 Hbb2 | //]. case_eq (nth_error bb2.1.2 pos) => [ inst Hinst /= | //].
       rewrite !compose_relation_in_program_values_spec !Hin.

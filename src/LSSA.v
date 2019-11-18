@@ -136,6 +136,7 @@ Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
   | Loop header body =>
     (structure_sound p body) &&
     (header \notin (bbs_in_program body)) &&
+    all (fun bb_id => all (fun bb_id' => bb_id' \in header::(bbs_in_program body)) (program_predecessors p bb_id)) (bbs_in_program body) &&
     match p header with
     | None => false
     | Some _ => true
