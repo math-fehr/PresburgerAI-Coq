@@ -119,7 +119,6 @@ Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
   | DAG ps1 ps2 =>
     all (fun s => s \notin (bbs_in_program ps2)) (bbs_in_program ps1) &&
     all (fun s => s \notin (bbs_in_program ps1)) (bbs_in_program ps2) &&
-    all (fun s => s \notin (bbs_in_loops ps2)) (program_successors p ps1) &&
     all (fun s => s \notin (bbs_in_program ps1)) (program_successors p ps2) &&
     structure_sound p ps1 &&
     structure_sound p ps2

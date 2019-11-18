@@ -462,7 +462,7 @@ Section AbstractInterpreter.
       + move => /(_ Hsound bb_id Hin (abstract_interpret_bb bb header (set_input_to_identity state header))) in Hind.
         rewrite /term_fixpoint Hbb2 in Hind.
         by move => /allP /(_ (a'', bb_id') Hin2) in Hind.
-    - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/andP[/allP Hnotsame1 Hnotsame2] HsoundLoop] HsoundDAG] Hsound1] Hsound2] bb_id.
+    - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/allP Hnotsame1 Hnotsame2] HsoundDAG] Hsound1] Hsound2] bb_id.
       rewrite mem_cat => /orP[Hin1 | Hin2] state; last first. apply Hind2; auto.
       move: (Hin1) => Hin1'. apply Hind1 with (state := state) in Hin1'; auto.
       move: Hin1'. rewrite /term_fixpoint. case (p bb_id); auto => bb_id' /allP Hin1'.
@@ -495,7 +495,7 @@ Section AbstractInterpreter.
          by rewrite /inst_fixpoint Hbb Hinst in Htransfer_bb.
       + move => /(_ Hsound bb_id Hin (abstract_interpret_bb bb header (set_input_to_identity state header)) pos) in Hind.
         by rewrite /inst_fixpoint Hbb2 Hinst in Hind.
-    - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/andP[/allP Hnotsame1 Hnotsame2] _] HsoundDAG] Hsound1] Hsound2] bb_id.
+    - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/allP Hnotsame1 Hnotsame2] HsoundDAG] Hsound1] Hsound2] bb_id.
       rewrite mem_cat => /orP[Hin1 | Hin2] state pos; last first. apply Hind2; auto.
       move: (Hin1) => Hin1'. apply Hind1 with (state := state) (pos := pos) in Hin1'; auto.
       move: Hin1'. rewrite /inst_fixpoint. case (p bb_id); auto => bb_id'.
