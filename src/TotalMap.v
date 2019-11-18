@@ -387,14 +387,14 @@ Section PartialMapDefinition.
 
 End PartialMapDefinition.
 
-
-(* Notation for a default map *)
-Notation "k '!!->' v" := (PUpdate PEmpty k v)
-                           (at level 100, right associativity).
-
 (* Notation for a map update *)
 Notation "k '!!->' v ';' m" := (PUpdate m k v)
                                  (at level 100, v at next level, right associativity).
+
+(* Notation for an empty map *)
+Notation "k '!!->' v" := (PUpdate PEmpty k v)
+                           (at level 100).
+
 
 Section PartialMapTheorems.
 
