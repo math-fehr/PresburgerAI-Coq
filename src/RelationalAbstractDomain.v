@@ -21,7 +21,7 @@ Class adom_relational {concrete_state abstract_state: eqType}
     transitive_closure : abstract_state -> abstract_state;
     transitive_closure_ge_step : forall a, le a (transitive_closure a);
     transitive_closure_ge_id : forall a, le id_relation (transitive_closure a);
-    transitive_closure_eq_compose : forall a, le (compose_relation a (transitive_closure a)) (transitive_closure a);
+    transitive_closure_eq_compose : forall a, le (compose_relation (transitive_closure a) a) (transitive_closure a);
   }.
 
 Theorem compose_relation_le {concrete_state abstract_state: eqType}
@@ -35,4 +35,29 @@ Proof.
   move: Hin1 => [x1 [Hin1 Hin2]].
   apply compose_relation_spec.
   eauto.
+Qed.
+
+Theorem compose_relation_join {concrete_state abstract_state: eqType}
+        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
+        (a a2 a3: abstract_state) :
+  le (compose_relation (join a2 a3) a) (join (compose_relation a2 a) (compose_relation a3 a)) .
+Proof.
+  apply gamma_monotone => [[x1 x2]] /compose_relation_spec [x [/join_spec [Hin | Hin2] Hina]].
+  - apply join_spec. left. apply compose_relation_spec. eauto.
+  - apply join_spec. right. apply compose_relation_spec. eauto.
+Qed.
+
+Theorem compose_relation_id {concrete_state abstract_state: eqType}
+        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
+        (a a2: abstract_state) :
+  le a (compose_relation a2 id_relation) <-> le a a2.
+Proof.
+  split.
+  - move => Hle. apply gamma_monotone in Hle. apply gamma_monotone => [[x1 x2]] Hin.
+    apply Hle in Hin.
+    apply compose_relation_spec in Hin.
+    case: Hin => x [Hin Hinid]. apply id_relation_spec in Hinid. by subst.
+  - move => /gamma_monotone Hle. apply gamma_monotone => [[x1 x2]] Hin.
+    apply Hle in Hin. apply compose_relation_spec.
+    exists x2. split => //. by apply id_relation_spec.
 Qed.
