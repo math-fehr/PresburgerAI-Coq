@@ -365,7 +365,7 @@ Section AbstractInterpreter.
   Definition compute_loop_effect_with_enter (ps: ProgramStructure) (stateE: ASEdges) (header_id: bbid) :=
     let loop_effect := compute_loop_effect ps stateE header_id in
     let entering_loop := join_edges_cond stateE (fun bb_id => bb_id \notin (bbs_in_program ps)) header_id in
-    join loop_effect entering_loop.
+    compose_relation entering_loop loop_effect.
 
   (*  ____                                       *)
   (* |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___   *)
@@ -416,7 +416,7 @@ Section AbstractInterpreter.
       apply abstract_interpret_bb_edge_in_unchanged; auto.
   Qed.
 
-  Theorem abstract_interpret_program_value_unchanged (ps: ProgramStructure) (in_id out_id: bbid) (state: AS):
+  Theorem abstract_interpret_program_value_unchanged (ps: ProgramStructure) (in_id: bbid) (state: AS):
     structure_sound p ps ->
     in_id \notin (bbs_in_program ps) ->
     forall pos, (abstract_interpret_program ps state).1 in_id pos = state.1 in_id pos.
@@ -506,5 +506,55 @@ Section AbstractInterpreter.
       move: Hne. rewrite mem_seq1 => /eqP ->.
         by apply abstract_interpret_bb_spec_inst.
   Qed.
+
+  Theorem abstract_interpret_program_spec_edge (ps: ProgramStructure):
+    structure_sound p ps ->
+    forall bb_id, (bb_id \in (bbs_in_program ps)) ->
+             forall state, edge_fixpoint (abstract_interpret_program ps state) bb_id.
+  Proof.
+    elim: ps.
+    - move => header body Hind /= /andP[/andP[/andP[Hsound /negb_true_iff Hheadernotinbody] Hnaturalloop] HheaderSome] bb_id Hin state.
+      move: HheaderSome. case_eq (p header) => [ bb Hbb _ | //]. rewrite /edge_fixpoint => in_id /=.
+      rewrite compose_relation_in_program_edges_spec compose_relation_in_program_values_spec Hin.
+      set state' := (abstract_interpret_program _ _).
+      move: Hin. rewrite in_cons => /orP[/eqP Hbb_id | Hbbid_in].
+      + subst. case_eq (in_id \in bbs_in_program (Loop header body)) => [Hin_in | Hin_notin].
+        * move: Hheadernotinbody => /negb_true_iff Hheadernotinbody.
+          rewrite Hin_in. rewrite abstract_interpret_program_value_unchanged => //=.
+          rewrite abstract_interpret_inst_list_0_unchanged. simpl_totalmap.
+          rewrite /compute_loop_effect_with_enter.
+          eapply AbstractDomain.le_trans. apply compose_assoc_r.
+          eapply AbstractDomain.le_trans; last first. apply compose_assoc_l.
+          apply compose_relation_le.
+          rewrite /compute_loop_effect.
+          eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, join_sound_l.
+          eapply AbstractDomain.le_trans; last first. apply compose_relation_id.
+          eapply AbstractDomain.le_trans; last first. apply transitive_closure_eq_compose.
+          apply compose_relation_le.
+          apply join_edges_cond_spec. by rewrite Hin_in.
+        * move: Hheadernotinbody => /negb_true_iff Hheadernotinbody.
+          rewrite Hin_notin. rewrite abstract_interpret_program_value_unchanged => //=.
+          move: Hin_notin => /negb_true_iff /=. rewrite in_cons => /norP[Hin_ne Hin_notin].
+          rewrite abstract_interpret_inst_list_0_unchanged. simpl_totalmap.
+          rewrite /compute_loop_effect_with_enter /state'.
+          rewrite abstract_interpret_program_edge_in_unchanged => //.
+          rewrite abstract_interpret_bb_edge_in_unchanged => //=.
+          eapply AbstractDomain.le_trans; last first. apply compose_assoc_l.
+          eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, compose_relation_quotient_right, join_sound_l.
+          eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, compose_relation_id.
+          rewrite /compute_loop_effect.
+          eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, transitive_closure_ge_id.
+          eapply AbstractDomain.le_trans; last first. apply compose_relation_id.
+          eapply AbstractDomain.le_trans; last first. apply join_edges_cond_spec. rewrite in_cons. apply /norP. split. apply Hin_ne. auto.
+          rewrite abstract_interpret_program_edge_in_unchanged => //.
+            by rewrite abstract_interpret_bb_edge_in_unchanged.
+      + case_eq (in_id \in bbs_in_program (Loop header body)) => [Hin_in | Hin_notin].
+        * rewrite Hin_in. apply compose_relation_le.
+          apply Hind => //.
+        * admit.
+    - admit.
+    - admit.
+  Admitted.
+
 
 End AbstractInterpreter.
