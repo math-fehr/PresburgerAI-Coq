@@ -458,6 +458,89 @@ Section PartialMapTheorems.
 
 End PartialMapTheorems.
 
+Section PartialMapCast.
+
+  Context (Key Value: eqType).
+
+  (* Cast the partialmap to a list of (keys, values) *)
+
+  Fixpoint to_list_aux (m: @partial_map Key Value) (seen: seq Key) :=
+    match m with
+    | PEmpty => [::]
+    | PUpdate m' k v => if k \in seen then
+                         to_list_aux m' seen
+                       else
+                         (k, v) :: (to_list_aux m' (k::seen))
+    end.
+
+  Lemma to_list_aux_not_in (m: @partial_map Key Value) (seen: seq Key) :
+    forall k, (k \in seen) ->
+         forall v, (k, v) \notin (to_list_aux m seen).
+  Proof.
+    elim: m seen => [ // | m Hind k v seen k0 Hnotin v0 /=].
+    case_eq (k \in seen) => [ _ | Hnotin2 ].
+    - by apply Hind.
+    - have : (k0 <> k) => [ Heq | Hne ]. subst. by rewrite Hnotin2 in Hnotin.
+      rewrite in_cons. apply /norP. split.
+      + apply /eqP => [[]] //.
+      + apply Hind. rewrite in_cons Hnotin.
+        move => /eqP /negb_true_iff in Hne. by rewrite Hne.
+  Qed.
+
+  Lemma to_list_aux_spec_r (m: @partial_map Key Value) (seen: seq Key) :
+    forall k, k \notin seen ->
+         forall v, m k = Some v ->
+              (k, v) \in to_list_aux m seen.
+  Proof.
+    elim: m seen => [// | m' Hind k v seen k0 /negb_true_iff Hnotin v0].
+    case (k0 =P k) => [Heqk | /eqP Hne ].
+    - rewrite Heqk p_update_eq => [[Heqv]] /=. subst.
+        by rewrite Hnotin in_cons eq_refl.
+    - rewrite p_update_neq; last first. by rewrite eq_sym.
+      move => Hsome /=.
+      case (k \in seen).
+      + apply Hind; auto. by apply /negb_true_iff.
+      + rewrite in_cons. apply /orP. right.
+        apply Hind; auto.
+        apply /negb_true_iff. rewrite in_cons Hnotin.
+        move => /negb_true_iff in Hne.
+          by rewrite Hne.
+  Qed.
+
+  Lemma to_list_aux_spec_l (m: @partial_map Key Value) (seen: seq Key) :
+    forall k, k \notin seen ->
+         forall v, (k, v) \in to_list_aux m seen ->
+                         m k = Some v.
+  Proof.
+    elim: m seen => [// | m' Hind k v seen k0 /negb_true_iff Hnotin v0].
+    case (k0 =P k) => [Heqk /= | /eqP Hne].
+    - subst. rewrite Hnotin eq_refl in_cons => /orP [/eqP[->] // | Hin /= ].
+      have /to_list_aux_not_in: (k \in k :: seen) by apply mem_head.
+      move => /(_ m' v0) /negb_true_iff. by rewrite Hin.
+    - rewrite p_update_neq; last first. by rewrite eq_sym.
+      rewrite /=. case (k \in seen).
+      + apply Hind. by rewrite Hnotin.
+      + rewrite in_cons => /orP[Heq | ].
+        * move: Heq => /eqP[Heq _]. by rewrite Heq eq_refl in Hne.
+        * apply Hind. rewrite in_cons. apply /norP. split; auto.
+            by apply /negb_true_iff.
+  Qed.
+
+  Definition to_list (m: @partial_map Key Value) :=
+    to_list_aux m [::].
+
+  Theorem to_list_spec (m: @partial_map Key Value) (seen: seq Key) :
+    forall k v, m k = Some v <->
+           (k, v) \in to_list m.
+  Proof.
+    split.
+    - by apply to_list_aux_spec_r.
+    - by apply to_list_aux_spec_l.
+  Qed.
+
+
+End PartialMapCast.
+
 
 (* Equality definition *)
 
