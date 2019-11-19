@@ -232,8 +232,8 @@ Inductive multi_step: Program -> state -> state -> Prop :=
 | StepRefl : forall p s, multi_step p s s
 | StepTrans : forall p s s' s'', multi_step p s s' -> step p s' s'' -> multi_step p s s''.
 
-Definition reachable_states (p: Program) (s: state) :=
-exists R, multi_step p ("entry", O, R) s.
+Definition reachable_states (p: Program) (R: RegisterMap) (s: state) :=
+multi_step p ("entry", O, R) s.
 
 
 Section Example.
