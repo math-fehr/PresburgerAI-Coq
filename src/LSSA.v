@@ -107,6 +107,34 @@ Fixpoint program_successors (p: Program) (ps: ProgramStructure) :=
     end
   end.
 
+Theorem program_successors_spec (p: Program) (ps: ProgramStructure) :
+  forall bb_id, (exists in_id, (in_id \in bbs_in_program ps) /\
+                    match (p in_id) with
+                    | Some (_, _, t) => bb_id \in (term_successors t)
+                    | None => false
+                    end)
+           -> (bb_id \in program_successors p ps).
+Proof.
+  elim: ps.
+  - move => header_id body Hind bb_id [in_id [/= Hin_in Hin]].
+    move: Hin_in. rewrite in_cons => /orP [/eqP Hineq | Hin_in].
+    + move: Hin. rewrite Hineq. case (p header_id) => [ [[header_inputs header_insts] header_term]| // ].
+        by rewrite mem_cat => ->.
+    + move: Hin. case_eq (p in_id) => [[[in_inputs in_insts] in_term] Hin_id | //].
+      case (p header_id) => [[[header_inputs header_insts] header_term] | ] Hbb_in_term.
+      * move => /(_ bb_id) in Hind. rewrite mem_cat.
+        have -> : (bb_id \in program_successors p body); last first. by rewrite orb_true_r.
+        apply Hind. exists in_id. by rewrite Hin_id.
+      * apply (Hind bb_id). exists in_id. by rewrite Hin_id.
+  - move => ps1 Hind1 ps2 Hind2 bb_id [in_id [Hin_in ]] Hpin_id.
+    move: Hin_in. rewrite /= mem_cat => /orP[Hin1 | Hin2].
+    + rewrite mem_cat. apply /orP. left. eauto.
+    + rewrite mem_cat. apply /orP. right. eauto.
+  - move => bb_id bb /= [in_id [Hin Hin_in]].
+    rewrite mem_seq1 in Hin. move => /eqP in Hin. rewrite -Hin.
+    move: Hin_in. case (p in_id) => [ [[bb_inputs bb_insts] bb_term] // | //].
+Qed.
+
 Definition program_predecessors (p: Program) (bb_id: bbid) :=
   let keys := keys_list p in
   filter (fun k => match p k with

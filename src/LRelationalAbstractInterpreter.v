@@ -38,7 +38,12 @@ Section AbstractInterpreter.
       true.
 
   Definition edge_fixpoint (state: AS) (bb_id: bbid) :=
-    forall in_id, le (state.2 in_id bb_id) (state.1 bb_id 0).
+    forall in_id,
+      if p in_id is Some (_, _, t) then
+        (bb_id \in (term_successors t)) ->
+        le (state.2 in_id bb_id) (state.1 bb_id 0)
+      else
+        true.
 
   (*   _           _   _ _     _    *)
   (*  (_)_ __  ___| |_| (_)___| |_  *)
@@ -289,6 +294,7 @@ Section AbstractInterpreter.
     rewrite abstract_interpret_term_bb_edge_out_unchanged; auto.
     rewrite abstract_interpret_inst_list_0_unchanged.
     simpl_totalmap.
+    case (p in_id) => [ [[_ _] t] _ /= | //].
     by apply le_join_r, join_edges_spec.
   Qed.
 
@@ -517,6 +523,7 @@ Section AbstractInterpreter.
       move: HheaderSome. case_eq (p header) => [ bb Hbb _ | //]. rewrite /edge_fixpoint => in_id /=.
       rewrite compose_relation_in_program_edges_spec compose_relation_in_program_values_spec Hin.
       set state' := (abstract_interpret_program _ _).
+      case_eq (p in_id) => [ [[in_inputs in_insts] in_term] Hbb_some Hbb_in_term | //].
       move: Hin. rewrite in_cons => /orP[/eqP Hbb_id | Hbbid_in].
       + subst. case_eq (in_id \in bbs_in_program (Loop header body)) => [Hin_in | Hin_notin].
         * move: Hheadernotinbody => /negb_true_iff Hheadernotinbody.
@@ -525,8 +532,7 @@ Section AbstractInterpreter.
           rewrite /compute_loop_effect_with_enter.
           eapply AbstractDomain.le_trans. apply compose_assoc_r.
           eapply AbstractDomain.le_trans; last first. apply compose_assoc_l.
-          apply compose_relation_le.
-          rewrite /compute_loop_effect.
+          apply compose_relation_le. rewrite /compute_loop_effect.
           eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, join_sound_l.
           eapply AbstractDomain.le_trans; last first. apply compose_relation_id.
           eapply AbstractDomain.le_trans; last first. apply transitive_closure_eq_compose.
@@ -550,11 +556,31 @@ Section AbstractInterpreter.
             by rewrite abstract_interpret_bb_edge_in_unchanged.
       + case_eq (in_id \in bbs_in_program (Loop header body)) => [Hin_in | Hin_notin].
         * rewrite Hin_in. apply compose_relation_le.
-          apply Hind => //.
-        * admit.
-    - admit.
-    - admit.
-  Admitted.
+          move: (Hind Hsound bb_id Hbbid_in (abstract_interpret_bb bb header (set_input_to_identity state header)) in_id). fold state'.
+          by rewrite Hbb_some => /(_ Hbb_in_term).
+        * move => /allP /(_ bb_id Hbbid_in) /allP /(_ in_id) in Hnaturalloop.
+          rewrite program_predecessors_spec in Hnaturalloop.
+          rewrite Hbb_some in Hnaturalloop.
+          move => /(_ Hbb_in_term) in Hnaturalloop.
+          by rewrite Hin_notin in Hnaturalloop.
+    - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/allP Hnotsame1 Hnotsame2] /allP HsoundDAG] Hsound1] Hsound2] bb_id.
+      rewrite mem_cat => /orP[Hin1 | Hin2] state; last first. by apply Hind2.
+      rewrite /edge_fixpoint => in_id.
+      case_eq (p in_id) => [ [[in_inputs in_insts] in_term] Hin_id Hbb_in_succ_in | //].
+      move => /(_ bb_id Hin1) in Hnotsame1.
+      rewrite abstract_interpret_program_value_unchanged => //.
+      move => /(_ Hsound1 bb_id Hin1 state in_id) in Hind1.
+      rewrite Hin_id in Hind1.
+      rewrite abstract_interpret_program_edge_in_unchanged => //. by apply Hind1.
+      apply /negP => Hin_in2.
+      have Hbb_in2: (bb_id \in program_successors p ps2).
+      apply program_successors_spec.
+      exists in_id. rewrite Hin_id => //.
+      by move => /(_ bb_id Hbb_in2) /negP in HsoundDAG.
+    - move => bb_id /= Hsound bb_id0. rewrite mem_seq1 => /eqP -> state.
+      move: Hsound. case_eq (p bb_id) => [ [[bb_inputs bb_insts] bb_term] Hbb Hnotin | //].
+      by apply abstract_interpret_bb_spec_edge.
+  Qed.
 
 
 End AbstractInterpreter.
