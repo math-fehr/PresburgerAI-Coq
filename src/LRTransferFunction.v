@@ -25,7 +25,7 @@ Class transfer_function_relational {abstract_state: eqType}
       forall prog term R bb R',
         term_step prog term R (bb, R') ->
         forall a R_begin, Ensembles.In _ (gamma a) (R_begin, R) ->
-             exists a', In (a', bb) (transfer_term term a) /\
+             exists a', (a', bb) \in (transfer_term term a) /\
                    Ensembles.In _ (gamma a') (R_begin, R');
     transfer_term_only_successors :
       forall term bb a,

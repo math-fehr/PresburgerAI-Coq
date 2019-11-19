@@ -214,6 +214,18 @@ Inductive term_step: Program -> Term -> RegisterMap -> (bbid * RegisterMap)
                     (bbF, (affect_variables R (get_inputs p bbF) paramsF))
 .
 
+Theorem term_successors_spec (p: Program) (term: Term) :
+  forall out_id R R', term_step p term R (out_id, R') ->
+                 out_id \in term_successors term.
+Proof.
+  move => out_id R R' Hterm_step.
+  inversion Hterm_step; subst.
+  - by rewrite in_cons eq_refl.
+  - by rewrite in_cons eq_refl.
+  - by rewrite in_cons in_cons eq_refl orb_true_r.
+Qed.
+
+
 (* The small step semantics of a program *)
 Inductive step: Program -> state -> state -> Prop :=
 | InstStep (p: Program) (bb_id: bbid) (params: list vid) (insts: list Inst) (term: Term) :
@@ -234,6 +246,33 @@ Inductive multi_step: Program -> state -> state -> Prop :=
 
 Definition reachable_states (p: Program) (R: RegisterMap) (s: state) :=
 multi_step p ("entry", O, R) s.
+
+Open Scope nat_scope.
+
+Theorem reachable_states_pos (p: Program) (R: RegisterMap) (s: state) :
+  reachable_states p R s ->
+  match p s.1.1 with
+  | Some (_, insts, _) => s.1.2 <= List.length insts
+  | Non => true
+  end.
+Proof.
+  rewrite /reachable_states.
+  move s1 : ("entry", O, R) => Hs1 Hmulti_step.
+  elim: Hmulti_step s1.
+  - move => p0 s0 <- /= .
+    case (p0 "entry") => [ [[_ insts] _] | //].
+    case insts => [ // | i l /=].
+      by apply /leb_complete.
+  - move => p0 s0 s' s'' Hmulti_step Hind Hstep Hs0.
+    inversion Hstep; subst.
+    + move: Hind => /(_ (erefl _)) /=. case_eq (p0 bb_id) => [ [[inputs' insts'] term'] Hbb'| //].
+      rewrite H in Hbb'. inversion Hbb'. subst.
+      have Hne_None : (List.nth_error insts' l <> None). move: H0. case (List.nth_error insts' l) => //.
+      by apply List.nth_error_Some in Hne_None.
+    + rewrite /=. case (p0 new_bbid) => [[[_ insts'] _] | //]. case insts' => [ // | i' l' /=].
+        by apply /leb_complete.
+Qed.
+
 
 
 Section Example.

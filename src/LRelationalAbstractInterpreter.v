@@ -7,6 +7,8 @@ From mathcomp.ssreflect Require Import seq.
 
 Require Import Lia.
 
+Local Open Scope string_scope.
+
 Section AbstractInterpreter.
 
   Context {ab: eqType}
@@ -582,5 +584,98 @@ Section AbstractInterpreter.
       by apply abstract_interpret_bb_spec_edge.
   Qed.
 
+  Definition input_state : AS :=
+    (("entry" !-> (O !-> id_relation; _ !-> bot); (_ !-> (_ !-> bot))), (_ !-> (_ !-> bot))).
+
+  Theorem abstract_interpret_program_spec (ps: ProgramStructure):
+    structure_sound p (DAG (BB "entry") ps) ->
+    (forall bb_id bb, p bb_id = Some bb <-> (bb_id \in (bbs_in_program (DAG (BB "entry") ps)))) ->
+    forall R R' bb_id pos, reachable_states p R (bb_id, pos, R') ->
+                      forall bb, p bb_id = Some bb ->
+                      Ensembles.In _ (gamma ((abstract_interpret_program (DAG (BB "entry") ps) input_state).1 bb_id pos)) (R, R').
+  Proof.
+    move => /= /andP[/andP[/andP[/andP[/andP[Hnotsame1 _] Hnotsame2] HsoundDAG] Hsound1] Hsound2] Hallin R R' bb_id pos Hreachable_states bb Hbb.
+    move: Hreachable_states.
+    rewrite /reachable_states.
+    move Hs : ("entry", O, R) => s.
+    move Hs' : (bb_id, pos, R') => s'.
+    move Hp : p => p'.
+    move => Hmulti_step. move: Hs' Hs Hp.
+    move: bb_id bb Hbb pos R'.
+    elim Hmulti_step => [ p0 s0 bb_id bb Hbb pos R' <- [[<- <-] <-] <- | ].
+    - case_eq (p "entry").
+      + move => bb_entry Hbb_entry. rewrite abstract_interpret_program_value_unchanged => //=.
+        rewrite abstract_interpret_inst_list_0_unchanged.
+        rewrite /join_edges. rewrite /join_edges_cond_aux.
+        simpl_totalmap.
+        have: (Ensembles.In _ (gamma id_relation) (R, R)) by apply id_relation_spec.
+          by apply gamma_monotone.
+      + rewrite abstract_interpret_program_value_unchanged => //= _.
+        simpl_totalmap. by apply id_relation_spec.
+    - move => p0 s0 [[bb_id' pos'] R'] s0'' Hmulti_step' Hind Hstep' bb_id'' bb Hbb pos'' R'' Hs0'' Hs0 Hp0.
+      move: Hind. rewrite -Hp0. case_eq (p "entry") => [ bb_entry Hbb_entry | Hentry ].
+      + inversion Hstep'.
+        * rewrite -Hs0'' in H4. inversion H4. symmetry in Hp0. subst.
+          move => /(_ bb_id'' bb Hbb pos' R' (erefl _) (erefl _) (erefl _)) Hind.
+          move: (H3) => Hbb''.
+          apply Hallin in H3. move: H3. rewrite in_cons => /orP[ /eqP Hentry'' | Hbb''_in ].
+          { subst. rewrite abstract_interpret_program_value_unchanged => //.
+            have: (inst_fixpoint (abstract_interpret_bb bb_entry "entry" input_state).1 "entry" pos') by apply abstract_interpret_bb_spec_inst.
+            rewrite /inst_fixpoint Hbb'' /= H5 => /gamma_monotone. simpl_totalmap. apply.
+            eapply transfer_inst_sound. apply H6. rewrite /abstract_interpret_bb in Hind.
+              by rewrite abstract_interpret_program_value_unchanged in Hind. }
+          { have: (inst_fixpoint (abstract_interpret_program ps (abstract_interpret_bb bb_entry "entry" input_state)).1 bb_id'' pos'). apply abstract_interpret_program_spec_inst => //.
+            rewrite /inst_fixpoint. rewrite Hbb'' H5 => /gamma_monotone. apply.
+            eapply transfer_inst_sound; eauto. }
+        * rewrite -Hs0'' in H4. inversion H4. symmetry in Hp0. subst. move: (H3) => Hbb''.
+          move => /(_ bb_id' (params, insts, term) Hbb'' pos' R' (erefl _) (erefl _) (erefl _)) Hind.
+          apply Hallin in H3. move: H3. rewrite in_cons => /orP[ /eqP Hentry' | Hbb'_in ].
+          { subst. apply Hallin in Hbb. move: Hbb. rewrite in_cons => /orP [/eqP Hentry'' | Hbb''_in].
+            { subst. rewrite Hbb'' in Hsound1. inversion H6; subst; try by rewrite /= in Hsound1.
+              rewrite /= in Hsound1. rewrite in_cons mem_seq1 eq_refl in Hsound1. move => /norP in Hsound1.
+              by move: Hsound1 => [_ Hsound1]. }
+            { move: (abstract_interpret_program_spec_edge ps Hsound2 bb_id'' Hbb''_in (abstract_interpret_bb bb_entry "entry" input_state)).
+              move: (term_successors_spec _ _ _ _ _ H6) => Hin_term_succ.
+              move => /(_ "entry"). rewrite Hbb''. move => /(_ Hin_term_succ) /gamma_monotone. apply.
+              move: (abstract_interpret_bb_spec_term (params, insts, term) "entry" input_state Hbb'').
+              rewrite abstract_interpret_program_edge_in_unchanged => //.
+              move: (Hmulti_step') => Hinbounds.
+              apply reachable_states_pos in Hinbounds. rewrite /= Hbb'' in Hinbounds.
+              apply nth_error_None in H5.
+              have Hpos': (Datatypes.length insts = pos') by lia.
+              rewrite /term_fixpoint Hbb'' => /allP. rewrite Hpos'.
+              eapply transfer_term_sound in H6; last first. apply Hind.
+              move: H6 => [a' [HInTerm HIn]] /(_ (a', bb_id'')).
+              rewrite abstract_interpret_program_value_unchanged in HInTerm => //.
+              rewrite Hbb_entry in Hbb''. inversion Hbb''. subst.
+              move => /(_ HInTerm) => /gamma_monotone /(_ (R, R'') HIn). auto.
+            }
+          }
+          {
+            move: (Hbb) => Hbb_in. apply Hallin in Hbb_in. move: Hbb_in. rewrite in_cons => /orP [/eqP Hbb''' | Hbb''_in].
+            {
+              subst. apply term_successors_spec in H6. move => /allP /(_ "entry") in HsoundDAG.
+              have: ("entry" \in program_successors p ps); last first. move => /HsoundDAG. by rewrite in_cons eq_refl.
+              apply program_successors_spec.
+              exists bb_id'. split; auto. by rewrite Hbb''.
+            }
+            {
+              move: (abstract_interpret_program_spec_edge ps Hsound2 bb_id'' Hbb''_in (abstract_interpret_bb bb_entry "entry" input_state)).
+              move: (term_successors_spec _ _ _ _ _ H6) => Hin_term_succ.
+              move => /(_ bb_id'). rewrite Hbb''. move => /(_ Hin_term_succ) /gamma_monotone. apply.
+              move: (abstract_interpret_program_spec_term ps Hsound2 bb_id' Hbb'_in (abstract_interpret_bb bb_entry "entry" input_state)).
+              move: (Hmulti_step') => Hinbounds.
+              apply reachable_states_pos in Hinbounds. rewrite /= Hbb'' in Hinbounds.
+              apply nth_error_None in H5.
+              have Hpos': (Datatypes.length insts = pos') by lia.
+              rewrite /term_fixpoint Hbb'' => /allP. rewrite Hpos'.
+              eapply transfer_term_sound in H6; last first. apply Hind.
+              move: H6 => [a' [HInTerm HIn]] /(_ (a', bb_id'')).
+              move => /(_ HInTerm) => /gamma_monotone /(_ (R, R'') HIn). auto.
+            }
+          }
+      + have: ("entry" \in "entry" :: (bbs_in_program ps)) by rewrite in_cons eq_refl.
+        move => /Hallin. by rewrite Hentry => /(_ bb).
+  Qed.
 
 End AbstractInterpreter.
