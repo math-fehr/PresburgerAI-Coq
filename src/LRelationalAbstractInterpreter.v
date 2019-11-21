@@ -1,7 +1,7 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 Local Set Warnings "-notation-overridden".
 From mathcomp Require Import ssrnat.
-From PolyAI Require Export LRTransferFunction LSSA.
+From PolyAI Require Export LRTransferFunction LSSA Tactic.
 From Coq Require Import Lists.List.
 From mathcomp.ssreflect Require Import seq.
 
@@ -20,6 +20,7 @@ Section AbstractInterpreter.
   (* Associate for every control location an abstract state *)
   Definition ASValues : Type := @total_map bbid_eqType (@total_map nat_eqType ab).
   Definition ASEdges : Type := @total_map bbid_eqType (@total_map bbid_eqType ab).
+  Definition ASEdgesP : Type := @partial_map bbid_eqType (@total_map bbid_eqType ab).
   Definition AS : Type := ASValues * ASEdges.
 
   (* Properties we want at the end of our analysis *)
@@ -84,15 +85,14 @@ Section AbstractInterpreter.
         case: (nth_error bb.1.2 n') Heqn'pos => [inst0 Hle | //].
         move: Hn'ltpos1.
         rewrite !ltn_neqAle => /andP[Hnen'pos _] /andP[Hnen'pos2 _].
-        rewrite eq_sym in Hnen'pos.
         rewrite eq_sym in Hnen'pos2.
-          by simpl_totalmap.
+        by autorewrite with totalrw.
       + move: (Hn'ltpos1).
         rewrite ltnS leq_eqVlt => /orP [ Heq _ | Hne Hne']; last first. by rewrite Hne' in Hne.
         rewrite !(eqP Heq).
         rewrite /inst_fixpoint -Hbb.
         rewrite -(Hnth 0) /=.
-        simpl_totalmap.
+        autorewrite with totalrw.
         rewrite t_update_neq. by apply AbstractDomain.le_refl.
         rewrite eq_sym.
         apply /eqP.
@@ -106,9 +106,9 @@ Section AbstractInterpreter.
     case (bb_id' =P bb_id) => [Heq | /eqP Hne].
     - rewrite Heq in Hind *.
       rewrite Hind.
-        by simpl_totalmap.
+        by autorewrite with totalrw.
     - rewrite Hind.
-        by simpl_totalmap.
+        by autorewrite with totalrw.
   Qed.
 
   Theorem abstract_interpret_inst_list_bb_unchanged (l: list Inst) (bb_id: bbid) :
@@ -118,7 +118,7 @@ Section AbstractInterpreter.
     move => bb_id' Hbb_ne.
     elim: l => [ // | i l Hind state pos n /=].
     rewrite Hind.
-      by simpl_totalmap.
+      by autorewrite with totalrw.
   Qed.
 
   (*  _                               _             *)
@@ -139,11 +139,12 @@ Section AbstractInterpreter.
                 le a (abstract_interpret_term_join_edges stateE in_id edges in_id out_id).
   Proof.
     elim edges => [ // | [a out_id] l Hind a0 out_id0].
-    simpl_totalmap.
+    rewrite /=.
+    autorewrite with totalrw.
     rewrite in_cons => /orP[ /eqP [-> ->] | HIn].
-    + simpl_totalmap.
+    + by autorewrite with totalrw.
     + apply Hind in HIn.
-        by case (out_id =P out_id0) => [ -> | /eqP Hne ]; simpl_totalmap.
+      case (out_id =P out_id0) => [ -> | /eqP Hne ]; autorewrite with totalrw; auto.
   Qed.
 
   Theorem abstract_interpret_term_join_edges_out_unchanged (in_id out_id: bbid) (stateE: ASEdges) (edges: list (ab * bbid)):
@@ -153,8 +154,8 @@ Section AbstractInterpreter.
     elim edges => [ // | /= [a id] l Hind HnotIn id0].
     move: (HnotIn a).
     rewrite in_cons => /norP [Hne HanotIn].
-    have: (id <> out_id) => Heq. rewrite Heq in Hne. move => /negb_true_iff in Hne. by rewrite eq_refl in Hne.
-    by case (in_id =P id0) => [ <- | Hneid ]; simpl_totalmap; apply Hind => a0;
+    have: (is_true (id != out_id)). apply /negP => /eqP Heq. rewrite Heq in Hne. by rewrite eq_refl in Hne. move => Hneid.
+    by case (in_id =P id0) => [ <- | /eqP Hneid0 ]; autorewrite with totalrw; apply Hind => a0;
     move: (HnotIn a0); rewrite in_cons => /norP[_ Ha0notIn].
   Qed.
 
@@ -164,7 +165,8 @@ Section AbstractInterpreter.
   Proof.
     move => Hne out_id.
     elim edges => [ // | [a out_id0] l Hind ].
-      by simpl_totalmap.
+    rewrite /=.
+    by autorewrite with totalrw.
   Qed.
 
   (*  _                       *)
@@ -201,42 +203,38 @@ Section AbstractInterpreter.
     eapply transfer_term_only_successors; eauto.
   Qed.
 
-  Fixpoint join_edges_cond_aux (stateE: ASEdges) (seen: seq bbid) (cond: bbid -> bool) (x: bbid) :=
+  Fixpoint join_edges_cond_aux (stateE: ASEdgesP) (default: total_map bbid_eqType ab) (seen: seq bbid) (cond: bbid -> bool) (x: bbid) :=
     match stateE with
-    | TEmpty v => v x
-    | TUpdate stateE' k v =>
+    | PEmpty => default x
+    | PUpdate stateE' k v =>
       if (k \in seen) && (cond k) then
-        join_edges_cond_aux stateE' seen cond x
+        join_edges_cond_aux stateE' default seen cond x
       else
-        join (v x) (join_edges_cond_aux stateE' (k::seen) cond x)
+        join (v x) (join_edges_cond_aux stateE' default (k::seen) cond x)
     end.
 
   Theorem join_edges_cond_aux_spec (stateE: ASEdges) (seen: seq bbid) (cond: bbid -> bool) (x y: bbid):
     cond y ->
     y \notin seen ->
-    le (stateE y x) (join_edges_cond_aux stateE seen cond x).
+    le (stateE y x) (join_edges_cond_aux (t_map _ _ stateE) (t_default _ _ stateE) seen cond x).
   Proof.
-    elim: stateE seen => [ v seen Hcond _ | m Hind k v seen Hcond Hnotin ].
-    - simpl_totalmap.
-    - case (k =P y) => [ -> | Hne ].
-      + simpl_totalmap.
-        move => /negb_true_iff in Hnotin.
-        by rewrite Hnotin /=.
-      + simpl_totalmap.
-        case: (k \in seen) => /=.
-        * case: (cond k); auto.
-          eapply AbstractDomain.le_trans.
-          { apply (Hind (k::seen)); auto.
-              by rewrite in_cons negb_orb Hnotin eq_sym Hne. }
-          { by []. }
-        * eapply AbstractDomain.le_trans.
-          { apply (Hind (k::seen)); auto.
-              by rewrite in_cons negb_orb Hnotin eq_sym Hne. }
-          { by []. }
+    case: stateE => map default /=.
+    elim: map seen => [ seen Hcond _ | m Hind k v seen Hcond Hnotin ]. by autorewrite with totalrw.
+    case (k =P y) => [ -> | /eqP Hne ]. by simpl_totalmap.
+    simpl_totalmap.
+    case: (k \in seen) => /=.
+    - case: (cond k); auto.
+      eapply AbstractDomain.le_trans.
+      + apply (Hind (k::seen)) => //.
+        rewrite in_cons. by simplssr.
+      + by [].
+    - eapply AbstractDomain.le_trans.
+      + apply (Hind (k::seen)); auto. rewrite in_cons. by simplssr.
+      + by [].
   Qed.
 
   Definition join_edges_cond (stateE: ASEdges) (cond: bbid -> bool) (bb_id: bbid) :=
-    join_edges_cond_aux stateE [::] cond bb_id.
+    join_edges_cond_aux (t_map _ _ stateE) (t_default _ _ stateE) [::] cond bb_id.
 
   Theorem join_edges_cond_spec (stateE: ASEdges) (cond: bbid -> bool) (bb_id bb_id': bbid) :
     cond bb_id' ->
@@ -247,7 +245,7 @@ Section AbstractInterpreter.
   Qed.
 
   Definition join_edges (stateE: ASEdges) (bb_id: bbid) :=
-    join_edges_cond_aux stateE [::] (fun _ => true) bb_id.
+    join_edges_cond_aux (t_map _ _ stateE) (t_default _ _ stateE) [::] (fun _ => true) bb_id.
 
   Theorem join_edges_spec (stateE: ASEdges) (bb_id bb_id': bbid) :
     le (stateE bb_id' bb_id) (join_edges stateE bb_id).
@@ -306,7 +304,7 @@ Section AbstractInterpreter.
     rewrite /abstract_interpret_bb.
     simpl_totalmap.
     erewrite abstract_interpret_inst_list_0_unchanged.
-    by case (bb_id =P bb_id') => [ -> | Hne ]; simpl_totalmap.
+    case (bb_id =P bb_id') => [ -> | Hne ]; by simpl_totalmap.
   Qed.
 
   Theorem abstract_interpret_bb_edge_in_unchanged (bb: BasicBlock) (bb_id in_id out_id: bbid) (state: AS):
@@ -338,27 +336,27 @@ Section AbstractInterpreter.
     ((entry_id !-> (0 !-> id_relation ; state.1 entry_id); state.1), state.2).
 
   Definition compose_relation_in_program_edges (ps: ProgramStructure) (stateE: ASEdges) (relation: ab) :=
-    pointwise_un_op_in_seq stateE (fun m => pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
+    t_pointwise_un_op_in_seq stateE (fun m => t_pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
 
   Theorem compose_relation_in_program_edges_spec (ps: ProgramStructure) (stateE: ASEdges) (relation: ab) (in_id out_id: bbid) :
     compose_relation_in_program_edges ps stateE relation in_id out_id =
     if (in_id \in bbs_in_program ps) then compose_relation relation (stateE in_id out_id) else stateE in_id out_id.
   Proof.
-    rewrite pointwise_un_op_in_seq_spec.
+    rewrite t_pointwise_un_op_in_seq_spec.
     case: (in_id \in bbs_in_program ps) => [ | // ].
-    by rewrite pointwise_un_op_spec.
+    by apply t_pointwise_un_op_spec.
   Qed.
 
   Definition compose_relation_in_program_values (ps: ProgramStructure) (stateV: ASValues) (relation: ab) :=
-    pointwise_un_op_in_seq stateV (fun m => pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
+    t_pointwise_un_op_in_seq stateV (fun m => t_pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
 
   Theorem compose_relation_in_program_values_spec (ps: ProgramStructure) (stateV: ASValues) (relation: ab) (bb_id: bbid) (pos: nat) :
     compose_relation_in_program_values ps stateV relation bb_id pos =
     if (bb_id \in bbs_in_program ps) then compose_relation relation (stateV bb_id pos) else stateV bb_id pos.
   Proof.
-    rewrite pointwise_un_op_in_seq_spec.
+    rewrite t_pointwise_un_op_in_seq_spec.
     case: (bb_id \in bbs_in_program ps) => [ | // ].
-    by rewrite pointwise_un_op_spec.
+    by apply t_pointwise_un_op_spec.
   Qed.
 
   Definition compose_relation_in_program (ps: ProgramStructure) (state: AS) (relation: ab) :=
@@ -602,7 +600,7 @@ Section AbstractInterpreter.
     move Hp : p => p'.
     move => Hmulti_step. move: Hs' Hs Hp.
     move: bb_id bb Hbb pos R'.
-    elim Hmulti_step => [ p0 s0 bb_id bb Hbb pos R' <- [[<- <-] <-] <- | ].
+    elim Hmulti_step => [ p0 s0 bb_id bb Hbb pos R' <- [<- <- <-] <- | ].
     - case_eq (p "entry").
       + move => bb_entry Hbb_entry. rewrite abstract_interpret_program_value_unchanged => //=.
         rewrite abstract_interpret_inst_list_0_unchanged.

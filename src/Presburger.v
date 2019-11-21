@@ -1,5 +1,5 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
-From PolyAI Require Export TotalMap ssrZ.
+From PolyAI Require Export TotalMap ssrZ ssrstring.
 Require Export Coq.Sets.Ensembles.
 Require Export Coq.ZArith.BinInt.
 
@@ -65,7 +65,7 @@ Class PresburgerImpl (PSet PwAff: Type) :=
                               forall x, eval_set p1 x -> eval_set p2 x;
 
     set_project_out : PSet -> string -> PSet;
-    set_project_out_spec : forall p d (m: total_map), eval_set (set_project_out p d) m <->
+    set_project_out_spec : forall p d (m: total_map _ _), eval_set (set_project_out p d) m <->
                                     exists v, eval_set p (d !-> v; m);
 
 
@@ -171,5 +171,5 @@ Ltac simpl_presburger :=
          | [ |- context[is_subset ?s ?s]] => rewrite is_subset_refl
          | [ |- context[is_subset ?s (union_set ?s _)]] => rewrite is_subset_union_l
          | [ |- context[is_subset ?s (union_set _ ?s)]] => rewrite is_subset_union_r
-         | _ => simpl_totalmap
+         | _ => by autorewrite with totalrw
          end.

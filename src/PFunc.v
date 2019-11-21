@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 From Coq Require Export Strings.String ZArith.BinInt.
-From PolyAI Require Export TotalMap ssrZ.
+From PolyAI Require Export TotalMap ssrZ ssrstring.
 Local Open Scope Z_scope.
 
 Local Set Warnings "-notation-overridden".
@@ -224,7 +224,7 @@ Proof.
   move => p v Hconst z m.
   eapply is_constant_on_var_spec; eauto.
   move => v' Hne.
-  by simpl_totalmap.
+  by autorewrite with totalrw.
 Qed.
 
 (* A useful lemma used in the next tactic *)
@@ -233,7 +233,7 @@ Lemma t_update_other {Value: Type} (m : @total_map string_eqType Value):
               (v !-> x; m) v' = m v'.
 Proof.
   move => x v v' Hne.
-    by simpl_totalmap.
+  by autorewrite with totalrw.
 Qed.
 
 (* Useful tactic to simplify goal when using pfunc *)
@@ -253,11 +253,11 @@ Ltac simpl_pfunc :=
          | [ |- context[eval_pfunc (pfunc_restrict_ne_set _ _) _]] => rewrite pfunc_restrict_ne_set_spec
          | [ H: is_true (is_constant_on_var ?p ?v) |- context[eval_pfunc ?p (?v !-> ?z; ?m)]] =>
            rewrite (is_constant_on_var_update_spec p v H z m)
-         | [ H: is_true (is_constant_on_var ?p ?v) |- context[eval_pfunc ?p (eval_map (?v !-> ?x; ?m))]] =>
+         | [ H: is_true (is_constant_on_var ?p ?v) |- context[eval_pfunc ?p (eval_total_map (?v !-> ?x; ?m))]] =>
            rewrite ((iffLR (is_constant_on_var_spec p v)) H (v !-> x; m) m (t_update_other m x v))
          | [ H1: is_true (in_V ?x1 ?v1), H2: is_true (in_V ?x2 ?v2) |- context[in_V (?x1 + ?x2) (add_V ?v1 ?v2)]] =>
            rewrite (add_V_spec x1 v1 H1 x2 v2 H2)
          | [ H1: is_true (in_V ?x1 ?v1), H2: is_true (in_V ?x2 ?v2) |- context[in_V (if (?x1 <=? ?x2)%Z then 1%Z else _) (le_binop_V ?v1 ?v2)]] =>
            rewrite (le_binop_V_spec x1 v1 H1 x2 v2 H2)
-         | _ => simpl_totalmap
+         | _ => autorewrite with totalrw
          end.

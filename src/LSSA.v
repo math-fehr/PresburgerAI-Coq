@@ -314,9 +314,6 @@ Section Example.
 
   Definition progstruct := DAG (BB "entry") (DAG (Loop "loop" (BB "dummy")) (BB "exit")).
 
-  (* We need to set eval_map transparent to simplify computations *)
-  Transparent eval_map.
-
   Example progstruct_correct :
     structure_sound prog progstruct.
   Proof.
