@@ -49,51 +49,61 @@ Notation "k '!!->' v" := (PUpdate PEmpty k v)
                            (at level 100).
 
 
-Section PartialMapTheorems.
+Section PartialMapRewriteRules.
 
   Context {Key: eqType}
-          {Value Value' Value'': Type}.
+          {Value: Type}
+          (k k1 k2: Key)
+          (v v1 v2: Value)
+          (m: @partial_map Key Value).
 
   (* Useful lemmas and theorems *)
 
-  Lemma p_apply_empty (k: Key) :
+  Lemma p_apply_empty :
     @PEmpty Key Value k = None.
   Proof.
       by [].
   Qed.
 
-  Lemma p_update_eq (m : partial_map) (k: Key) (v: Value) :
+  Lemma p_update_eq :
     (k !!-> v ; m) k = Some v.
   Proof.
-      by rewrite /= eq_refl.
+    by autossr.
   Qed.
 
-  Theorem p_update_neq (m : partial_map) (k1 k2: Key) (v: Value) :
+  Theorem p_update_neq :
     k1 != k2 ->
     (k1 !!-> v ; m) k2 = m k2.
   Proof.
-      by move => /negb_true_iff /= ->.
+    by autossr.
   Qed.
 
-  Lemma p_update_shadow (m : partial_map) (k: Key) (v1 v2: Value) :
+  Lemma p_update_shadow :
     eval_partial_map (k !!-> v2 ; k !!-> v1 ; m) = eval_partial_map (k !!-> v2 ; m).
   Proof.
     extensionality k' => /=.
       by case (k =P k').
   Qed.
 
-  Theorem p_update_permute (m : partial_map) (k1 k2: Key) (v1 v2: Value) :
+  Theorem p_update_permute :
     k2 != k1 ->
     eval_partial_map (k1 !!-> v1 ; k2 !!-> v2 ; m) =
     eval_partial_map (k2 !!-> v2 ; k1 !!-> v1 ; m).
   Proof.
-    move => /negb_true_iff Hne /=.
+    move => Hne /=.
     extensionality k'.
-    case (k1 =P k') => [ <- /= | _ //].
-      by rewrite Hne.
+    case (k1 =P k'); by autossr.
   Qed.
 
+End PartialMapRewriteRules.
+
+Hint Rewrite @p_apply_empty @p_update_eq @p_update_neq @p_update_shadow using by simplssr : maprw.
+
   (* Pointwise operations on one or multiple maps *)
+
+Section PartialMapPointwiseUn.
+
+  Context {Key: eqType} {Value Value': Type}.
 
   Fixpoint p_pointwise_un_op (m: @partial_map Key Value) (f: Value -> Value') :=
     match m with
@@ -105,9 +115,14 @@ Section PartialMapTheorems.
     (p_pointwise_un_op m f) k = option_map f (m k).
   Proof.
     elim: m f k => [// | m Hind k v f k' /=].
-    rewrite Hind.
-      by case (k == k').
+      by case (k =P k').
   Qed.
+
+End PartialMapPointwiseUn.
+
+Section PartialMapKeysList.
+
+  Context {Key: eqType} {Value Value': Type}.
 
   Fixpoint keys_list (m: @partial_map Key Value) :=
     match m with
@@ -119,14 +134,10 @@ Section PartialMapTheorems.
     forall k, m k <> None <-> k \in keys_list m.
   Proof.
     elim m => [ // | m' Hind k v k0].
-    case (k =P k0) => [ -> /= | /eqP Hne ].
-    - by rewrite in_cons eq_refl.
-    - rewrite p_update_neq => [ /= | //].
-      move => /negb_true_iff in Hne.
-        by rewrite in_cons eq_sym Hne /=.
+    case (k =P k0) => [ -> /= | /eqP Hne ]; autossr.
   Qed.
 
-End PartialMapTheorems.
+End PartialMapKeysList.
 
 (* Equality definition *)
 
@@ -143,33 +154,17 @@ Proof.
   elim => [ m2 /= | m1' Hind1 k1 v1 m2 /= ].
   - apply (iffP idP); by case m2.
   - apply (iffP idP) => [ | <- ].
-    + by case m2 => [ // | m2' k2 v2 /andP[/andP[/Hind1 -> /eqP ->] /eqP ->]].
-    + rewrite !eq_refl.
-        by have -> : (eq_partial_map m1' m1') by apply /Hind1.
+    + case m2 => [ // | m2' k2 v2 /andP[/andP[/Hind1 -> /eqP ->] /eqP ->] //].
+    + simplssr. by apply /Hind1.
 Qed.
+
+Hint Rewrite @p_pointwise_un_op_spec using by reflect_ne ; simplssr : maprw.
 
 Canonical partial_map_eqMixin {Key Value: eqType} := EqMixin (@eq_partial_mapP Key Value).
 Canonical partial_map_eqType {Key Value: eqType} := Eval hnf in EqType (@partial_map Key Value) partial_map_eqMixin.
 
-
 (* Useful tactic which apply known lemmas *)
 
-Ltac simpl_partialmap :=
-repeat match goal with
-       | [ |- context[eval_partial_map PEmpty _] ] => rewrite p_apply_empty
-       | [ |- context[eval_partial_map (?k !!-> _ ; _) ?k]] => rewrite p_update_eq
-       | [ H : ?k1 <> ?k2 |- _ ] => move: H => /eqP H
-       | [ H : is_true (?k1 != ?k2) |- context[eval_partial_map (?k1 !!-> _ ; _) ?k2] ] => rewrite (p_update_neq _ _ _ _ H)
-       | [ H : is_true (?k2 != ?k1) |- context[eval_partial_map (?k1 !!-> _ ; _) ?k2] ] =>
-         rewrite eq_sym in H; rewrite (p_update_neq _ _ _ _ H); rewrite eq_sym in H
-       | [ |- context[eval_partial_map (?k1 !!-> _ ; ?m) ?k2]] => rewrite (p_update_neq m k1 k2 _); last first; [ by [] | idtac ]
-       | [ |- context[eval_partial_map (?k !!-> _ ; ?k !!-> _ ; _)]] => rewrite p_update_shadow
-       | [ |- context[(?k == ?k)]] => rewrite eq_refl
-       | [ |- context[eval_partial_map (p_pointwise_un_op _ _) _]] => rewrite p_pointwise_un_op_spec
-       | [ H : is_true ?x |- context[?x]] => rewrite H
-       | [ H : is_true (?x != ?y) |- context[?x == ?y]] => rewrite ?(ifN_eq _ _ H) ?(ifN_eqC _ _ H)
-       | _ => rewrite //=; auto
-       end.
 
 Global Opaque eval_partial_map.
 
@@ -267,16 +262,16 @@ Section TotalMapRewriteRules.
   Lemma t_update_eq :
     (k !-> v ; m) k = v.
   Proof.
-    rewrite /eval_total_map.
-      by simpl_partialmap.
+    rewrite /eval_total_map /=.
+    by autorewrite with maprw.
   Qed.
 
   Theorem t_update_neq :
     k1 != k2 ->
     (k1 !-> v ; m) k2 = m k2.
   Proof.
-    move => Hne. rewrite /eval_total_map.
-      by simpl_partialmap.
+    move => Hne. rewrite /eval_total_map /=.
+    by autorewrite with maprw.
   Qed.
 
   Lemma t_update_shadow :
@@ -284,7 +279,7 @@ Section TotalMapRewriteRules.
   Proof.
     rewrite /eval_total_map.
     extensionality k' => /=.
-      by simpl_partialmap.
+    by autorewrite with maprw.
   Qed.
 
   Theorem t_update_same :
@@ -292,7 +287,7 @@ Section TotalMapRewriteRules.
   Proof.
     rewrite /eval_total_map.
     extensionality k' => /=.
-    case (k =P k') => [ -> | /eqP Hne ]; by simpl_partialmap.
+    case (k =P k') => [ -> | /eqP Hne ]; by autorewrite with maprw.
   Qed.
 
   Theorem t_update_permute :
@@ -307,7 +302,7 @@ Section TotalMapRewriteRules.
 
 End TotalMapRewriteRules.
 
-Hint Rewrite @t_update_out @t_apply_empty @t_update_eq @t_update_neq @t_update_shadow @t_update_same using by simplssr : totalrw.
+Hint Rewrite @t_update_out @t_apply_empty @t_update_eq @t_update_neq @t_update_shadow @t_update_same using by simplssr : maprw.
 
 (* Pointwise operations on one or multiple maps *)
 
@@ -323,7 +318,7 @@ Section TotalMapPointwiseUn.
     t_pointwise_un_op m f k = f (m k).
   Proof.
     rewrite /t_pointwise_un_op /eval_total_map /=.
-    simpl_partialmap.
+    autorewrite with maprw.
     by case (t_map _ _ m k).
   Qed.
 
@@ -337,14 +332,16 @@ Section TotalMapPointwiseUn.
     forall x, (t_pointwise_un_op_in_seq m f l) x = if x \in l then f (m x) else (m x).
   Proof.
     move => x. elim l => [ // | k l' ].
-    rewrite in_cons. case: (x \in l') => Hind /=; case: (x =P k) => [ -> | /eqP Hne ]; by autorewrite with totalrw.
+    rewrite in_cons. case: (x \in l') => Hind /=; case: (x =P k) => [ -> | /eqP Hne ]; by autorewrite with maprw.
   Qed.
 
 End TotalMapPointwiseUn.
 
-Hint Rewrite @t_pointwise_un_op_spec @t_pointwise_un_op_in_seq_spec using by reflect_ne ; simplssr : totalrw.
+Hint Rewrite @t_pointwise_un_op_spec @t_pointwise_un_op_in_seq_spec using by autossr : maprw.
 
 Global Opaque eval_total_map.
 
-Ltac simpl_totalmap_ := repeat simplssr ; autorewrite with totalrw; simplssr.
-Ltac simpl_totalmap := reflect_ne_in simpl_totalmap_.
+Ltac simpl_map_ := repeat (autorewrite with maprw; simplssr).
+Ltac simpl_map := reflect_ne_in simpl_map_.
+
+Ltac auto_map := intros ; simpl_map ; autossr.

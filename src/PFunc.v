@@ -223,8 +223,7 @@ Theorem is_constant_on_var_update_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
 Proof.
   move => p v Hconst z m.
   eapply is_constant_on_var_spec; eauto.
-  move => v' Hne.
-  by autorewrite with totalrw.
+  by auto_map.
 Qed.
 
 (* A useful lemma used in the next tactic *)
@@ -232,32 +231,5 @@ Lemma t_update_other {Value: Type} (m : @total_map string_eqType Value):
     forall x v v', v != v' ->
               (v !-> x; m) v' = m v'.
 Proof.
-  move => x v v' Hne.
-  by autorewrite with totalrw.
+  by auto_map.
 Qed.
-
-(* Useful tactic to simplify goal when using pfunc *)
-
-Ltac simpl_pfunc :=
-  repeat match goal with
-         | [ |- context[le_V ?v ?v] ] => rewrite le_V_refl
-         | [ |- context[eval_pfunc (constant_pfunc _)]] => rewrite constant_pfunc_spec
-         | [ |- context[le_pfunc ?p (join_pfunc ?p _)]] => rewrite join_pfunc_spec_l
-         | [ |- context[le_pfunc ?p (join_pfunc _ ?p)]] => rewrite join_pfunc_spec_r
-         | [ |- context[le_pfunc ?p ?p]] => rewrite le_pfunc_refl
-         | [ |- context[eval_pfunc (add_pfunc _ _) _]] => rewrite add_pfunc_spec
-         | [ |- context[eval_pfunc (sub_pfunc _ _) _]] => rewrite sub_pfunc_spec
-         | [ |- context[eval_pfunc (mul_pfunc _ _) _]] => rewrite mul_pfunc_spec
-         | [ |- context[eval_pfunc (le_binop_pfunc _ _) _]] => rewrite le_binop_pfunc_spec
-         | [ |- context[eval_pfunc (pfunc_restrict_eq_set _ _) _]] => rewrite pfunc_restrict_eq_set_spec
-         | [ |- context[eval_pfunc (pfunc_restrict_ne_set _ _) _]] => rewrite pfunc_restrict_ne_set_spec
-         | [ H: is_true (is_constant_on_var ?p ?v) |- context[eval_pfunc ?p (?v !-> ?z; ?m)]] =>
-           rewrite (is_constant_on_var_update_spec p v H z m)
-         | [ H: is_true (is_constant_on_var ?p ?v) |- context[eval_pfunc ?p (eval_total_map (?v !-> ?x; ?m))]] =>
-           rewrite ((iffLR (is_constant_on_var_spec p v)) H (v !-> x; m) m (t_update_other m x v))
-         | [ H1: is_true (in_V ?x1 ?v1), H2: is_true (in_V ?x2 ?v2) |- context[in_V (?x1 + ?x2) (add_V ?v1 ?v2)]] =>
-           rewrite (add_V_spec x1 v1 H1 x2 v2 H2)
-         | [ H1: is_true (in_V ?x1 ?v1), H2: is_true (in_V ?x2 ?v2) |- context[in_V (if (?x1 <=? ?x2)%Z then 1%Z else _) (le_binop_V ?v1 ?v2)]] =>
-           rewrite (le_binop_V_spec x1 v1 H1 x2 v2 H2)
-         | _ => autorewrite with totalrw
-         end.

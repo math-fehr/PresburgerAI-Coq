@@ -86,29 +86,22 @@ Section AbstractInterpreter.
         move: Hn'ltpos1.
         rewrite !ltn_neqAle => /andP[Hnen'pos _] /andP[Hnen'pos2 _].
         rewrite eq_sym in Hnen'pos2.
-        by autorewrite with totalrw.
+        by auto_map.
       + move: (Hn'ltpos1).
         rewrite ltnS leq_eqVlt => /orP [ Heq _ | Hne Hne']; last first. by rewrite Hne' in Hne.
         rewrite !(eqP Heq).
         rewrite /inst_fixpoint -Hbb.
         rewrite -(Hnth 0) /=.
-        autorewrite with totalrw.
+        simpl_map.
         rewrite t_update_neq. by apply AbstractDomain.le_refl.
-        rewrite eq_sym.
-        apply /eqP.
-        auto.
+        rewrite eq_sym. by apply /eqP.
   Qed.
 
   Theorem abstract_interpret_inst_list_0_unchanged (l: list Inst) (bb_id bb_id': bbid) (pos: nat) (stateV: ASValues) :
     (abstract_interpret_inst_list l bb_id pos stateV) bb_id' 0 = stateV bb_id' 0.
   Proof.
-    elim: l stateV pos => [ // | i l Hind stateV pos].
-    case (bb_id' =P bb_id) => [Heq | /eqP Hne].
-    - rewrite Heq in Hind *.
-      rewrite Hind.
-        by autorewrite with totalrw.
-    - rewrite Hind.
-        by autorewrite with totalrw.
+    elim: l stateV pos => [ // | i l Hind stateV pos]. move: Hind.
+    case (bb_id' =P bb_id) => [-> | Hne] ->; by auto_map.
   Qed.
 
   Theorem abstract_interpret_inst_list_bb_unchanged (l: list Inst) (bb_id: bbid) :
@@ -116,9 +109,8 @@ Section AbstractInterpreter.
               forall state pos n, (abstract_interpret_inst_list l bb_id pos state) bb_id' n = state bb_id' n.
   Proof.
     move => bb_id' Hbb_ne.
-    elim: l => [ // | i l Hind state pos n /=].
-    rewrite Hind.
-      by autorewrite with totalrw.
+    elim: l => [ // | i l Hind state pos n].
+    rewrite Hind. auto_map.
   Qed.
 
   (*  _                               _             *)
@@ -139,12 +131,11 @@ Section AbstractInterpreter.
                 le a (abstract_interpret_term_join_edges stateE in_id edges in_id out_id).
   Proof.
     elim edges => [ // | [a out_id] l Hind a0 out_id0].
-    rewrite /=.
-    autorewrite with totalrw.
-    rewrite in_cons => /orP[ /eqP [-> ->] | HIn].
-    + by autorewrite with totalrw.
+    simpl_map.
+    move => /orP[ /eqP [-> ->] | HIn].
+    + by auto_map.
     + apply Hind in HIn.
-      case (out_id =P out_id0) => [ -> | /eqP Hne ]; autorewrite with totalrw; auto.
+      by case (out_id =P out_id0) => [ -> | /eqP Hne ]; auto_map.
   Qed.
 
   Theorem abstract_interpret_term_join_edges_out_unchanged (in_id out_id: bbid) (stateE: ASEdges) (edges: list (ab * bbid)):
@@ -155,8 +146,7 @@ Section AbstractInterpreter.
     move: (HnotIn a).
     rewrite in_cons => /norP [Hne HanotIn].
     have: (is_true (id != out_id)). apply /negP => /eqP Heq. rewrite Heq in Hne. by rewrite eq_refl in Hne. move => Hneid.
-    by case (in_id =P id0) => [ <- | /eqP Hneid0 ]; autorewrite with totalrw; apply Hind => a0;
-    move: (HnotIn a0); rewrite in_cons => /norP[_ Ha0notIn].
+    case (in_id =P id0) => [ <- | /eqP Hneid0 ]; simpl_map; apply Hind => a0; move: (HnotIn a0); by autossr.
   Qed.
 
   Theorem abstract_interpret_term_join_edges_in_unchanged (id in_id: bbid) (stateE: ASEdges) (edges: list (ab * bbid)):
@@ -165,8 +155,7 @@ Section AbstractInterpreter.
   Proof.
     move => Hne out_id.
     elim edges => [ // | [a out_id0] l Hind ].
-    rewrite /=.
-    by autorewrite with totalrw.
+    auto_map.
   Qed.
 
   (*  _                       *)
@@ -219,9 +208,9 @@ Section AbstractInterpreter.
     le (stateE y x) (join_edges_cond_aux (t_map _ _ stateE) (t_default _ _ stateE) seen cond x).
   Proof.
     case: stateE => map default /=.
-    elim: map seen => [ seen Hcond _ | m Hind k v seen Hcond Hnotin ]. by autorewrite with totalrw.
-    case (k =P y) => [ -> | /eqP Hne ]. by simpl_totalmap.
-    simpl_totalmap.
+    elim: map seen => [ seen Hcond _ | m Hind k v seen Hcond Hnotin ]. by auto_map.
+    case (k =P y) => [ -> | /eqP Hne ]. by auto_map.
+    simpl_map.
     case: (k \in seen) => /=.
     - case: (cond k); auto.
       eapply AbstractDomain.le_trans.
@@ -293,7 +282,7 @@ Section AbstractInterpreter.
     rewrite /edge_fixpoint => in_id.
     rewrite abstract_interpret_term_bb_edge_out_unchanged; auto.
     rewrite abstract_interpret_inst_list_0_unchanged.
-    simpl_totalmap.
+    simpl_map.
     case (p in_id) => [ [[_ _] t] _ /= | //].
     by apply le_join_r, join_edges_spec.
   Qed.
@@ -302,9 +291,9 @@ Section AbstractInterpreter.
     le (state.1 bb_id' 0) ((abstract_interpret_bb bb bb_id state).1 bb_id' 0).
   Proof.
     rewrite /abstract_interpret_bb.
-    simpl_totalmap.
+    simpl_map.
     erewrite abstract_interpret_inst_list_0_unchanged.
-    case (bb_id =P bb_id') => [ -> | Hne ]; by simpl_totalmap.
+    case (bb_id =P bb_id') => [ -> | Hne ]; by auto_map.
   Qed.
 
   Theorem abstract_interpret_bb_edge_in_unchanged (bb: BasicBlock) (bb_id in_id out_id: bbid) (state: AS):
@@ -322,7 +311,7 @@ Section AbstractInterpreter.
     forall pos, (abstract_interpret_bb bb bb_id state).1 bb_id' pos = state.1 bb_id' pos.
   Proof.
     move => Hbb Hbbne pos /=.
-    by rewrite abstract_interpret_inst_list_bb_unchanged; simpl_totalmap.
+    by rewrite abstract_interpret_inst_list_bb_unchanged; auto_map.
   Qed.
 
   (*  _                       *)
@@ -433,7 +422,7 @@ Section AbstractInterpreter.
       rewrite compose_relation_in_program_values_spec Hnotin /=.
       move: Hnotin. rewrite in_cons eq_sym => /orb_false_iff[/negb_true_iff Hne /negb_true_iff Hnotin].
       rewrite Hind; auto. rewrite abstract_interpret_bb_value_unchanged; auto.
-      by simpl_totalmap.
+      by auto_map.
     - move => ps1 Hind1 ps2 Hind2 state /= /andP[/andP[_ Hsound1] Hsound2].
       rewrite /= mem_cat => /norP[Hnotin1 Hnotin2] pos.
       rewrite Hind2; auto.
@@ -528,7 +517,7 @@ Section AbstractInterpreter.
       + subst. case_eq (in_id \in bbs_in_program (Loop header body)) => [Hin_in | Hin_notin].
         * move: Hheadernotinbody => /negb_true_iff Hheadernotinbody.
           rewrite Hin_in. rewrite abstract_interpret_program_value_unchanged => //=.
-          rewrite abstract_interpret_inst_list_0_unchanged. simpl_totalmap.
+          rewrite abstract_interpret_inst_list_0_unchanged. simpl_map.
           rewrite /compute_loop_effect_with_enter.
           eapply AbstractDomain.le_trans. apply compose_assoc_r.
           eapply AbstractDomain.le_trans; last first. apply compose_assoc_l.
@@ -541,7 +530,7 @@ Section AbstractInterpreter.
         * move: Hheadernotinbody => /negb_true_iff Hheadernotinbody.
           rewrite Hin_notin. rewrite abstract_interpret_program_value_unchanged => //=.
           move: Hin_notin => /negb_true_iff /=. rewrite in_cons => /norP[Hin_ne Hin_notin].
-          rewrite abstract_interpret_inst_list_0_unchanged. simpl_totalmap.
+          rewrite abstract_interpret_inst_list_0_unchanged. simpl_map.
           rewrite /compute_loop_effect_with_enter /state'.
           rewrite abstract_interpret_program_edge_in_unchanged => //.
           rewrite abstract_interpret_bb_edge_in_unchanged => //=.
@@ -605,11 +594,11 @@ Section AbstractInterpreter.
       + move => bb_entry Hbb_entry. rewrite abstract_interpret_program_value_unchanged => //=.
         rewrite abstract_interpret_inst_list_0_unchanged.
         rewrite /join_edges. rewrite /join_edges_cond_aux.
-        simpl_totalmap.
+        simpl_map.
         have: (Ensembles.In _ (gamma id_relation) (R, R)) by apply id_relation_spec.
           by apply gamma_monotone.
       + rewrite abstract_interpret_program_value_unchanged => //= _.
-        simpl_totalmap. by apply id_relation_spec.
+        simpl_map. by apply id_relation_spec.
     - move => p0 s0 [[bb_id' pos'] R'] s0'' Hmulti_step' Hind Hstep' bb_id'' bb Hbb pos'' R'' Hs0'' Hs0 Hp0.
       move: Hind. rewrite -Hp0. case_eq (p "entry") => [ bb_entry Hbb_entry | Hentry ].
       + inversion Hstep'.
@@ -619,7 +608,7 @@ Section AbstractInterpreter.
           apply Hallin in H3. move: H3. rewrite in_cons => /orP[ /eqP Hentry'' | Hbb''_in ].
           { subst. rewrite abstract_interpret_program_value_unchanged => //.
             have: (inst_fixpoint (abstract_interpret_bb bb_entry "entry" input_state).1 "entry" pos') by apply abstract_interpret_bb_spec_inst.
-            rewrite /inst_fixpoint Hbb'' /= H5 => /gamma_monotone. simpl_totalmap. apply.
+            rewrite /inst_fixpoint Hbb'' /= H5 => /gamma_monotone. simpl_map. apply.
             eapply transfer_inst_sound. apply H6. rewrite /abstract_interpret_bb in Hind.
               by rewrite abstract_interpret_program_value_unchanged in Hind. }
           { have: (inst_fixpoint (abstract_interpret_program ps (abstract_interpret_bb bb_entry "entry" input_state)).1 bb_id'' pos'). apply abstract_interpret_program_spec_inst => //.
