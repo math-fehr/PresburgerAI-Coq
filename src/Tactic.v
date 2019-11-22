@@ -61,4 +61,4 @@ Ltac ssrsubst :=
 Ltac simplssr_ := rewrite_is_true; simpl_seq; simpl_bool; simpleq.
 Ltac simplssr := repeat (reflect_ne_in simplssr_).
 Ltac autossr :=
-  solve [ simplssr ; intros ; reflect_ne ; ssrsubst ; simplssr ; first [ by auto | divide_hypotheses ; ssrsubst ; simplssr ; by auto ] ].
+  first [ solve [ simplssr ; intros ; reflect_ne ; ssrsubst ; simplssr ; first [ by auto | divide_hypotheses ; ssrsubst ; simplssr ; by auto ] ] | idtac ].

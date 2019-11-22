@@ -120,6 +120,8 @@ Section PartialMapPointwiseUn.
 
 End PartialMapPointwiseUn.
 
+Hint Rewrite @p_pointwise_un_op_spec using by reflect_ne ; simplssr : maprw.
+
 Section PartialMapKeysList.
 
   Context {Key: eqType} {Value Value': Type}.
@@ -158,8 +160,6 @@ Proof.
     + simplssr. by apply /Hind1.
 Qed.
 
-Hint Rewrite @p_pointwise_un_op_spec using by reflect_ne ; simplssr : maprw.
-
 Canonical partial_map_eqMixin {Key Value: eqType} := EqMixin (@eq_partial_mapP Key Value).
 Canonical partial_map_eqType {Key Value: eqType} := Eval hnf in EqType (@partial_map Key Value) partial_map_eqMixin.
 
@@ -168,59 +168,64 @@ Canonical partial_map_eqType {Key Value: eqType} := Eval hnf in EqType (@partial
 
 Global Opaque eval_partial_map.
 
-(*  _____     _        _ __  __            ____   *)
-(* |_   _|__ | |_ __ _| |  \/  | __ _ _ __|___ \  *)
-(*   | |/ _ \| __/ _` | | |\/| |/ _` | '_ \ __) | *)
-(*   | | (_) | || (_| | | |  | | (_| | |_) / __/  *)
-(*   |_|\___/ \__\__,_|_|_|  |_|\__,_| .__/_____| *)
-(*                                   |_|          *)
+(*  _____     _        _ __  __              *)
+(* |_   _|__ | |_ __ _| |  \/  | __ _ _ __   *)
+(*   | |/ _ \| __/ _` | | |\/| |/ _` | '_ \  *)
+(*   | | (_) | || (_| | | |  | | (_| | |_) | *)
+(*   |_|\___/ \__\__,_|_|_|  |_|\__,_| .__/  *)
+(*                                   |_|     *)
 
 (* Representation of a total map with finite non-default values *)
 
 Section TotalMapDefinition.
 
-  Context (Key: eqType) (Value: Type).
+  Context {Key: eqType}
+          {Value: Type}.
 
-  Structure total_map := TotalMap
-    {
-      t_map: @partial_map Key Value;
-      t_default: Value;
-    }.
+  (* Representation of a total map with finite non-default values *)
+  Inductive total_map :=
+  | TDefault (v: Value)
+  | TUpdate (m': total_map) (k: Key) (v: Value).
+
+  Fixpoint eval_total_map (m: total_map) (k: Key) :=
+    match m with
+    | TDefault v => v
+    | TUpdate m' k' v => if k' == k then v else eval_total_map m' k
+    end.
+
+  Coercion eval_total_map : total_map >-> Funclass.
 
 End TotalMapDefinition.
 
-Section TotalMapCoreDefinitions.
-
-  Context {Key: eqType} {Value: Type}.
-
-  (* Update the total map *)
-  Definition t_update (m: total_map Key Value) (k: Key) (v: Value) :=
-    TotalMap _ _ (k !!-> v; t_map _ _ m) (t_default _ _ m).
-
-End TotalMapCoreDefinitions.
 
 (* Notation for a map update *)
-Notation "k '!->' v ';' m" := (t_update m k v)
-                                 (at level 100, v at next level, right associativity).
+Notation "k '!->' v ';' m" := (TUpdate m k v)
+                                (at level 100, v at next level, right associativity).
 
 (* Notation for a default map *)
-Notation "'_' '!->' v" := (TotalMap _ _ (PEmpty) v)
+Notation "'_' '!->' v" := (TDefault v)
                              (at level 100).
-
 
 Section TotalMapEqType.
 
   Context {Key Value: eqType}.
 
-  Definition eq_total_map (m1 m2: total_map Key Value) :=
-    ((t_map _ _ m1) == t_map _ _ m2) && (t_default _ _ m1 == t_default _ _ m2).
+  Fixpoint eq_total_map (m1 m2: @total_map Key Value) :=
+    match (m1, m2) with
+    | (TDefault d1, TDefault d2) => d1 == d2
+    | (TUpdate m1' k1 v1, TUpdate m2' k2 v2) => (k1 == k2) && (v1 == v2) && (eq_total_map m1' m2')
+    | _ => false
+    end.
 
   Theorem eq_total_mapP :
     Equality.axiom (eq_total_map).
   Proof.
-    move => [map1 default1] [map default2].
-    apply (iffP idP) => [ /andP /= [/eqP -> /eqP ->] // | -> ].
-    rewrite /eq_total_map. by rewrite !eq_refl.
+    elim => [ v1 m2 /= | m1' Hind1 k1 v1 m2 /= ].
+    - apply (iffP idP); case m2; autossr.
+      move => v2. case. autossr.
+    - apply (iffP idP) => [ | <- ].
+      + case m2 => [ // | m2' k2 v2 /andP[/andP[/eqP -> /eqP ->] /Hind1 ->] //].
+      + simplssr. by apply /Hind1.
   Qed.
 
   Canonical total_map_eqMixin := EqMixin (eq_total_mapP).
@@ -228,30 +233,14 @@ Section TotalMapEqType.
 
 End TotalMapEqType.
 
-Section TotalMapEval.
-
-  (* Evaluate a map on a point*)
-  Definition eval_total_map {Key: eqType} {Value: Type} (m: @total_map Key Value) (k: Key) :=
-    if (t_map _ _ m) k is Some v then
-      v
-    else
-      t_default _ _ m.
-
-  (* Coercion for evaluation *)
-  Coercion eval_total_map : total_map >-> Funclass.
-
-End TotalMapEval.
-
 (* Important rewrite rules *)
 Section TotalMapRewriteRules.
 
-  Context {Key: eqType} {Value: Type} (k k1 k2: Key) (v v1 v2: Value) (m: total_map Key Value).
-
-  Lemma t_update_out (pm: partial_map):
-    eval_total_map (TotalMap _ _ (k !!-> v1 ; pm) v) = eval_total_map (t_update (TotalMap _ _ pm v) k v1).
-  Proof.
-      by [].
-  Qed.
+  Context {Key: eqType}
+          {Value: Type}
+          (k k1 k2: Key)
+          (v v1 v2: Value)
+          (m: @total_map Key Value).
 
   Lemma t_apply_empty :
     (_ !-> v) k = v.
@@ -262,32 +251,28 @@ Section TotalMapRewriteRules.
   Lemma t_update_eq :
     (k !-> v ; m) k = v.
   Proof.
-    rewrite /eval_total_map /=.
-    by autorewrite with maprw.
+    by autossr.
   Qed.
 
   Theorem t_update_neq :
     k1 != k2 ->
     (k1 !-> v ; m) k2 = m k2.
   Proof.
-    move => Hne. rewrite /eval_total_map /=.
-    by autorewrite with maprw.
+    by autossr.
   Qed.
 
   Lemma t_update_shadow :
     eval_total_map (k !-> v2 ; k !-> v1 ; m) = eval_total_map (k !-> v2 ; m).
   Proof.
-    rewrite /eval_total_map.
     extensionality k' => /=.
-    by autorewrite with maprw.
+    case (k =P k'); autossr.
   Qed.
 
   Theorem t_update_same :
     eval_total_map (k !-> m k ; m) = eval_total_map m.
   Proof.
-    rewrite /eval_total_map.
     extensionality k' => /=.
-    case (k =P k') => [ -> | /eqP Hne ]; by autorewrite with maprw.
+    case (k =P k'); autossr.
   Qed.
 
   Theorem t_update_permute :
@@ -295,14 +280,14 @@ Section TotalMapRewriteRules.
     eval_total_map (k1 !-> v1 ; k2 !-> v2 ; m) =
     eval_total_map (k2 !-> v2 ; k1 !-> v1 ; m).
   Proof.
-    rewrite /eval_total_map => Hne.
+    move => Hne.
     extensionality k' => /=.
-      by rewrite p_update_permute.
+    case (k1 =P k'); by autossr.
   Qed.
 
 End TotalMapRewriteRules.
 
-Hint Rewrite @t_update_out @t_apply_empty @t_update_eq @t_update_neq @t_update_shadow @t_update_same using by simplssr : maprw.
+Hint Rewrite @t_apply_empty @t_update_eq @t_update_neq @t_update_shadow @t_update_same using by simplssr : maprw.
 
 (* Pointwise operations on one or multiple maps *)
 
@@ -311,28 +296,30 @@ Section TotalMapPointwiseUn.
   Context {Key: eqType}
           {Value Value': Type}.
 
-  Definition t_pointwise_un_op (m: total_map Key Value) (f: Value -> Value') :=
-    TotalMap _ _ (p_pointwise_un_op (t_map _ _ m) f) (f (t_default _ _ m)).
+  Fixpoint t_pointwise_un_op (m: @total_map Key Value) (f: Value -> Value') :=
+    match m with
+    | TDefault v => TDefault (f v)
+    | TUpdate m' k v => TUpdate (t_pointwise_un_op m' f) k (f v)
+    end.
 
-  Theorem t_pointwise_un_op_spec (m: total_map Key Value) (f: Value -> Value') (k: Key) :
+  Theorem t_pointwise_un_op_spec (m: @total_map Key Value) (f: Value -> Value') (k: Key) :
     t_pointwise_un_op m f k = f (m k).
   Proof.
-    rewrite /t_pointwise_un_op /eval_total_map /=.
-    autorewrite with maprw.
-    by case (t_map _ _ m k).
+    elim: m => [ v // | m' Hind k' v'].
+    case (k =P k'); rewrite /= Hind; autossr.
   Qed.
 
-  Fixpoint t_pointwise_un_op_in_seq (m: total_map Key Value) (f: Value -> Value) (l: seq Key) :=
+  Fixpoint t_pointwise_un_op_in_seq (m: @total_map Key Value) (f: Value -> Value) (l: seq Key) :=
     match l with
     | [::] => m
     | a::l' => (a !-> f (m a); t_pointwise_un_op_in_seq m f l')
     end.
 
-  Theorem t_pointwise_un_op_in_seq_spec (m: total_map Key Value) (f: Value -> Value) (l: seq Key) :
+  Theorem t_pointwise_un_op_in_seq_spec (m: @total_map Key Value) (f: Value -> Value) (l: seq Key) :
     forall x, (t_pointwise_un_op_in_seq m f l) x = if x \in l then f (m x) else (m x).
   Proof.
-    move => x. elim l => [ // | k l' ].
-    rewrite in_cons. case: (x \in l') => Hind /=; case: (x =P k) => [ -> | /eqP Hne ]; by autorewrite with maprw.
+    elim: l => [ // | k l' Hind x /=]. rewrite Hind.
+    by case (k =P x); autossr.
   Qed.
 
 End TotalMapPointwiseUn.
@@ -341,75 +328,67 @@ Hint Rewrite @t_pointwise_un_op_spec @t_pointwise_un_op_in_seq_spec using by aut
 
 Global Opaque eval_total_map.
 
+(*  _____     _        _ __  __             ____   *)
+(* |_   _|__ | |_ __ _| |  \/  | __ _ _ __ |  _ \  *)
+(*   | |/ _ \| __/ _` | | |\/| |/ _` | '_ \| | | | *)
+(*   | | (_) | || (_| | | |  | | (_| | |_) | |_| | *)
+(*   |_|\___/ \__\__,_|_|_|  |_|\__,_| .__/|____/  *)
+(*                                   |_|           *)
+
 Section TotalMapD.
-
-  Context (Key: eqType)
-          (Value: Type)
-          (default: Value).
-
-  Definition total_map_d := { map: total_map Key Value | t_default _ _ map = default}.
-
-End TotalMapD.
-
-Section TotalMapDCoreDefinitions.
 
   Context {Key: eqType}
           {Value: Type}.
 
-  (* Create an empty map *)
-  Program Definition td_new (default: Value) : total_map_d Key Value default :=
-    exist _ (_ !-> default) _.
+  Inductive total_map_d {default: Value} :=
+  | TDDefault
+  | TDUpdate (m': total_map_d) (k: Key) (v: Value).
 
-  (* Update the total map *)
-  Program Definition td_update {default: Value} (m: total_map_d Key Value default) (k: Key) (v: Value) : total_map_d Key Value default :=
-    exist _ (k !-> v; proj1_sig m) _.
-  Obligation 1.
-    by destruct m.
-  Qed.
+  Fixpoint eval_total_map_d {default: Value} (m: @total_map_d default) (k: Key) :=
+    match m with
+    | TDDefault => default
+    | TDUpdate m' k' v => if k' == k then v else eval_total_map_d m' k
+    end.
 
-End TotalMapDCoreDefinitions.
+  Coercion eval_total_map_d : total_map_d >-> Funclass.
+
+End TotalMapD.
 
 (* Notation for a map update *)
-Notation "k '|->' v ';' m" := (td_update m k v)
-                                 (at level 99, v at next level, right associativity).
+Notation "k '|->' v ';' m" := (TDUpdate m k v)
+                                (at level 99, v at next level, right associativity).
 
 (* Notation for a default map *)
-Notation "'_' '|->' v" := (td_new v)
-                             (at level 99).
+Notation "'_' '|->' v" := (@TDDefault _ _ v)
+                            (at level 99).
 
 Section TotalMapDEqType.
 
   Context {Key Value: eqType}
           (default: Value).
 
-  Definition eq_total_map_d (m1 m2: total_map_d Key Value default) :=
-    sval m1 == sval m2.
+  Fixpoint eq_total_map_d (m1 m2: @total_map_d Key Value default) :=
+    match (m1, m2) with
+    | (TDDefault, TDDefault) => true
+    | (TDUpdate m1' k1 v1, TDUpdate m2' k2 v2) => (k1 == k2) && (v1 == v2) && (eq_total_map_d m1' m2')
+    | _ => false
+    end.
+
 
   Theorem eq_total_map_dP :
     Equality.axiom (eq_total_map_d).
   Proof.
-    move => [map1 default1] [map default2].
-    apply: (iffP idP) => [ /eqP /= Heq | ].
-    - move: default1 default2. rewrite Heq => default1 default2. move: eq_irrelevance.
-        by move => /(_ _ _ _ default1 default2) ->.
-    - case. rewrite /eq_total_map_d /= => -> //.
+    elim => [ m2 /= | m1' Hind1 k1 v1 m2 /= ].
+    - apply (iffP idP); case m2; autossr.
+    - apply (iffP idP) => [ | <- ].
+      + case m2 => [ // | m2' k2 v2 /andP[/andP[/eqP -> /eqP ->] /Hind1 ->] //].
+      + simplssr. by apply /Hind1.
   Qed.
 
   Canonical total_map_d_eqMixin := EqMixin (eq_total_map_dP).
   Canonical total_map_d_eqType := Eval hnf in EqType (@total_map_d Key Value default) total_map_d_eqMixin.
 
 End TotalMapDEqType.
-
-Section TotalMapDEval.
-
-  (* Evaluate a map on a point*)
-  Definition eval_total_map_d {Key: eqType} {Value: Type} {default: Value} (m: total_map_d Key Value default) (k: Key) :=
-    eval_total_map (sval m) k.
-
-  (* Coercion for evaluation *)
-  Coercion eval_total_map_d : total_map_d >-> Funclass.
-
-End TotalMapDEval.
 
 (* Important rewrite rules *)
 Section TotalMapDRewriteRules.
@@ -419,7 +398,7 @@ Section TotalMapDRewriteRules.
           {default: Value}
           (k k1 k2: Key)
           (v v1 v2: Value)
-          (m: total_map_d Key Value default).
+          (m: @total_map_d Key Value default).
 
   Lemma td_apply_empty :
     (_ |-> v) k = v.
@@ -430,32 +409,28 @@ Section TotalMapDRewriteRules.
   Lemma td_update_eq :
     (k |-> v ; m) k = v.
   Proof.
-    rewrite /eval_total_map_d /=.
-    by autorewrite with maprw.
+    by autossr.
   Qed.
 
   Theorem td_update_neq :
     k1 != k2 ->
     (k1 |-> v ; m) k2 = m k2.
   Proof.
-    move => Hne. rewrite /eval_total_map_d /=.
-    by autorewrite with maprw.
+    by autossr.
   Qed.
 
   Lemma td_update_shadow :
     eval_total_map_d (k |-> v2 ; k |-> v1 ; m) = eval_total_map_d (k |-> v2 ; m).
   Proof.
-    rewrite /eval_total_map_d.
     extensionality k' => /=.
-    by autorewrite with maprw.
+    by case (k =P k'); autossr.
   Qed.
 
   Theorem td_update_same :
     eval_total_map_d (k |-> m k ; m) = eval_total_map_d m.
   Proof.
-    rewrite /eval_total_map_d.
     extensionality k' => /=.
-    case (k =P k') => [ -> | /eqP Hne ]; by autorewrite with maprw.
+    by case (k =P k'); autossr.
   Qed.
 
   Theorem td_update_permute :
@@ -463,9 +438,9 @@ Section TotalMapDRewriteRules.
     eval_total_map_d (k1 |-> v1 ; k2 |-> v2 ; m) =
     eval_total_map_d (k2 |-> v2 ; k1 |-> v1 ; m).
   Proof.
-    rewrite /eval_total_map_d => Hne.
+    move => Hne.
     extensionality k' => /=.
-      by rewrite t_update_permute.
+    by case (k1 =P k'); autossr.
   Qed.
 
 End TotalMapDRewriteRules.
@@ -478,38 +453,39 @@ Section TotalMapDPointwiseUn.
 
   Context {Key: eqType}
           {Value Value': Type}
-          {default: Value}
-          (m: total_map_d Key Value default).
+          {default: Value}.
 
-  Program Definition td_pointwise_un_op (f: Value -> Value') : total_map_d Key Value' (f default) :=
-    exist _ (t_pointwise_un_op (sval m) f) _.
-  Obligation 1.
-    by move: m => [m' ->].
-  Qed.
+  Fixpoint td_pointwise_un_op (m: @total_map_d Key Value default) (f: Value -> Value') : @total_map_d Key Value' (f default) :=
+    match m with
+    | TDDefault => TDDefault
+    | TDUpdate m' k v => (k |-> f v; td_pointwise_un_op m' f)
+    end.
 
-  Theorem td_pointwise_un_op_spec (f: Value -> Value') (k: Key) :
-    td_pointwise_un_op f k = f (m k).
+  Theorem td_pointwise_un_op_spec (m: @total_map_d Key Value default) (f: Value -> Value') (k: Key) :
+    td_pointwise_un_op m f k = f (m k).
   Proof.
-    rewrite /td_pointwise_un_op /eval_total_map_d /=.
-    apply t_pointwise_un_op_spec.
+    elim: m => [ // | m' Hind k' v' /= ]. rewrite Hind.
+    by case (k' =P k); autossr.
   Qed.
 
-  Program Definition td_pointwise_un_op_in_seq (f: Value -> Value) (l: seq Key) : total_map_d Key Value default :=
-    exist _ (t_pointwise_un_op_in_seq (sval m) f l) _.
-  Obligation 1.
-    by elim: l m => [ [m' Hdefault] // | //].
-  Qed.
+  Fixpoint td_pointwise_un_op_in_seq (m: @total_map_d Key Value default) (f: Value -> Value) (l: seq Key) :=
+    match l with
+    | [::] => m
+    | a::l' => (a |-> f (m a); td_pointwise_un_op_in_seq m f l')
+    end.
 
-  Theorem td_pointwise_un_op_in_seq_spec (f: Value -> Value) (l: seq Key) :
-    forall x, (td_pointwise_un_op_in_seq f l) x = if x \in l then f (m x) else (m x).
+  Theorem td_pointwise_un_op_in_seq_spec (m: @total_map_d Key Value default) (f: Value -> Value) (l: seq Key) :
+    forall x, (td_pointwise_un_op_in_seq m f l) x = if x \in l then f (m x) else (m x).
   Proof.
-    rewrite /eval_total_map_d /= => k.
-    by rewrite t_pointwise_un_op_in_seq_spec.
+    elim: l => [ // | k l Hind x /=]. rewrite Hind.
+    by case (k =P x); autossr.
   Qed.
 
 End TotalMapDPointwiseUn.
 
 Hint Rewrite @td_pointwise_un_op_spec @td_pointwise_un_op_in_seq_spec using by autossr : maprw.
+
+Global Opaque eval_total_map_d.
 
 Ltac simpl_map_ := repeat (autorewrite with maprw; simplssr).
 Ltac simpl_map := reflect_ne_in simpl_map_.

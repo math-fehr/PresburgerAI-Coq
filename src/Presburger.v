@@ -65,7 +65,7 @@ Class PresburgerImpl (PSet PwAff: Type) :=
                               forall x, eval_set p1 x -> eval_set p2 x;
 
     set_project_out : PSet -> string -> PSet;
-    set_project_out_spec : forall p d (m: total_map _ _), eval_set (set_project_out p d) m <->
+    set_project_out_spec : forall p d (m: total_map), eval_set (set_project_out p d) m <->
                                     exists v, eval_set p (d !-> v; m);
 
 

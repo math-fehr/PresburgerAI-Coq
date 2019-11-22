@@ -18,9 +18,9 @@ Section AbstractInterpreter.
           (p: Program).
 
   (* Associate for every control location an abstract state *)
-  Definition ASValues : Type := @total_map bbid_eqType (@total_map nat_eqType ab).
-  Definition ASEdges : Type := @total_map bbid_eqType (@total_map bbid_eqType ab).
-  Definition ASEdgesP : Type := @partial_map bbid_eqType (@total_map bbid_eqType ab).
+  Notation ASValues := (@total_map_d bbid_eqType (@total_map_d nat_eqType ab bot) (_ |-> bot)).
+  Notation ASEdges := (@total_map_d bbid_eqType (@total_map_d bbid_eqType ab bot) (_ |-> bot)).
+  Notation ASEdgesP := (@partial_map bbid_eqType (@total_map_d bbid_eqType ab bot)).
   Definition AS : Type := ASValues * ASEdges.
 
   (* Properties we want at the end of our analysis *)
@@ -59,7 +59,7 @@ Section AbstractInterpreter.
     match l with
     | nil => stateV
     | inst::l' => let new_ab := transfer_inst inst (stateV bb_id pos) in
-                let new_state := (bb_id !-> (S pos !-> new_ab; stateV bb_id); stateV) in
+                let new_state := (bb_id |-> (S pos |-> new_ab; stateV bb_id); stateV) in
                 abstract_interpret_inst_list l' bb_id (S pos) new_state
     end.
 
@@ -93,7 +93,7 @@ Section AbstractInterpreter.
         rewrite /inst_fixpoint -Hbb.
         rewrite -(Hnth 0) /=.
         simpl_map.
-        rewrite t_update_neq. by apply AbstractDomain.le_refl.
+        rewrite td_update_neq. by apply AbstractDomain.le_refl.
         rewrite eq_sym. by apply /eqP.
   Qed.
 
@@ -123,7 +123,7 @@ Section AbstractInterpreter.
   (* Interpretation of a terminator *)
   Definition abstract_interpret_term_join_edges (stateE: ASEdges) (bb_id: bbid) (edges: list (ab * bbid)) :=
     fold_right (fun (abid: (ab * bbid)) state =>
-                  let (ab, out_id) := abid in (bb_id !-> (out_id !-> join ab (state bb_id out_id); state bb_id); state)
+                  let (ab, out_id) := abid in (bb_id |-> (out_id |-> join ab (state bb_id out_id); state bb_id); state)
                ) stateE edges.
 
   Theorem abstract_interpret_term_join_edges_spec (in_id: bbid) (stateE: ASEdges) (edges: list (ab * bbid)):
@@ -192,38 +192,37 @@ Section AbstractInterpreter.
     eapply transfer_term_only_successors; eauto.
   Qed.
 
-  Fixpoint join_edges_cond_aux (stateE: ASEdgesP) (default: total_map bbid_eqType ab) (seen: seq bbid) (cond: bbid -> bool) (x: bbid) :=
+  Fixpoint join_edges_cond_aux (stateE: ASEdges) (seen: seq bbid) (cond: bbid -> bool) (x: bbid) :=
     match stateE with
-    | PEmpty => default x
-    | PUpdate stateE' k v =>
+    | TDDefault => bot
+    | TDUpdate stateE' k v =>
       if (k \in seen) && (cond k) then
-        join_edges_cond_aux stateE' default seen cond x
+        join_edges_cond_aux stateE' seen cond x
       else
-        join (v x) (join_edges_cond_aux stateE' default (k::seen) cond x)
+        join (v x) (join_edges_cond_aux stateE' (k::seen) cond x)
     end.
 
   Theorem join_edges_cond_aux_spec (stateE: ASEdges) (seen: seq bbid) (cond: bbid -> bool) (x y: bbid):
     cond y ->
     y \notin seen ->
-    le (stateE y x) (join_edges_cond_aux (t_map _ _ stateE) (t_default _ _ stateE) seen cond x).
+    le (stateE y x) (join_edges_cond_aux stateE seen cond x).
   Proof.
-    case: stateE => map default /=.
-    elim: map seen => [ seen Hcond _ | m Hind k v seen Hcond Hnotin ]. by auto_map.
+    elim: stateE seen => [ seen Hcond // | stateE' Hind k v seen Hcond Hnotin ].
     case (k =P y) => [ -> | /eqP Hne ]. by auto_map.
     simpl_map.
     case: (k \in seen) => /=.
-    - case: (cond k); auto.
-      eapply AbstractDomain.le_trans.
-      + apply (Hind (k::seen)) => //.
-        rewrite in_cons. by simplssr.
-      + by [].
-    - eapply AbstractDomain.le_trans.
-      + apply (Hind (k::seen)); auto. rewrite in_cons. by simplssr.
-      + by [].
+    - case: (cond k). by autossr.
+      eapply AbstractDomain.le_trans; last first.
+      + by apply join_sound_r.
+      + apply Hind => //.
+        by autossr.
+    - eapply AbstractDomain.le_trans; last first.
+      + by apply join_sound_r.
+      + apply Hind; by autossr.
   Qed.
 
   Definition join_edges_cond (stateE: ASEdges) (cond: bbid -> bool) (bb_id: bbid) :=
-    join_edges_cond_aux (t_map _ _ stateE) (t_default _ _ stateE) [::] cond bb_id.
+    join_edges_cond_aux stateE [::] cond bb_id.
 
   Theorem join_edges_cond_spec (stateE: ASEdges) (cond: bbid -> bool) (bb_id bb_id': bbid) :
     cond bb_id' ->
@@ -234,7 +233,7 @@ Section AbstractInterpreter.
   Qed.
 
   Definition join_edges (stateE: ASEdges) (bb_id: bbid) :=
-    join_edges_cond_aux (t_map _ _ stateE) (t_default _ _ stateE) [::] (fun _ => true) bb_id.
+    join_edges_cond_aux stateE [::] (fun _ => true) bb_id.
 
   Theorem join_edges_spec (stateE: ASEdges) (bb_id bb_id': bbid) :
     le (stateE bb_id' bb_id) (join_edges stateE bb_id).
@@ -250,7 +249,7 @@ Section AbstractInterpreter.
 
   (* Interpretation of a basic block *)
   Definition abstract_interpret_bb (bb: BasicBlock) (bb_id: bbid) (state: AS) :=
-    let stateV1 := ( bb_id !-> (0 !-> join (state.1 bb_id 0) (join_edges state.2 bb_id); state.1 bb_id) ; state.1) in
+    let stateV1 := ( bb_id |-> (0 |-> join (state.1 bb_id 0) (join_edges state.2 bb_id); state.1 bb_id) ; state.1) in
     let stateV2 := abstract_interpret_inst_list bb.1.2 bb_id 0 stateV1 in
     let stateE' := abstract_interpret_term bb bb_id (stateV2, state.2) in
     (stateV2, stateE').
@@ -322,30 +321,38 @@ Section AbstractInterpreter.
   (*                  |_|     *)
 
   Definition set_input_to_identity (state: AS) (entry_id: bbid) :=
-    ((entry_id !-> (0 !-> id_relation ; state.1 entry_id); state.1), state.2).
+    ((entry_id |-> (0 |-> id_relation ; state.1 entry_id); state.1), state.2).
 
-  Definition compose_relation_in_program_edges (ps: ProgramStructure) (stateE: ASEdges) (relation: ab) :=
-    t_pointwise_un_op_in_seq stateE (fun m => t_pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
+  Program Definition compose_relation_in_program_edges (ps: ProgramStructure) (stateE: ASEdges) (relation: ab) :=
+    td_pointwise_un_op_in_seq stateE (fun m => td_pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
+  Obligation 1.
+    by apply compose_bot.
+  Qed.
 
   Theorem compose_relation_in_program_edges_spec (ps: ProgramStructure) (stateE: ASEdges) (relation: ab) (in_id out_id: bbid) :
     compose_relation_in_program_edges ps stateE relation in_id out_id =
     if (in_id \in bbs_in_program ps) then compose_relation relation (stateE in_id out_id) else stateE in_id out_id.
   Proof.
-    rewrite t_pointwise_un_op_in_seq_spec.
-    case: (in_id \in bbs_in_program ps) => [ | // ].
-    by apply t_pointwise_un_op_spec.
+    rewrite td_pointwise_un_op_in_seq_spec.
+    case: (in_id \in bbs_in_program ps) => [ /= | // ].
+    rewrite /eq_rect. case (compose_relation_in_program_edges_obligation_1 relation).
+    by apply td_pointwise_un_op_spec.
   Qed.
 
-  Definition compose_relation_in_program_values (ps: ProgramStructure) (stateV: ASValues) (relation: ab) :=
-    t_pointwise_un_op_in_seq stateV (fun m => t_pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
+  Program Definition compose_relation_in_program_values (ps: ProgramStructure) (stateV: ASValues) (relation: ab) :=
+    td_pointwise_un_op_in_seq stateV (fun m => td_pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
+  Obligation 1.
+    by apply compose_bot.
+  Qed.
 
   Theorem compose_relation_in_program_values_spec (ps: ProgramStructure) (stateV: ASValues) (relation: ab) (bb_id: bbid) (pos: nat) :
     compose_relation_in_program_values ps stateV relation bb_id pos =
     if (bb_id \in bbs_in_program ps) then compose_relation relation (stateV bb_id pos) else stateV bb_id pos.
   Proof.
-    rewrite t_pointwise_un_op_in_seq_spec.
+    rewrite td_pointwise_un_op_in_seq_spec.
     case: (bb_id \in bbs_in_program ps) => [ | // ].
-    by apply t_pointwise_un_op_spec.
+    rewrite /eq_rect. case (compose_relation_in_program_values_obligation_1 relation).
+    by apply td_pointwise_un_op_spec.
   Qed.
 
   Definition compose_relation_in_program (ps: ProgramStructure) (state: AS) (relation: ab) :=
@@ -572,7 +579,7 @@ Section AbstractInterpreter.
   Qed.
 
   Definition input_state : AS :=
-    (("entry" !-> (O !-> id_relation; _ !-> bot); (_ !-> (_ !-> bot))), (_ !-> (_ !-> bot))).
+    (("entry" |-> (O |-> id_relation; _ |-> bot); (_ |-> (_ |-> bot))), (_ |-> (_ |-> bot))).
 
   Theorem abstract_interpret_program_spec (ps: ProgramStructure):
     structure_sound p (DAG (BB "entry") ps) ->

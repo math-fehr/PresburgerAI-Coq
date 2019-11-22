@@ -16,6 +16,7 @@ Class adom_relational {concrete_state abstract_state: eqType}
     compose_relation_spec :
       forall a1 a2 x0 x2, In _ (gamma (compose_relation a1 a2)) (x0,x2) <->
                      exists x1, In _ (gamma a1) (x0, x1) /\ In _ (gamma a2) (x1, x2);
+    compose_bot : forall a, compose_relation a bot = bot;
 
     (* Compute an overapproximation of a reflexive-transitive closure *)
     transitive_closure : abstract_state -> abstract_state;
