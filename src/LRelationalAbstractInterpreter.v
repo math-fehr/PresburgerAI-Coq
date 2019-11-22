@@ -48,6 +48,12 @@ Section AbstractInterpreter.
       else
         true.
 
+  Definition edges_invariant (stateE: ASEdges) :=
+    forall in_id, match p in_id with
+             | None => true
+             | Some (_, _, term) => forall out_id, out_id \notin term_successors term -> stateE in_id out_id == bot
+             end.
+
   (*   _           _   _ _     _    *)
   (*  (_)_ __  ___| |_| (_)___| |_  *)
   (*  | | '_ \/ __| __| | / __| __| *)
@@ -151,7 +157,7 @@ Section AbstractInterpreter.
 
   Theorem abstract_interpret_term_join_edges_in_unchanged (id in_id: bbid) (stateE: ASEdges) (edges: list (ab * bbid)):
     in_id != id ->
-    forall out_id, stateE in_id out_id = (abstract_interpret_term_join_edges stateE id edges in_id out_id).
+    forall out_id, (abstract_interpret_term_join_edges stateE id edges in_id out_id) = stateE in_id out_id.
   Proof.
     move => Hne out_id.
     elim edges => [ // | [a out_id0] l Hind ].
@@ -180,7 +186,7 @@ Section AbstractInterpreter.
   Qed.
 
   Lemma abstract_interpret_term_bb_edge_out_unchanged (bb_id: bbid) (bb: BasicBlock):
-    (Some bb = p bb_id) ->
+    (p bb_id = Some bb) ->
     forall bb_id', bb_id' \notin (term_successors bb.2) ->
               forall state bb_id'', (abstract_interpret_term bb bb_id state) bb_id'' bb_id' = state.2 bb_id'' bb_id'.
   Proof.
@@ -239,6 +245,24 @@ Section AbstractInterpreter.
     le (stateE bb_id' bb_id) (join_edges stateE bb_id).
   Proof.
       by apply join_edges_cond_aux_spec.
+  Qed.
+
+  Theorem abstract_interpret_term_edges_invariant_kept (bb_id: bbid) (state: AS):
+    edges_invariant state.2 ->
+    match p bb_id with
+    | Some bb => edges_invariant (abstract_interpret_term bb bb_id state)
+    | None => true
+    end.
+  Proof.
+    rewrite /edges_invariant.
+    case_eq (p bb_id) => [ [[inputs insts] term] Hbb Hinvariant in_id | //].
+    move: Hinvariant => /(_ in_id).
+    case_eq (p in_id) => [ [[in_inputs in_insts] in_term] Hin Hind out_id Hnotin | //].
+    case (bb_id =P in_id) => [ Heq | Hne ].
+    - rewrite Heq in Hind *.
+      rewrite abstract_interpret_term_bb_edge_out_unchanged; autossr.
+      subst. rewrite Hbb in Hin. by case: Hin => -> -> ->.
+    - rewrite abstract_interpret_term_join_edges_in_unchanged; autossr.
   Qed.
 
   (*  ____            _      ____  _            _     *)
@@ -301,7 +325,7 @@ Section AbstractInterpreter.
     (abstract_interpret_bb bb bb_id state).2 in_id out_id = state.2 in_id out_id.
   Proof.
     move => Hbb Hbbne /=.
-    by rewrite /abstract_interpret_term /= -abstract_interpret_term_join_edges_in_unchanged.
+    by rewrite /abstract_interpret_term /= abstract_interpret_term_join_edges_in_unchanged.
   Qed.
 
   Theorem abstract_interpret_bb_value_unchanged (bb: BasicBlock) (bb_id bb_id': bbid) (state: AS):
@@ -311,6 +335,19 @@ Section AbstractInterpreter.
   Proof.
     move => Hbb Hbbne pos /=.
     by rewrite abstract_interpret_inst_list_bb_unchanged; auto_map.
+  Qed.
+
+  Theorem abstract_interpret_bb_edges_invariant_kept (bb_id: bbid) (state: AS):
+    edges_invariant state.2 ->
+    match p bb_id with
+    | None => true
+    | Some bb => edges_invariant (abstract_interpret_bb bb bb_id state).2
+    end.
+  Proof.
+    rewrite /abstract_interpret_bb => Hinvariant. move: (Hinvariant bb_id). simpl_map.
+    case_eq (p bb_id) => [ [[inputs insts] term] Hbb Hterm in_id | // ].
+    move: (abstract_interpret_term_edges_invariant_kept bb_id).
+    rewrite Hbb. by apply.
   Qed.
 
   (*  _                       *)
