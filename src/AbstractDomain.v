@@ -45,4 +45,13 @@ Proof.
   - auto.
 Qed.
 
-Hint Resolve le_join_l le_join_r : core.
+Theorem le_bot {concrete_state abstract_state: eqType} (ad: adom concrete_state abstract_state) :
+  forall a, le bot a.
+Proof.
+  move => a.
+  apply gamma_monotone => R HIn. exfalso.
+    by eapply gamma_bot; eauto.
+Qed.
+
+Hint Resolve le_join_l le_join_r le_bot : core.
+

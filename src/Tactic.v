@@ -55,6 +55,7 @@ Ltac divide_hypotheses :=
 Ltac ssrsubst :=
   repeat match goal with
          | [ H: is_true (?x == ?y) |- _ ] => move => /eqP in H
+         | 
          | _ => subst
          end.
 

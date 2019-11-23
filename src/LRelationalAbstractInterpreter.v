@@ -41,18 +41,14 @@ Section AbstractInterpreter.
       true.
 
   Definition edge_fixpoint (state: AS) (bb_id: bbid) :=
-    forall in_id,
-      if p in_id is Some (_, _, t) then
-        (bb_id \in (term_successors t)) ->
-        le (state.2 in_id bb_id) (state.1 bb_id 0)
-      else
-        true.
+    forall in_id, le (state.2 in_id bb_id) (state.1 bb_id 0).
 
   Definition edges_invariant (stateE: ASEdges) :=
-    forall in_id, match p in_id with
-             | None => true
-             | Some (_, _, term) => forall out_id, out_id \notin term_successors term -> stateE in_id out_id == bot
-             end.
+    forall in_id out_id,
+      (match p in_id with
+      | Some in_bb => out_id \notin term_successors in_bb.2
+      | None => true
+      end) -> stateE in_id out_id = bot.
 
   (*   _           _   _ _     _    *)
   (*  (_)_ __  ___| |_| (_)___| |_  *)
@@ -247,22 +243,24 @@ Section AbstractInterpreter.
       by apply join_edges_cond_aux_spec.
   Qed.
 
-  Theorem abstract_interpret_term_edges_invariant_kept (bb_id: bbid) (state: AS):
+  Theorem abstract_interpret_term_edges_invariant_kept (bb_id: bbid) (bb: BasicBlock) (state: AS):
+    p bb_id = Some bb ->
     edges_invariant state.2 ->
-    match p bb_id with
-    | Some bb => edges_invariant (abstract_interpret_term bb bb_id state)
-    | None => true
-    end.
+    edges_invariant (abstract_interpret_term bb bb_id state).
   Proof.
-    rewrite /edges_invariant.
-    case_eq (p bb_id) => [ [[inputs insts] term] Hbb Hinvariant in_id | //].
-    move: Hinvariant => /(_ in_id).
-    case_eq (p in_id) => [ [[in_inputs in_insts] in_term] Hin Hind out_id Hnotin | //].
-    case (bb_id =P in_id) => [ Heq | Hne ].
-    - rewrite Heq in Hind *.
-      rewrite abstract_interpret_term_bb_edge_out_unchanged; autossr.
-      subst. rewrite Hbb in Hin. by case: Hin => -> -> ->.
-    - rewrite abstract_interpret_term_join_edges_in_unchanged; autossr.
+    rewrite /edges_invariant => Hin Hinvariant in_id. move: {Hinvariant} (Hinvariant in_id).
+    case_eq (p in_id) => [ in_bb Hin_bb Hinvariant out_id Hnotin | Hin_bb Hbot out_id ].
+    - rewrite /abstract_interpret_term.
+      case (bb_id =P in_id) => [Heq | Hbb_ne ].
+      + rewrite Heq -abstract_interpret_term_join_edges_out_unchanged; auto.
+        move => a. move => /negP in Hnotin. apply /negP => Hin_term.
+        apply Hnotin. eapply transfer_term_only_successors.
+        exists a. subst. rewrite Hin in Hin_bb. move: Hin_bb => [Heq]. subst.
+        by apply Hin_term.
+      + rewrite abstract_interpret_term_join_edges_in_unchanged; autossr.
+    - rewrite /abstract_interpret_term.
+      case (bb_id =P in_id) => [ Heq | /eqP Hne]. by rewrite -Heq Hin in Hin_bb.
+      by rewrite abstract_interpret_term_join_edges_in_unchanged; autossr.
   Qed.
 
   (*  ____            _      ____  _            _     *)
@@ -306,8 +304,7 @@ Section AbstractInterpreter.
     rewrite abstract_interpret_term_bb_edge_out_unchanged; auto.
     rewrite abstract_interpret_inst_list_0_unchanged.
     simpl_map.
-    case (p in_id) => [ [[_ _] t] _ /= | //].
-    by apply le_join_r, join_edges_spec.
+    case (p in_id) => [ [[_ _] t] /= | /=] ; by apply le_join_r, join_edges_spec.
   Qed.
 
   Theorem abstract_interpret_bb_monotone_0 (bb: BasicBlock) (bb_id bb_id': bbid) (state: AS):
@@ -337,17 +334,13 @@ Section AbstractInterpreter.
     by rewrite abstract_interpret_inst_list_bb_unchanged; auto_map.
   Qed.
 
-  Theorem abstract_interpret_bb_edges_invariant_kept (bb_id: bbid) (state: AS):
+  Theorem abstract_interpret_bb_edges_invariant_kept (bb_id: bbid) (bb: BasicBlock) (state: AS):
+    p bb_id = Some bb ->
     edges_invariant state.2 ->
-    match p bb_id with
-    | None => true
-    | Some bb => edges_invariant (abstract_interpret_bb bb bb_id state).2
-    end.
+    edges_invariant (abstract_interpret_bb bb bb_id state).2.
   Proof.
-    rewrite /abstract_interpret_bb => Hinvariant. move: (Hinvariant bb_id). simpl_map.
-    case_eq (p bb_id) => [ [[inputs insts] term] Hbb Hterm in_id | // ].
-    move: (abstract_interpret_term_edges_invariant_kept bb_id).
-    rewrite Hbb. by apply.
+    rewrite /abstract_interpret_bb => Hbb_id Hinvariant. simpl_map.
+    by apply abstract_interpret_term_edges_invariant_kept.
   Qed.
 
   (*  _                       *)
@@ -374,6 +367,22 @@ Section AbstractInterpreter.
     case: (in_id \in bbs_in_program ps) => [ /= | // ].
     rewrite /eq_rect. case (compose_relation_in_program_edges_obligation_1 relation).
     by apply td_pointwise_un_op_spec.
+  Qed.
+
+  Theorem compose_relation_in_program_edges_edges_invariant_kept (ps: ProgramStructure) (stateE: ASEdges):
+    edges_invariant stateE ->
+    forall relation, edges_invariant (compose_relation_in_program_edges ps stateE relation).
+  Proof.
+    rewrite /edges_invariant => Hinvariant relation in_id. move: {Hinvariant} (Hinvariant in_id).
+    case (p in_id) => [ bb Hinvariant out_id Hnotin | Hinvariant out_id _ ].
+    - move => /(_ out_id Hnotin) in Hinvariant.
+      rewrite compose_relation_in_program_edges_spec.
+      case: (in_id \in bbs_in_program ps); autossr.
+        by rewrite Hinvariant compose_bot.
+    - rewrite compose_relation_in_program_edges_spec.
+      case: (in_id \in bbs_in_program ps); autossr.
+      move => /(_ out_id is_true_true) in Hinvariant. rewrite Hinvariant.
+        by rewrite compose_bot.
   Qed.
 
   Program Definition compose_relation_in_program_values (ps: ProgramStructure) (stateV: ASValues) (relation: ab) :=
@@ -433,6 +442,19 @@ Section AbstractInterpreter.
         compose_relation_in_program ps state2 loop_effect_with_enter
       end
     end.
+
+  Theorem abstract_interpret_program_edges_invariant_kept (ps: ProgramStructure) (state: AS):
+    edges_invariant state.2 ->
+    edges_invariant (abstract_interpret_program ps state).2.
+  Proof.
+    elim: ps state => [ header body Hind state /= | ps1 Hind1 ps2 Hind2 state Hinvariant /= | state bb_id Hinvariant /= ].
+    - case_eq (p header) => [ bb Hheader Hinvariant | //].
+      apply compose_relation_in_program_edges_edges_invariant_kept.
+      apply Hind, abstract_interpret_bb_edges_invariant_kept => //.
+    - by apply Hind2, Hind1.
+    - case_eq (p state) => [ bb Hbb | // ].
+        by apply abstract_interpret_bb_edges_invariant_kept.
+  Qed.
 
   Theorem abstract_interpret_program_edge_in_unchanged (ps: ProgramStructure) (in_id out_id: bbid) (state: AS):
     structure_sound p ps ->
@@ -549,14 +571,14 @@ Section AbstractInterpreter.
   Theorem abstract_interpret_program_spec_edge (ps: ProgramStructure):
     structure_sound p ps ->
     forall bb_id, (bb_id \in (bbs_in_program ps)) ->
-             forall state, edge_fixpoint (abstract_interpret_program ps state) bb_id.
+             forall state, edges_invariant state.2 ->
+                      edge_fixpoint (abstract_interpret_program ps state) bb_id.
   Proof.
     elim: ps.
-    - move => header body Hind /= /andP[/andP[/andP[Hsound /negb_true_iff Hheadernotinbody] Hnaturalloop] HheaderSome] bb_id Hin state.
+    - move => header body Hind /= /andP[/andP[/andP[Hsound /negb_true_iff Hheadernotinbody] Hnaturalloop] HheaderSome] bb_id Hin state Hinvariant.
       move: HheaderSome. case_eq (p header) => [ bb Hbb _ | //]. rewrite /edge_fixpoint => in_id /=.
       rewrite compose_relation_in_program_edges_spec compose_relation_in_program_values_spec Hin.
       set state' := (abstract_interpret_program _ _).
-      case_eq (p in_id) => [ [[in_inputs in_insts] in_term] Hbb_some Hbb_in_term | //].
       move: Hin. rewrite in_cons => /orP[/eqP Hbb_id | Hbbid_in].
       + subst. case_eq (in_id \in bbs_in_program (Loop header body)) => [Hin_in | Hin_notin].
         * move: Hheadernotinbody => /negb_true_iff Hheadernotinbody.
@@ -589,30 +611,47 @@ Section AbstractInterpreter.
             by rewrite abstract_interpret_bb_edge_in_unchanged.
       + case_eq (in_id \in bbs_in_program (Loop header body)) => [Hin_in | Hin_notin].
         * rewrite Hin_in. apply compose_relation_le.
-          move: (Hind Hsound bb_id Hbbid_in (abstract_interpret_bb bb header (set_input_to_identity state header)) in_id). fold state'.
-          by rewrite Hbb_some => /(_ Hbb_in_term).
-        * move => /allP /(_ bb_id Hbbid_in) /allP /(_ in_id) in Hnaturalloop.
-          rewrite program_predecessors_spec in Hnaturalloop.
-          rewrite Hbb_some in Hnaturalloop.
-          move => /(_ Hbb_in_term) in Hnaturalloop.
-          by rewrite Hin_notin in Hnaturalloop.
+          have Hinvariant2 : (edges_invariant (set_input_to_identity state header).2) by [].
+          eapply abstract_interpret_bb_edges_invariant_kept in Hinvariant2; last first. apply Hbb.
+          by move: (Hind Hsound bb_id Hbbid_in (abstract_interpret_bb bb header (set_input_to_identity state header)) Hinvariant2 in_id).
+        * rewrite Hin_notin.
+          have Hinvariant' : (edges_invariant state'.2).
+            by apply abstract_interpret_program_edges_invariant_kept, abstract_interpret_bb_edges_invariant_kept => //.
+            move => /allP /(_ bb_id Hbbid_in) /allP /(_ in_id) in Hnaturalloop.
+            have -> // : (state'.2 in_id bb_id = bot).
+            eapply Hinvariant'; eauto.
+            case_eq (p in_id) => [ [[in_inputs in_insts] in_term] Hin_bb | //].
+            apply /negP => Hinterm. rewrite program_predecessors_spec Hin_bb in Hnaturalloop.
+            apply Hnaturalloop in Hinterm.
+            by rewrite Hin_notin in Hinterm.
     - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/allP Hnotsame1 Hnotsame2] /allP HsoundDAG] Hsound1] Hsound2] bb_id.
-      rewrite mem_cat => /orP[Hin1 | Hin2] state; last first. by apply Hind2.
+      rewrite mem_cat => /orP[Hin1 | Hin2] state Hinvariant; last first. apply Hind2 => //. by apply abstract_interpret_program_edges_invariant_kept.
       rewrite /edge_fixpoint => in_id.
-      case_eq (p in_id) => [ [[in_inputs in_insts] in_term] Hin_id Hbb_in_succ_in | //].
-      move => /(_ bb_id Hin1) in Hnotsame1.
-      rewrite abstract_interpret_program_value_unchanged => //.
-      move => /(_ Hsound1 bb_id Hin1 state in_id) in Hind1.
-      rewrite Hin_id in Hind1.
-      rewrite abstract_interpret_program_edge_in_unchanged => //. by apply Hind1.
-      apply /negP => Hin_in2.
-      have Hbb_in2: (bb_id \in program_successors p ps2).
-      apply program_successors_spec.
-      exists in_id. rewrite Hin_id => //.
-      by move => /(_ bb_id Hbb_in2) /negP in HsoundDAG.
+      case_eq (p in_id) => [ [[in_inputs in_insts] in_term] Hin_id | Hnotin_id ].
+      +  move => /(_ bb_id Hin1) in Hnotsame1.
+         rewrite abstract_interpret_program_value_unchanged => //.
+         move => /(_ Hsound1 bb_id Hin1 state Hinvariant in_id) in Hind1.
+         case_eq (in_id \in bbs_in_program ps2) => [Hin2 | Hnotin2].
+         * have Hnotinps2 : (bb_id \notin program_successors p ps2). apply /negP => Hinps2.
+             by move => /(_ bb_id Hinps2) in HsoundDAG; rewrite Hin1 in HsoundDAG.
+           apply abstract_interpret_program_edges_invariant_kept with (ps := ps1) in Hinvariant.
+           apply abstract_interpret_program_edges_invariant_kept with (ps := ps2) in Hinvariant.
+           move => /(_ in_id bb_id) in Hinvariant. rewrite Hin_id in Hinvariant.
+           rewrite Hinvariant. by rewrite le_bot.
+           apply /negP => Hinterm.
+           move => /negP in Hnotinps2. apply Hnotinps2.
+           apply program_successors_spec.
+           exists in_id. rewrite Hin2. split; auto. by rewrite Hin_id.
+         * rewrite abstract_interpret_program_edge_in_unchanged; autossr.
+             by rewrite Hnotin2.
+         * apply abstract_interpret_program_edges_invariant_kept with (ps := ps1) in Hinvariant.
+           apply abstract_interpret_program_edges_invariant_kept with (ps := ps2) in Hinvariant.
+           move => /(_ in_id bb_id) in Hinvariant. rewrite Hnotin_id in Hinvariant.
+           move => /(_ is_true_true) in Hinvariant.
+           by rewrite Hinvariant.
     - move => bb_id /= Hsound bb_id0. rewrite mem_seq1 => /eqP -> state.
-      move: Hsound. case_eq (p bb_id) => [ [[bb_inputs bb_insts] bb_term] Hbb Hnotin | //].
-      by apply abstract_interpret_bb_spec_edge.
+      move: Hsound. case_eq (p bb_id) => [ [[bb_inputs bb_insts] bb_term] Hbb Hnotin Hinvariant | //].
+        by apply abstract_interpret_bb_spec_edge.
   Qed.
 
   Definition input_state : AS :=
@@ -667,7 +706,8 @@ Section AbstractInterpreter.
               by move: Hsound1 => [_ Hsound1]. }
             { move: (abstract_interpret_program_spec_edge ps Hsound2 bb_id'' Hbb''_in (abstract_interpret_bb bb_entry "entry" input_state)).
               move: (term_successors_spec _ _ _ _ _ H6) => Hin_term_succ.
-              move => /(_ "entry"). rewrite Hbb''. move => /(_ Hin_term_succ) /gamma_monotone. apply.
+              have Hinvariant : (edges_invariant (abstract_interpret_bb bb_entry "entry" input_state).2). by apply abstract_interpret_bb_edges_invariant_kept => //.
+              move => /(_ Hinvariant "entry") /gamma_monotone. apply.
               move: (abstract_interpret_bb_spec_term (params, insts, term) "entry" input_state Hbb'').
               rewrite abstract_interpret_program_edge_in_unchanged => //.
               move: (Hmulti_step') => Hinbounds.
@@ -693,7 +733,8 @@ Section AbstractInterpreter.
             {
               move: (abstract_interpret_program_spec_edge ps Hsound2 bb_id'' Hbb''_in (abstract_interpret_bb bb_entry "entry" input_state)).
               move: (term_successors_spec _ _ _ _ _ H6) => Hin_term_succ.
-              move => /(_ bb_id'). rewrite Hbb''. move => /(_ Hin_term_succ) /gamma_monotone. apply.
+              have Hinvariant : (edges_invariant (abstract_interpret_bb bb_entry "entry" input_state).2). by apply abstract_interpret_bb_edges_invariant_kept.
+              move => /(_ Hinvariant bb_id') /gamma_monotone. apply.
               move: (abstract_interpret_program_spec_term ps Hsound2 bb_id' Hbb'_in (abstract_interpret_bb bb_entry "entry" input_state)).
               move: (Hmulti_step') => Hinbounds.
               apply reachable_states_pos in Hinbounds. rewrite /= Hbb'' in Hinbounds.
