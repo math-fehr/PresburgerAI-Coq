@@ -68,14 +68,21 @@ Section PartialMapRewriteRules.
   Lemma p_update_eq :
     (k !!-> v ; m) k = Some v.
   Proof.
-    by autossr.
+      by autossr.
+  Qed.
+
+  Lemma p_update_eq_hyp :
+    k1 == k2 ->
+    (k1 !!-> v ; m) k2 = Some v.
+  Proof.
+      by autossr.
   Qed.
 
   Theorem p_update_neq :
     k1 != k2 ->
     (k1 !!-> v ; m) k2 = m k2.
   Proof.
-    by autossr.
+      by autossr.
   Qed.
 
   Lemma p_update_shadow :
@@ -97,9 +104,9 @@ Section PartialMapRewriteRules.
 
 End PartialMapRewriteRules.
 
-Hint Rewrite @p_apply_empty @p_update_eq @p_update_neq @p_update_shadow using by simplssr : maprw.
+Hint Rewrite @p_apply_empty @p_update_eq @p_update_eq_hyp @p_update_neq @p_update_shadow using by first [liassr | autossr ] : maprw.
 
-  (* Pointwise operations on one or multiple maps *)
+(* Pointwise operations on one or multiple maps *)
 
 Section PartialMapPointwiseUn.
 
@@ -120,7 +127,7 @@ Section PartialMapPointwiseUn.
 
 End PartialMapPointwiseUn.
 
-Hint Rewrite @p_pointwise_un_op_spec using by reflect_ne ; simplssr : maprw.
+Hint Rewrite @p_pointwise_un_op_spec : maprw.
 
 Section PartialMapKeysList.
 
@@ -204,7 +211,7 @@ Notation "k '!->' v ';' m" := (TUpdate m k v)
 
 (* Notation for a default map *)
 Notation "'_' '!->' v" := (TDefault v)
-                             (at level 100).
+                            (at level 100).
 
 Section TotalMapEqType.
 
@@ -251,14 +258,21 @@ Section TotalMapRewriteRules.
   Lemma t_update_eq :
     (k !-> v ; m) k = v.
   Proof.
-    by autossr.
+      by autossr.
   Qed.
+
+  Lemma t_update_eq_hyp :
+    k1 == k2 -> (k1 !-> v ; m) k2 = v.
+  Proof.
+      by autossr.
+  Qed.
+
 
   Theorem t_update_neq :
     k1 != k2 ->
     (k1 !-> v ; m) k2 = m k2.
   Proof.
-    by autossr.
+      by autossr.
   Qed.
 
   Lemma t_update_shadow :
@@ -287,7 +301,7 @@ Section TotalMapRewriteRules.
 
 End TotalMapRewriteRules.
 
-Hint Rewrite @t_apply_empty @t_update_eq @t_update_neq @t_update_shadow @t_update_same using by simplssr : maprw.
+Hint Rewrite @t_apply_empty @t_update_eq @t_update_eq_hyp @t_update_neq @t_update_shadow @t_update_same using by first [liassr | autossr ] : maprw.
 
 (* Pointwise operations on one or multiple maps *)
 
@@ -319,12 +333,12 @@ Section TotalMapPointwiseUn.
     forall x, (t_pointwise_un_op_in_seq m f l) x = if x \in l then f (m x) else (m x).
   Proof.
     elim: l => [ // | k l' Hind x /=]. rewrite Hind.
-    by case (k =P x); autossr.
+      by case (k =P x); autossr.
   Qed.
 
 End TotalMapPointwiseUn.
 
-Hint Rewrite @t_pointwise_un_op_spec @t_pointwise_un_op_in_seq_spec using by autossr : maprw.
+Hint Rewrite @t_pointwise_un_op_spec @t_pointwise_un_op_in_seq_spec : maprw.
 
 Global Opaque eval_total_map.
 
@@ -409,28 +423,34 @@ Section TotalMapDRewriteRules.
   Lemma td_update_eq :
     (k |-> v ; m) k = v.
   Proof.
-    by autossr.
+      by autossr.
+  Qed.
+
+  Lemma td_update_eq_hyp :
+    k1 == k2 -> (k1 |-> v ; m) k2 = v.
+  Proof.
+      by autossr.
   Qed.
 
   Theorem td_update_neq :
     k1 != k2 ->
     (k1 |-> v ; m) k2 = m k2.
   Proof.
-    by autossr.
+      by autossr.
   Qed.
 
   Lemma td_update_shadow :
     eval_total_map_d (k |-> v2 ; k |-> v1 ; m) = eval_total_map_d (k |-> v2 ; m).
   Proof.
     extensionality k' => /=.
-    by case (k =P k'); autossr.
+      by case (k =P k'); autossr.
   Qed.
 
   Theorem td_update_same :
     eval_total_map_d (k |-> m k ; m) = eval_total_map_d m.
   Proof.
     extensionality k' => /=.
-    by case (k =P k'); autossr.
+      by case (k =P k'); autossr.
   Qed.
 
   Theorem td_update_permute :
@@ -440,12 +460,12 @@ Section TotalMapDRewriteRules.
   Proof.
     move => Hne.
     extensionality k' => /=.
-    by case (k1 =P k'); autossr.
+      by case (k1 =P k'); autossr.
   Qed.
 
 End TotalMapDRewriteRules.
 
-Hint Rewrite @td_apply_empty @td_update_eq @td_update_neq @td_update_shadow @td_update_same using by autossr : maprw.
+Hint Rewrite @td_apply_empty @td_update_eq @td_update_eq_hyp @td_update_neq @td_update_shadow @td_update_same using by first [liassr | autossr ] : maprw.
 
 (* Pointwise operations on one or multiple maps *)
 
@@ -465,7 +485,7 @@ Section TotalMapDPointwiseUn.
     td_pointwise_un_op m f k = f (m k).
   Proof.
     elim: m => [ // | m' Hind k' v' /= ]. rewrite Hind.
-    by case (k' =P k); autossr.
+      by case (k' =P k); autossr.
   Qed.
 
   Fixpoint td_pointwise_un_op_in_seq (m: @total_map_d Key Value default) (f: Value -> Value) (l: seq Key) :=
@@ -478,12 +498,12 @@ Section TotalMapDPointwiseUn.
     forall x, (td_pointwise_un_op_in_seq m f l) x = if x \in l then f (m x) else (m x).
   Proof.
     elim: l => [ // | k l Hind x /=]. rewrite Hind.
-    by case (k =P x); autossr.
+      by case (k =P x); autossr.
   Qed.
 
 End TotalMapDPointwiseUn.
 
-Hint Rewrite @td_pointwise_un_op_spec @td_pointwise_un_op_in_seq_spec using by autossr : maprw.
+Hint Rewrite @td_pointwise_un_op_spec @td_pointwise_un_op_in_seq_spec : maprw.
 
 Global Opaque eval_total_map_d.
 
