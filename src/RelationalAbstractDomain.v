@@ -25,64 +25,57 @@ Class adom_relational {concrete_state abstract_state: eqType}
     transitive_closure_eq_compose : forall a, le (compose_relation (transitive_closure a) a) (transitive_closure a);
   }.
 
-Theorem compose_relation_le {concrete_state abstract_state: eqType}
-        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
-  (a1 a2 comp_a: abstract_state):
-  le a1 a2 -> le (compose_relation comp_a a1) (compose_relation comp_a a2).
-Proof.
-  move => /gamma_monotone Hle.
-  apply gamma_monotone => [[x0 x2]] Hin1.
-  apply compose_relation_spec in Hin1.
-  move: Hin1 => [x1 [Hin1 Hin2]].
-  apply compose_relation_spec.
-  eauto.
-Qed.
+Section RelationalAbstractDomainTheorems.
 
-Theorem compose_relation_id {concrete_state abstract_state: eqType}
-        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
-        (a: abstract_state) :
-  le a (compose_relation a id_relation).
-Proof.
-  apply gamma_monotone => [[x0 x1] Hin].
-  apply compose_relation_spec. exists x1. split; eauto.
-  by apply id_relation_spec.
-Qed.
+  Context {concrete_state abstract_state: eqType}
+          {A: adom (prod_eqType concrete_state concrete_state) abstract_state}
+          (AR: adom_relational A)
+          (a a1 a2 a3: abstract_state).
 
-Theorem compose_assoc_l {concrete_state abstract_state: eqType}
-        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
-        (a1 a2 a3: abstract_state) :
-  le (compose_relation a1 (compose_relation a2 a3)) (compose_relation (compose_relation a1 a2) a3).
-Proof.
-  apply gamma_monotone => [[x0 x1]] /compose_relation_spec[x2 [H1 /compose_relation_spec[x3 [H2 H3]]]].
-  apply compose_relation_spec. exists x3. split; auto. apply compose_relation_spec. eauto.
-Qed.
+  Theorem compose_relation_le:
+    le a1 a2 -> le (compose_relation a a1) (compose_relation a a2).
+  Proof.
+    move => /gamma_monotone Hle.
+    apply gamma_monotone => [[x0 x2]] /compose_relation_spec => [[x1 [Hin1 Hin2]]].
+    apply compose_relation_spec.
+    eauto.
+  Qed.
 
-Theorem compose_assoc_r {concrete_state abstract_state: eqType}
-        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
-        (a1 a2 a3: abstract_state) :
-  le (compose_relation (compose_relation a1 a2) a3) (compose_relation a1 (compose_relation a2 a3)).
-Proof.
-  apply gamma_monotone => [[x0 x1]] /compose_relation_spec[x2 [/compose_relation_spec[x3 [H2 H3]] H1]].
-  apply compose_relation_spec. exists x3. split; auto. apply compose_relation_spec. eauto.
-Qed.
+  Theorem compose_relation_id :
+    le a (compose_relation a id_relation).
+  Proof.
+    apply gamma_monotone => [[x0 x1] Hin].
+    apply compose_relation_spec. exists x1. split; eauto.
+      by apply id_relation_spec.
+  Qed.
 
-Theorem compose_relation_quotient_right {concrete_state abstract_state: eqType}
-        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
-        (a1 a2 a3: abstract_state) :
-  le a2 a3 -> le (compose_relation a1 a2) (compose_relation a1 a3).
-Proof.
-  move => /gamma_monotone Hle. apply gamma_monotone => [[x1 x2]] /compose_relation_spec[x3 [Hin1 Hin2]].
-  apply compose_relation_spec.
-  eauto.
-Qed.
+  Theorem compose_assoc_l :
+    le (compose_relation a1 (compose_relation a2 a3)) (compose_relation (compose_relation a1 a2) a3).
+  Proof.
+    apply gamma_monotone => [[x0 x1]] /compose_relation_spec[x2 [H1 /compose_relation_spec[x3 [H2 H3]]]].
+    apply compose_relation_spec. exists x3. split; auto. apply compose_relation_spec. eauto.
+  Qed.
 
-Theorem compose_relation_quotient_left {concrete_state abstract_state: eqType}
-        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
-        (a1 a2 a3: abstract_state) :
-  le a1 a2 -> le (compose_relation a1 a3) (compose_relation a2 a3).
-Proof.
-  move => /gamma_monotone Hle. apply gamma_monotone => [[x1 x2]] /compose_relation_spec[x3 [Hin1 Hin2]].
-  apply compose_relation_spec.
-  eauto.
-Qed.
+  Theorem compose_assoc_r :
+    le (compose_relation (compose_relation a1 a2) a3) (compose_relation a1 (compose_relation a2 a3)).
+  Proof.
+    apply gamma_monotone => [[x0 x1]] /compose_relation_spec[x2 [/compose_relation_spec[x3 [H2 H3]] H1]].
+    apply compose_relation_spec. exists x3. split; auto. apply compose_relation_spec. eauto.
+  Qed.
+
+  Theorem compose_relation_quotient_right :
+    le a2 a3 -> le (compose_relation a1 a2) (compose_relation a1 a3).
+  Proof.
+    move => /gamma_monotone Hle. apply gamma_monotone => [[x1 x2]] /compose_relation_spec[x3 [Hin1 Hin2]].
+    apply compose_relation_spec; eauto.
+  Qed.
+
+  Theorem compose_relation_quotient_left :
+    le a1 a2 -> le (compose_relation a1 a3) (compose_relation a2 a3).
+  Proof.
+    move => /gamma_monotone Hle. apply gamma_monotone => [[x1 x2]] /compose_relation_spec[x3 [Hin1 Hin2]].
+    apply compose_relation_spec; eauto.
+  Qed.
+
+End RelationalAbstractDomainTheorems.
 
