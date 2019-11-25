@@ -38,16 +38,6 @@ Proof.
   eauto.
 Qed.
 
-Theorem compose_relation_join {concrete_state abstract_state: eqType}
-        {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
-        (a a2 a3: abstract_state) :
-  le (compose_relation (join a2 a3) a) (join (compose_relation a2 a) (compose_relation a3 a)) .
-Proof.
-  apply gamma_monotone => [[x1 x2]] /compose_relation_spec [x [/join_spec [Hin | Hin2] Hina]].
-  - apply join_spec. left. apply compose_relation_spec. eauto.
-  - apply join_spec. right. apply compose_relation_spec. eauto.
-Qed.
-
 Theorem compose_relation_id {concrete_state abstract_state: eqType}
         {A: adom (prod_eqType concrete_state concrete_state) abstract_state} (AR: adom_relational A)
         (a: abstract_state) :

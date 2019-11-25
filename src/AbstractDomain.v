@@ -18,9 +18,6 @@ Class adom (concrete_state abstract_state: eqType) :=
     gamma_monotone : forall a1 a2, le a1 a2 <-> Included concrete_state (gamma a1) (gamma a2);
     gamma_top : forall x, Ensembles.In concrete_state (gamma top) x;
     gamma_bot : forall x, ~ Ensembles.In concrete_state (gamma bot) x;
-    join_spec : forall a1 a2 x, Ensembles.In concrete_state (gamma (join a1 a2)) x <->
-                         Ensembles.In concrete_state (gamma a1) x \/
-                         Ensembles.In concrete_state (gamma a2) x;
     join_sound_l : forall a1 a2, le a1 (join a1 a2);
     join_sound_r : forall a1 a2, le a2 (join a1 a2);
   }.
