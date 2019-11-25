@@ -24,31 +24,33 @@ Class adom (concrete_state abstract_state: eqType) :=
 
 Hint Resolve le_refl gamma_monotone gamma_top join_sound_l join_sound_r : core.
 
-Theorem le_join_l {concrete_state abstract_state: eqType} (ad: adom concrete_state abstract_state) :
-  forall a1 a2 a3, le a1 a2 -> le a1 (join a2 a3).
-Proof.
-  move => a1 a2 a3 Hle.
-  eapply le_trans.
-  - apply Hle.
-  - auto.
-Qed.
+Section AbstractDomainTheorems.
 
-Theorem le_join_r {concrete_state abstract_state: eqType} (ad: adom concrete_state abstract_state) :
-  forall a1 a2 a3, le a1 a2 -> le a1 (join a3 a2).
-Proof.
-  move => a1 a2 a3 Hle.
-  eapply le_trans.
-  - apply Hle.
-  - auto.
-Qed.
+  Context {concrete_state abstract_state: eqType}
+          (ad: adom concrete_state abstract_state).
 
-Theorem le_bot {concrete_state abstract_state: eqType} (ad: adom concrete_state abstract_state) :
-  forall a, le bot a.
-Proof.
-  move => a.
-  apply gamma_monotone => R HIn. exfalso.
-    by eapply gamma_bot; eauto.
-Qed.
+  Theorem le_join_l :
+    forall a1 a2 a3, le a1 a2 -> le a1 (join a2 a3).
+  Proof.
+    move => a1 a2 a3 Hle.
+    by eapply le_trans; eauto.
+  Qed.
 
-Hint Resolve le_join_l le_join_r le_bot : core.
+  Theorem le_join_r :
+    forall a1 a2 a3, le a1 a2 -> le a1 (join a3 a2).
+  Proof.
+    move => a1 a2 a3 Hle.
+    by eapply le_trans; eauto.
+  Qed.
 
+  Theorem le_bot :
+    forall a, le bot a.
+  Proof.
+    move => a.
+    apply gamma_monotone => R HIn. exfalso.
+      by eapply gamma_bot; eauto.
+  Qed.
+
+  Hint Resolve le_join_l le_join_r le_bot : core.
+
+End AbstractDomainTheorems.
