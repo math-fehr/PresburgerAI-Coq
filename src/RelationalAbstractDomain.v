@@ -83,4 +83,4 @@ Section RelationalAbstractDomainTheorems.
 End RelationalAbstractDomainTheorems.
 
 Hint Resolve @compose_relation_le @compose_relation_id @compose_assoc_l @compose_assoc_r
-     @compose_relation_quotient_right @compose_relation_quotient_left.
+     @compose_relation_quotient_right @compose_relation_quotient_left : core.
