@@ -170,10 +170,10 @@ Section AbstractInterpreter.
     abstract_interpret_term_join_edges state.2 bb_id new_edges.
 
   Theorem abstract_interpret_term_spec (bb: BasicBlock) (bb_id: bbid) (state: AS):
-    Some bb = p bb_id ->
+    p bb_id = Some bb ->
     term_fixpoint (state.1, (abstract_interpret_term bb bb_id state)) bb_id.
   Proof.
-    move => Hbb. rewrite /term_fixpoint -Hbb => bb0 [<-].
+    move => Hbb. rewrite /term_fixpoint Hbb => bb0 [<-].
     apply /allP => [[a out_id]].
     rewrite /abstract_interpret_term /=.
     by auto.
@@ -182,7 +182,7 @@ Section AbstractInterpreter.
   Hint Resolve abstract_interpret_term_spec : core.
 
   Lemma abstract_interpret_term_bb_edge_out_unchanged (bb_id: bbid) (bb: BasicBlock):
-    (p bb_id = Some bb) ->
+    p bb_id = Some bb ->
     forall bb_id', bb_id' \notin (term_successors bb.2) ->
               forall state bb_id'', (abstract_interpret_term bb bb_id state) bb_id'' bb_id' = state.2 bb_id'' bb_id'.
   Proof.
