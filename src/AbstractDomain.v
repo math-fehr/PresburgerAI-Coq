@@ -51,6 +51,6 @@ Section AbstractDomainTheorems.
       by eapply gamma_bot; eauto.
   Qed.
 
-  Hint Resolve le_join_l le_join_r le_bot : core.
-
 End AbstractDomainTheorems.
+
+Hint Resolve le_join_l le_join_r le_bot : core.

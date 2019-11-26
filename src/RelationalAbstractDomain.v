@@ -25,6 +25,9 @@ Class adom_relational {concrete_state abstract_state: eqType}
     transitive_closure_eq_compose : forall a, le (compose_relation (transitive_closure a) a) (transitive_closure a);
   }.
 
+Hint Rewrite @compose_bot : airw.
+Hint Resolve @compose_bot @transitive_closure_ge_step transitive_closure_ge_id transitive_closure_eq_compose : core.
+
 Section RelationalAbstractDomainTheorems.
 
   Context {concrete_state abstract_state: eqType}
@@ -79,3 +82,5 @@ Section RelationalAbstractDomainTheorems.
 
 End RelationalAbstractDomainTheorems.
 
+Hint Resolve @compose_relation_le @compose_relation_id @compose_assoc_l @compose_assoc_r
+     @compose_relation_quotient_right @compose_relation_quotient_left.

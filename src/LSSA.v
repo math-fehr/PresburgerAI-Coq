@@ -96,13 +96,13 @@ Fixpoint program_successors (p: Program) (ps: ProgramStructure) :=
   match ps with
   | Loop header body =>
     match (p header) with
-    | Some (_, _, t) => (term_successors t) ++ (program_successors p body)
+    | Some (_, t) => (term_successors t) ++ (program_successors p body)
     | None => program_successors p body
     end
   | DAG ps1 ps2 => (program_successors p ps1) ++ (program_successors p ps2)
   | BB bb =>
     match (p bb) with
-    | Some (_, _, t) => (term_successors t)
+    | Some (_, t) => (term_successors t)
     | None => nil
     end
   end.
@@ -110,7 +110,7 @@ Fixpoint program_successors (p: Program) (ps: ProgramStructure) :=
 Theorem program_successors_spec (p: Program) (ps: ProgramStructure) :
   forall bb_id, (exists in_id, (in_id \in bbs_in_program ps) /\
                     match (p in_id) with
-                    | Some (_, _, t) => bb_id \in (term_successors t)
+                    | Some (_, t) => bb_id \in (term_successors t)
                     | None => false
                     end)
            -> (bb_id \in program_successors p ps).
@@ -138,14 +138,14 @@ Qed.
 Definition program_predecessors (p: Program) (bb_id: bbid) :=
   let keys := keys_list p in
   filter (fun k => match p k with
-                | Some (_,_,t) => bb_id \in (term_successors t)
+                | Some (_,t) => bb_id \in (term_successors t)
                 | None => false
                 end ) keys.
 
 Theorem program_predecessors_spec (p: Program) (bb_id: bbid) :
   forall bb_id', bb_id' \in (program_predecessors p bb_id) =
                        match (p bb_id') with
-                       | Some (_, _, t) => bb_id \in (term_successors t)
+                       | Some (_, t) => bb_id \in (term_successors t)
                        | None => false
                        end.
 Proof.
@@ -162,9 +162,9 @@ Qed.
 Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
   match ps with
   | Loop header body =>
-    (structure_sound p body) &&
     (header \notin (bbs_in_program body)) &&
     all (fun bb_id => all (fun bb_id' => bb_id' \in header::(bbs_in_program body)) (program_predecessors p bb_id)) (bbs_in_program body) &&
+    (structure_sound p body) &&
     match p header with
     | None => false
     | Some _ => true
@@ -178,7 +178,7 @@ Fixpoint structure_sound (p: Program) (ps: ProgramStructure) :=
   | BB bb =>
     match p bb with
     | None => false
-    | Some (_,_,term) => bb \notin (term_successors term)
+    | Some (_,term) => bb \notin (term_successors term)
     end
   end.
 

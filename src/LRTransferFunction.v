@@ -28,8 +28,8 @@ Class transfer_function_relational {abstract_state: eqType}
              exists a', (a', bb) \in (transfer_term term a) /\
                    Ensembles.In _ (gamma a') (R_begin, R');
     transfer_term_only_successors :
-      forall term bb a,
-        (exists a', (a', bb) \in (transfer_term term a)) ->
+      forall term bb,
+        (exists a a', (a', bb) \in (transfer_term term a)) ->
         bb \in (term_successors term);
 
     transfer_term_compose :

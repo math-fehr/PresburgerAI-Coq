@@ -144,6 +144,7 @@ Section PartialMapKeysList.
   Proof.
     elim m => [ // | m' Hind k v k0].
     case (k =P k0) => [ -> /= | /eqP Hne ]; autossr.
+    simplssr.
   Qed.
 
 End PartialMapKeysList.
