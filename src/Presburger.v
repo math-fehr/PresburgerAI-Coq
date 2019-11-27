@@ -153,6 +153,13 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
                                        Some 1
                                      else
                                        Some 0;
+
+    eq_map : PwAff -> PwAff -> PwAff -> PwAff -> PMap;
+    eq_map_spec : forall p1 p2 p1' p2' x y, eval_pmap (eq_map p1 p2 p1' p2') x y =
+                                       match (eval_pw_aff p1 x, eval_pw_aff p2 y, eval_pw_aff p1' x, eval_pw_aff p2' y) with
+                                       | (Some v1, Some v2, Some v1', Some v2') => v1 + v2 == v1' + v2'
+                                       | _ => false
+                                       end;
   }.
 
 Section PresburgerTheorems.
