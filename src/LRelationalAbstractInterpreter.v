@@ -290,7 +290,11 @@ Section AbstractInterpreter.
   Proof.
     move => Hbb.
     rewrite /abstract_interpret_bb.
-      by apply abstract_interpret_term_spec.
+    set state'Values := (abstract_interpret_inst_list _ _ _ _).
+    set state' := (state'Values, state.2).
+    have H : state'Values = (state').1. auto.
+    rewrite H.
+    by apply abstract_interpret_term_spec.
   Qed.
 
   Theorem abstract_interpret_bb_spec_inst (bb: BasicBlock) (bb_id: bbid) (state: AS):
