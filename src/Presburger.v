@@ -168,6 +168,13 @@ Section PresburgerTheorems.
       by apply is_subset_spec.
   Qed.
 
+  Theorem is_subset_map_refl :
+    forall p, is_subset_map p p.
+  Proof.
+    move => p.
+      by apply is_subset_map_spec.
+  Qed.
+
   Theorem is_subset_trans :
     forall p1 p2 p3, is_subset p1 p2 ->
                 is_subset p2 p3 ->
@@ -200,7 +207,7 @@ Hint Rewrite @empty_set_spec_rw @universe_set_spec @union_set_spec @intersect_se
      @empty_map_spec_rw @universe_map_spec @union_map_spec @intersect_map_spec
      @pw_aff_from_aff_spec @intersect_domain_spec @union_pw_aff_spec @eq_set_spec @ne_set_spec @le_set_spec @indicator_function_spec : prw.
 
-Hint Resolve @is_subset_spec @set_project_out_spec @is_subset_map_spec @map_project_out_in_spec @map_project_out_out_spec.
+Hint Resolve @is_subset_spec @is_subset_map_spec @set_project_out_spec @is_subset_map_spec @map_project_out_in_spec @map_project_out_out_spec.
 
 Ltac simpl_presburger_ := repeat (autorewrite with prw; simplssr).
 Ltac simpl_presburger := reflect_ne_in simpl_map_.
