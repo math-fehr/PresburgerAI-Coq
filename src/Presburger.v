@@ -97,6 +97,9 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     map_project_out_out_spec : forall p d m_in (m_out: total_map), eval_pmap (map_project_out_out p d) m_in m_out <->
                                                               exists v, eval_pmap p m_in (d !-> v; m_out);
 
+    map_apply_range : PMap -> PMap -> PMap;
+    map_apply_range_spec : forall a1 a2 m_in m_out, eval_pmap (map_apply_range a1 a2) m_in m_out <-> exists m_mid, eval_pmap a1 m_in m_mid /\ eval_pmap a2 m_mid m_out;
+
     eval_pw_aff : PwAff -> @total_map string_eqType Z -> option Z;
 
     pw_aff_from_aff : Aff -> PwAff;
