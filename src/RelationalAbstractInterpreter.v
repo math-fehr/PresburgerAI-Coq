@@ -1,7 +1,7 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 Local Set Warnings "-notation-overridden".
 From mathcomp Require Import ssrnat.
-From PolyAI Require Export LRTransferFunction LSSA Tactic.
+From PolyAI Require Export RelationalTransferFunction LSSA Tactic.
 From Coq Require Import Lists.List.
 From mathcomp.ssreflect Require Import seq.
 

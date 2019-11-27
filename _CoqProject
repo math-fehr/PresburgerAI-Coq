@@ -10,6 +10,6 @@ src/PFunc.v
 src/Presburger.v
 src/AbstractDomain.v
 src/LSSA.v
-src/LRTransferFunction.v
+src/RelationalTransferFunction.v
 src/RelationalAbstractDomain.v
-src/LRelationalAbstractInterpreter.v
+src/RelationalAbstractInterpreter.v
