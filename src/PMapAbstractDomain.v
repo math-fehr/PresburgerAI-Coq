@@ -1,5 +1,5 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
-From PolyAI Require Export Presburger AbstractDomain LSSA.
+From PolyAI Require Export Presburger AbstractDomain RelationalAbstractDomain LSSA.
 
 Section PMapAbstractDomain.
 
@@ -75,6 +75,39 @@ Section PMapAbstractDomain.
       gamma_bot := gamma_pmap_bot;
       join_sound_l := join_pmap_sound_l;
       join_sound_r := join_pmap_sound_r;
+    }.
+
+  Theorem pmap_id_relation_spec :
+    forall x0 x1, In _ (gamma id_map) (x0, x1) <-> x0 = x1.
+  Proof.
+    move => x0 x1.
+    rewrite /In /gamma /= /gamma_pmap /= id_map_spec.
+      by split; autossr.
+  Qed.
+
+  Theorem pmap_compose_relation_spec :
+    forall a1 a2 x0 x2, In _ (gamma (map_apply_range a1 a2)) (x0, x2) <->
+                   exists x1, In _ (gamma a1) (x0, x1) /\ In _ (gamma a2) (x1, x2).
+  Proof.
+    move => a1 a2 x0 x2.
+    rewrite /In /gamma /= /gamma_pmap /=.
+      by apply map_apply_range_spec.
+  Qed.
+
+  Instance adom_relational_pmap : adom_relational adom_pmap :=
+    {
+      id_relation := id_map;
+      id_relation_spec := pmap_id_relation_spec;
+
+      compose_relation := map_apply_range;
+      compose_relation_spec := pmap_compose_relation_spec;
+
+      compose_bot := map_apply_range_bot;
+
+      transitive_closure := transitive_closure_map;
+      transitive_closure_ge_id := transitive_closure_map_ge_id;
+      transitive_closure_ge_step := transitive_closure_map_ge_step;
+      transitive_closure_eq_compose := transitive_closure_map_eq_compose;
     }.
 
 End PMapAbstractDomain.
