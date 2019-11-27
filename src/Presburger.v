@@ -42,7 +42,7 @@ Fixpoint eval_aff (a: Aff) (m: string -> Z) :=
 
 Class PresburgerImpl (PMap PSet PwAff: eqType) :=
   {
-    eval_pset : PSet -> (string -> Z) -> bool;
+    eval_pset : PSet -> @total_map string_eqType Z -> bool;
 
     empty_set : PSet;
     empty_set_spec : forall x, ~~(eval_pset empty_set x);
@@ -66,7 +66,7 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     set_project_out_spec : forall p d (m: total_map), eval_pset (set_project_out p d) m <->
                                     exists v, eval_pset p (d !-> v; m);
 
-    eval_pmap : PMap -> (string -> Z) -> (string -> Z) -> bool;
+    eval_pmap : PMap -> @total_map string_eqType Z -> @total_map string_eqType Z -> bool;
 
     empty_map : PMap;
     empty_map_spec : forall x y, ~~(eval_pmap empty_map x y);
@@ -94,7 +94,7 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     map_project_out_out_spec : forall p d m_in (m_out: total_map), eval_pmap (map_project_out_out p d) m_in m_out <->
                                                               exists v, eval_pmap p m_in (d !-> v; m_out);
 
-    eval_pw_aff : PwAff -> (string -> Z) -> option Z;
+    eval_pw_aff : PwAff -> @total_map string_eqType Z -> option Z;
 
     pw_aff_from_aff : Aff -> PwAff;
     pw_aff_from_aff_spec : forall a x, eval_pw_aff (pw_aff_from_aff a) x = Some (eval_aff a x);
@@ -185,6 +185,16 @@ Section PresburgerTheorems.
       by auto.
   Qed.
 
+  Theorem is_subset_map_trans :
+    forall p1 p2 p3, is_subset_map p1 p2 ->
+                is_subset_map p2 p3 ->
+                is_subset_map p1 p3.
+  Proof.
+    move => p1 p2 p3.
+    rewrite !is_subset_map_spec.
+    by auto.
+  Qed.
+
   Theorem is_subset_union_l :
     forall p1 p2, is_subset p1 (union_set p1 p2).
   Proof.
@@ -205,11 +215,12 @@ End PresburgerTheorems.
 
 Hint Rewrite @empty_set_spec_rw @universe_set_spec @union_set_spec @intersect_set_spec
      @empty_map_spec_rw @universe_map_spec @union_map_spec @intersect_map_spec
-     @pw_aff_from_aff_spec @intersect_domain_spec @union_pw_aff_spec @eq_set_spec @ne_set_spec @le_set_spec @indicator_function_spec : prw.
+     @pw_aff_from_aff_spec @intersect_domain_spec @union_pw_aff_spec @eq_set_spec @ne_set_spec @le_set_spec @indicator_function_spec
+  using by first [liassr | autossr ] : prw.
 
 Hint Resolve @is_subset_spec @is_subset_map_spec @set_project_out_spec @is_subset_map_spec @map_project_out_in_spec @map_project_out_out_spec.
 
 Ltac simpl_presburger_ := repeat (autorewrite with prw; simplssr).
-Ltac simpl_presburger := reflect_ne_in simpl_map_.
+Ltac simpl_presburger := reflect_ne_in simpl_presburger_.
 
-Ltac auto_presburger := intros ; simpl_map; autossr.
+Ltac auto_presburger := intros ; simpl_presburger; autossr.
