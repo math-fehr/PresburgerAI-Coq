@@ -43,8 +43,6 @@ Fixpoint eval_aff (a: Aff) (m: string -> Z) :=
 Class PresburgerImpl (PMap PSet PwAff: eqType) :=
   {
     eval_pset : PSet -> (string -> Z) -> bool;
-    eval_pset_same : forall m1 m2,
-        (forall x, m1 x = m2 x) -> forall s, eval_pset s m1 = eval_pset s m2;
 
     empty_set : PSet;
     empty_set_spec : forall x, ~~(eval_pset empty_set x);
@@ -68,31 +66,33 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     set_project_out_spec : forall p d (m: total_map), eval_pset (set_project_out p d) m <->
                                     exists v, eval_pset p (d !-> v; m);
 
-    eval_pmap : PMap -> (string -> string -> Z) -> bool;
-    eval_pmap_same : forall m1 m2,
-        (forall x y, m1 x y = m2 x y) -> forall s, eval_pmap s m1 = eval_pmap s m2;
+    eval_pmap : PMap -> (string -> Z) -> (string -> Z) -> bool;
 
     empty_map : PMap;
-    empty_map_spec : forall x, ~~(eval_pmap empty_map x);
+    empty_map_spec : forall x y, ~~(eval_pmap empty_map x y);
 
     universe_map : PMap;
-    universe_map_spec : forall x, eval_pmap universe_map x;
+    universe_map_spec : forall x y, eval_pmap universe_map x y;
 
     union_map : PMap -> PMap -> PMap;
-    union_map_spec : forall p1 p2 x,
-        eval_pmap (union_map p1 p2) x = eval_pmap p1 x || eval_pmap p2 x;
+    union_map_spec : forall p1 p2 x y,
+        eval_pmap (union_map p1 p2) x y = eval_pmap p1 x y || eval_pmap p2 x y;
 
     intersect_map : PMap -> PMap -> PMap;
-    intersect_map_spec : forall p1 p2 x,
-        eval_pmap (intersect_map p1 p2) x = eval_pmap p1 x && eval_pmap p2 x;
+    intersect_map_spec : forall p1 p2 x y,
+        eval_pmap (intersect_map p1 p2) x y = eval_pmap p1 x y && eval_pmap p2 x y;
 
     is_subset_map : PMap -> PMap -> bool;
     is_subset_map_spec : forall p1 p2, is_subset_map p1 p2 <->
-                                  forall x, eval_pmap p1 x -> eval_pmap p2 x;
+                                  forall x y, eval_pmap p1 x y -> eval_pmap p2 x y;
 
-    map_project_out : PMap -> string -> PMap;
-    map_project_out_spec : forall p d (m: total_map), eval_pmap (map_project_out p d) m <->
-                                                 exists v, eval_pmap p (d !-> v; m);
+    map_project_out_in : PMap -> string -> PMap;
+    map_project_out_in_spec : forall p d (m_in: total_map) m_out, eval_pmap (map_project_out_in p d) m_in m_out <->
+                                                             exists v, eval_pmap p (d !-> v; m_in) m_out;
+
+    map_project_out_out : PMap -> string -> PMap;
+    map_project_out_out_spec : forall p d m_in (m_out: total_map), eval_pmap (map_project_out_out p d) m_in m_out <->
+                                                              exists v, eval_pmap p m_in (d !-> v; m_out);
 
     eval_pw_aff : PwAff -> (string -> Z) -> option Z;
 
@@ -155,10 +155,10 @@ Section PresburgerTheorems.
   Qed.
 
   Theorem empty_map_spec_rw :
-    forall x, eval_pmap empty_map x = false.
+    forall x y, eval_pmap empty_map x y = false.
   Proof.
-    move => x.
-      by rewrite (negbTE (empty_map_spec _)).
+    move => x y.
+      by rewrite (negbTE (empty_map_spec _ _)).
   Qed.
 
   Theorem is_subset_refl :
@@ -196,11 +196,11 @@ Section PresburgerTheorems.
 
 End PresburgerTheorems.
 
-Hint Rewrite @eval_pset_same @empty_set_spec_rw @universe_set_spec @union_set_spec @intersect_set_spec
-     @eval_pmap_same @empty_map_spec_rw @universe_map_spec @union_map_spec @intersect_map_spec
+Hint Rewrite @empty_set_spec_rw @universe_set_spec @union_set_spec @intersect_set_spec
+     @empty_map_spec_rw @universe_map_spec @union_map_spec @intersect_map_spec
      @pw_aff_from_aff_spec @intersect_domain_spec @union_pw_aff_spec @eq_set_spec @ne_set_spec @le_set_spec @indicator_function_spec : prw.
 
-Hint Resolve @is_subset_spec @set_project_out_spec @is_subset_map_spec @map_project_out_spec.
+Hint Resolve @is_subset_spec @set_project_out_spec @is_subset_map_spec @map_project_out_in_spec @map_project_out_out_spec.
 
 Ltac simpl_presburger_ := repeat (autorewrite with prw; simplssr).
 Ltac simpl_presburger := reflect_ne_in simpl_map_.
