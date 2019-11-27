@@ -40,7 +40,7 @@ Fixpoint eval_aff (a: Aff) (m: string -> Z) :=
 
 (* Implementation of a Presburger set / pw_aff library *)
 
-Class PresburgerImpl (PMap PSet PwAff: Type) :=
+Class PresburgerImpl (PMap PSet PwAff: eqType) :=
   {
     eval_pset : PSet -> (string -> Z) -> bool;
     eval_pset_same : forall m1 m2,
@@ -142,54 +142,59 @@ Class PresburgerImpl (PMap PSet PwAff: Type) :=
                                        Some 0;
   }.
 
-Generalizable All Variables.
+Section PresburgerTheorems.
 
-Theorem empty_set_spec_rw `{PI: PresburgerImpl PMap PSet PwAff}:
-  forall x, eval_pset empty_set x = false.
-Proof.
-  move => x.
-  by rewrite (negbTE (empty_set_spec _)).
-Qed.
+  Context {PMap PSet PwAff: eqType}
+          {PI: PresburgerImpl PMap PSet PwAff}.
 
-Theorem empty_map_spec_rw `{PI: PresburgerImpl PMap PSet PwAff}:
-  forall x, eval_pmap empty_map x = false.
-Proof.
-  move => x.
-  by rewrite (negbTE (empty_map_spec _)).
-Qed.
+  Theorem empty_set_spec_rw :
+    forall x, eval_pset empty_set x = false.
+  Proof.
+    move => x.
+      by rewrite (negbTE (empty_set_spec _)).
+  Qed.
 
-Theorem is_subset_refl `{PI: PresburgerImpl PMap PSet PwAff}:
-  forall p, is_subset p p.
-Proof.
-  move => p.
-    by apply is_subset_spec.
-Qed.
+  Theorem empty_map_spec_rw :
+    forall x, eval_pmap empty_map x = false.
+  Proof.
+    move => x.
+      by rewrite (negbTE (empty_map_spec _)).
+  Qed.
 
-Theorem is_subset_trans `{PI: PresburgerImpl PMap PSet PwAff}:
-  forall p1 p2 p3, is_subset p1 p2 ->
-              is_subset p2 p3 ->
-              is_subset p1 p3.
-Proof.
-  move => p1 p2 p3.
-  rewrite !is_subset_spec.
-    by auto.
-Qed.
+  Theorem is_subset_refl :
+    forall p, is_subset p p.
+  Proof.
+    move => p.
+      by apply is_subset_spec.
+  Qed.
 
-Theorem is_subset_union_l `{PI: PresburgerImpl PMap PSet PwAff} :
-  forall p1 p2, is_subset p1 (union_set p1 p2).
-Proof.
-  move => p1 p2.
-  rewrite is_subset_spec => x Hp1.
-    by rewrite union_set_spec Hp1.
-Qed.
+  Theorem is_subset_trans :
+    forall p1 p2 p3, is_subset p1 p2 ->
+                is_subset p2 p3 ->
+                is_subset p1 p3.
+  Proof.
+    move => p1 p2 p3.
+    rewrite !is_subset_spec.
+      by auto.
+  Qed.
 
-Theorem is_subset_union_r `{PI: PresburgerImpl PMap PSet PwAff} :
-  forall p1 p2, is_subset p2 (union_set p1 p2).
-Proof.
-  move => p1 p2.
-  rewrite is_subset_spec => x Hp2.
-    by rewrite union_set_spec Hp2 orbT.
-Qed.
+  Theorem is_subset_union_l :
+    forall p1 p2, is_subset p1 (union_set p1 p2).
+  Proof.
+    move => p1 p2.
+    rewrite is_subset_spec => x Hp1.
+      by rewrite union_set_spec Hp1.
+  Qed.
+
+  Theorem is_subset_union_r :
+    forall p1 p2, is_subset p2 (union_set p1 p2).
+  Proof.
+    move => p1 p2.
+    rewrite is_subset_spec => x Hp2.
+      by rewrite union_set_spec Hp2 orbT.
+  Qed.
+
+End PresburgerTheorems.
 
 Hint Rewrite @eval_pset_same @empty_set_spec_rw @universe_set_spec @union_set_spec @intersect_set_spec
      @eval_pmap_same @empty_map_spec_rw @universe_map_spec @union_map_spec @intersect_map_spec
@@ -201,4 +206,3 @@ Ltac simpl_presburger_ := repeat (autorewrite with prw; simplssr).
 Ltac simpl_presburger := reflect_ne_in simpl_map_.
 
 Ltac auto_presburger := intros ; simpl_map; autossr.
-
