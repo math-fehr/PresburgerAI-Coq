@@ -9,6 +9,7 @@ src/TotalMap.v
 src/PFunc.v
 src/Presburger.v
 src/AbstractDomain.v
+src/PMapAbstractDomain.v
 src/LSSA.v
 src/RelationalTransferFunction.v
 src/RelationalAbstractDomain.v
