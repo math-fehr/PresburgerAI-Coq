@@ -100,6 +100,13 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     map_apply_range : PMap -> PMap -> PMap;
     map_apply_range_spec : forall a1 a2 m_in m_out, eval_pmap (map_apply_range a1 a2) m_in m_out <-> exists m_mid, eval_pmap a1 m_in m_mid /\ eval_pmap a2 m_mid m_out;
 
+    map_apply_range_bot : forall a, map_apply_range a empty_map = empty_map;
+
+    transitive_closure_map : PMap -> PMap;
+    transitive_closure_map_ge_step : forall a, is_subset_map a (transitive_closure_map a);
+    transitive_closure_map_ge_id : forall a, is_subset_map id_map (transitive_closure_map a);
+    transitive_closure_map_eq_compose : forall a, is_subset_map (map_apply_range (transitive_closure_map a) a) (transitive_closure_map a);
+
     eval_pw_aff : PwAff -> @total_map string_eqType Z -> option Z;
 
     pw_aff_from_aff : Aff -> PwAff;
