@@ -74,6 +74,9 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     universe_map : PMap;
     universe_map_spec : forall x y, eval_pmap universe_map x y;
 
+    id_map : PMap;
+    id_map_spec : forall x y, eval_pmap id_map x y = (x == y);
+
     union_map : PMap -> PMap -> PMap;
     union_map_spec : forall p1 p2 x y,
         eval_pmap (union_map p1 p2) x y = eval_pmap p1 x y || eval_pmap p2 x y;
@@ -214,7 +217,7 @@ Section PresburgerTheorems.
 End PresburgerTheorems.
 
 Hint Rewrite @empty_set_spec_rw @universe_set_spec @union_set_spec @intersect_set_spec
-     @empty_map_spec_rw @universe_map_spec @union_map_spec @intersect_map_spec
+     @empty_map_spec_rw @universe_map_spec @id_map_spec @union_map_spec @intersect_map_spec
      @pw_aff_from_aff_spec @intersect_domain_spec @union_pw_aff_spec @eq_set_spec @ne_set_spec @le_set_spec @indicator_function_spec
   using by first [liassr | autossr ] : prw.
 
