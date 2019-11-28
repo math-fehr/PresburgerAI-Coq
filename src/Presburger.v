@@ -246,7 +246,7 @@ Hint Rewrite @empty_set_spec_rw @universe_set_spec @union_set_spec @intersect_se
      @eq_map_spec @ne_map_spec
   using by first [liassr | autossr ] : prw.
 
-Hint Resolve @is_subset_spec @is_subset_map_spec @set_project_out_spec @is_subset_map_spec.
+Hint Resolve @is_subset_spec @is_subset_map_spec @is_subset_refl @is_subset_map_refl @set_project_out_spec @is_subset_map_spec.
 
 Ltac simpl_presburger_ := repeat (autorewrite with prw; simpl_map).
 Ltac simpl_presburger := reflect_ne_in simpl_presburger_.

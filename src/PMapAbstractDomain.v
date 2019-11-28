@@ -199,6 +199,47 @@ Section PMapAbstractDomain.
     - eapply pmap_set_out_var_binop_tf_sound; eauto.
   Qed.
 
+  Theorem pmap_tf_inst_compose_le :
+    forall inst m comp_m,
+      le (pmap_tf_inst inst (map_apply_range comp_m m))
+         (map_apply_range comp_m (pmap_tf_inst inst m)).
+  Proof.
+    move => inst m comp_m.
+    apply /gamma_monotone => [[x0 x1]].
+    case inst => [ v c /= | ].
+    - rewrite /pmap_set_out_var_const /gamma_pmap /Ensembles.In /=.
+      simpl_presburger => /andP[Hx1v].
+      rewrite map_project_out_out_spec => [[x]].
+      rewrite map_apply_range_spec => [[m_mid [Hincomp Hinm]]].
+      apply map_apply_range_spec.
+      exists m_mid. split; auto.
+      simpl_presburger. apply map_project_out_out_spec.
+      eauto.
+    - move => v opc op1 op2 Hop1 Hop2.
+      rewrite /= /gamma_pmap /Ensembles.In /pmap_set_out_var_binop.
+      case opc => /=; simpl_presburger.
+      + move => /andP[Hx1v].
+        rewrite map_project_out_out_spec => [[x]].
+        rewrite map_apply_range_spec => [[m_mid [Hincomp Hinm]]].
+        apply map_apply_range_spec.
+        exists m_mid. split; auto.
+        simpl_presburger. apply map_project_out_out_spec.
+        eauto.
+      + rewrite map_project_out_out_spec => [[x]].
+        rewrite map_apply_range_spec => [[m_mid [Hincomp Hinm]]].
+        apply map_apply_range_spec.
+        exists m_mid. split; auto.
+        simpl_presburger. apply map_project_out_out_spec.
+        eauto.
+      + move => /andP[Hx1v].
+        rewrite map_project_out_out_spec => [[x]].
+        rewrite map_apply_range_spec => [[m_mid [Hincomp Hinm]]].
+        apply map_apply_range_spec.
+        exists m_mid. split; auto.
+        simpl_presburger. apply map_project_out_out_spec.
+        eauto.
+  Qed.
+
   (* Transfer function for unconditional branch instruction *)
   Fixpoint pmap_affect_variables (m: PMap) (vars inputs: list vid) :=
     match (vars, inputs) with
@@ -227,6 +268,41 @@ Section PMapAbstractDomain.
     - move => Hne. apply Hind. rewrite /gamma /= /Ensembles.In /gamma_pmap /=.
       simpl_presburger. apply map_project_out_out_spec.
       exists (R var). by auto_map.
+  Qed.
+
+  Theorem pmap_affect_variables_quotient_le :
+    forall m1 m2, le m1 m2 ->
+             forall vars inputs, le (pmap_affect_variables m1 vars inputs) (pmap_affect_variables m2 vars inputs).
+  Proof.
+    move => m1 m2 /= Hle vars.
+    elim : vars m1 m2 Hle => [ // | var vars Hind m1 m2 Hle].
+    case => [ // | input inputs /=].
+    case (var =P input) => [ _ | Hne ]. by apply Hind.
+    apply Hind.
+    apply is_subset_map_spec => x y. simpl_presburger.
+    move => /andP[-> /= /map_project_out_out_spec [v Heval]].
+    apply /map_project_out_out_spec. exists v.
+    move => /is_subset_map_spec in Hle.
+      by apply Hle.
+  Qed.
+
+  Theorem pmap_affect_variables_compose_le :
+    forall vars inputs comp_m m, le (pmap_affect_variables (map_apply_range comp_m m) vars inputs)
+                               (map_apply_range comp_m (pmap_affect_variables m vars inputs)).
+  Proof.
+    elim => [ // | var vars Hind inputs comp_m m].
+    rewrite ![pmap_affect_variables _ _ _]/=.
+    case: inputs => [ | input inputs ]. by auto_presburger.
+    case (var =P input) => [ _ | Hne ]. by apply Hind.
+    eapply AbstractDomain.le_trans; last first. apply Hind.
+    apply pmap_affect_variables_quotient_le.
+    apply is_subset_map_spec => x y.
+    simpl_presburger => /andP[Hneyvar /map_project_out_out_spec[v /map_apply_range_spec[m_mid [Heval_l Heval_r]]]].
+    apply map_apply_range_spec.
+    exists m_mid. split; auto.
+    simpl_presburger.
+    apply map_project_out_out_spec.
+      by eauto.
   Qed.
 
   Definition pmap_tf_branch (out_id: bbid) (inputs: seq vid) (m: PMap) :=
@@ -293,15 +369,63 @@ Section PMapAbstractDomain.
     - intros. eapply pmap_tf_branch_cond_sound; eauto.
   Qed.
 
+  Theorem pmap_tf_term_only_successors :
+    forall term bb,
+      (exists a a', (a', bb) \in (pmap_tf_term term a)) ->
+      bb \in (term_successors term).
+  Proof.
+    case => [ bb params bb' [a [a']] | c bbT inputsT bbF inputsF bb' [a [a']]].
+    - rewrite /= /pmap_tf_branch mem_seq1 => /eqP[_ ->].
+        by rewrite mem_seq1.
+    - rewrite /= /pmap_tf_branch_cond in_cons mem_seq1 => /orP[/eqP[_ ->] | /eqP[_ ->]];
+        by repeat (rewrite in_cons; autossr).
+  Qed.
+
+  Theorem pmap_tf_term_compose_le :
+      forall term a a' comp_a bb,
+        (a', bb) \in (pmap_tf_term term (compose_relation comp_a a)) ->
+                     exists a'', (a'', bb) \in pmap_tf_term term a /\ le a' (compose_relation comp_a a'').
+  Proof.
+    move => term a a' comp_a bb.
+    case term => [ bb' inputs | c bbT inputsT bbF inputsF].
+    - rewrite /pmap_tf_term /pmap_tf_branch mem_seq1 => /eqP[-> ->].
+      setoid_rewrite mem_seq1.
+      eexists. split. apply eq_refl.
+        by apply pmap_affect_variables_compose_le.
+    - rewrite /pmap_tf_term /pmap_tf_branch in_cons mem_seq1 => /orP[ /eqP[-> ->] | /eqP[-> ->]].
+      + eexists. split. rewrite in_cons. apply /orP. left. apply eq_refl.
+        set ne_m := (ne_map _ _ _ _).
+        have Heqm : le (intersect_map ne_m (map_apply_range comp_a a)) (map_apply_range comp_a (intersect_map ne_m a)).
+        * apply is_subset_map_spec => x y. rewrite /ne_m.
+          simpl_presburger => /andP[Hne /map_apply_range_spec [m_mid [Heval_l Heval_r]]].
+          apply map_apply_range_spec. exists m_mid. split; auto.
+          by simpl_presburger.
+        * eapply AbstractDomain.le_trans.
+          apply pmap_affect_variables_quotient_le. apply Heqm.
+            by apply pmap_affect_variables_compose_le.
+      + eexists. split. rewrite in_cons. apply /orP. right. rewrite mem_seq1. apply eq_refl.
+        set eq_m := (Presburger.eq_map _ _ _ _).
+        have Heqm : le (intersect_map eq_m (map_apply_range comp_a a)) (map_apply_range comp_a (intersect_map eq_m a)).
+        * apply is_subset_map_spec => x y. rewrite /eq_m.
+          simpl_presburger => /andP[Hne /map_apply_range_spec [m_mid [Heval_l Heval_r]]].
+          apply map_apply_range_spec. exists m_mid. split; auto.
+          by simpl_presburger.
+        * eapply AbstractDomain.le_trans.
+          apply pmap_affect_variables_quotient_le. apply Heqm.
+            by apply pmap_affect_variables_compose_le.
+  Qed.
+
   Instance tf_relational_pmap : transfer_function_relational adom_relational_pmap prog :=
     {
       transfer_inst := pmap_tf_inst;
       transfer_inst_sound := pmap_tf_inst_sound;
+      transfer_inst_compose := pmap_tf_inst_compose_le;
 
       transfer_term := pmap_tf_term;
       transfer_term_sound := pmap_tf_term_sound;
+      transfer_term_only_successors := pmap_tf_term_only_successors;
+      transfer_term_compose := pmap_tf_term_compose_le;
     }.
-  Admitted.
 
 
 End PMapAbstractDomain.
