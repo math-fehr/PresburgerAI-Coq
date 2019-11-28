@@ -7,7 +7,8 @@ Local Open Scope type_scope.
 (* Transfer functions for our language, using relational abstract domain *)
 Class transfer_function_relational {abstract_state: eqType}
       {A: adom (prod_eqType RegisterMap RegisterMap) abstract_state}
-      (AR: adom_relational A) :=
+      (AR: adom_relational A)
+      (prog: Program) :=
   {
     transfer_inst : Inst -> abstract_state -> abstract_state;
     transfer_inst_sound :
@@ -22,7 +23,7 @@ Class transfer_function_relational {abstract_state: eqType}
 
     transfer_term : Term -> abstract_state -> list (abstract_state * bbid);
     transfer_term_sound :
-      forall prog term R bb R',
+      forall term R bb R',
         term_step prog term R (bb, R') ->
         forall a R_begin, Ensembles.In _ (gamma a) (R_begin, R) ->
              exists a', (a', bb) \in (transfer_term term a) /\

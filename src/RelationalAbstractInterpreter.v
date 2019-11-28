@@ -18,8 +18,8 @@ Section AbstractInterpreter.
   Context {ab: eqType}
           {ad: adom (prod_eqType RegisterMap RegisterMap) ab}
           {adr: adom_relational ad}
-          (tf: transfer_function_relational adr)
-          (p: Program).
+          {p: Program}
+          (tf: transfer_function_relational adr p).
 
   (* Associate for every control location an abstract state *)
   Notation ASValues := (@total_map_d bbid_eqType (@total_map_d nat_eqType ab bot) (_ |-> bot)).

@@ -42,7 +42,7 @@ Fixpoint eval_aff (a: Aff) (m: string -> Z) :=
 
 Class PresburgerImpl (PMap PSet PwAff: eqType) :=
   {
-    eval_pset : PSet -> @total_map string_eqType Z -> bool;
+    eval_pset : PSet -> (string -> Z) -> bool;
 
     empty_set : PSet;
     empty_set_spec : forall x, ~~(eval_pset empty_set x);
@@ -66,7 +66,7 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     set_project_out_spec : forall p d (m: total_map), eval_pset (set_project_out p d) m <->
                                     exists v, eval_pset p (d !-> v; m);
 
-    eval_pmap : PMap -> @total_map string_eqType Z -> @total_map string_eqType Z -> bool;
+    eval_pmap : PMap -> (string -> Z) -> (string -> Z) -> bool;
 
     empty_map : PMap;
     empty_map_spec : forall x y, ~~(eval_pmap empty_map x y);
@@ -75,7 +75,7 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     universe_map_spec : forall x y, eval_pmap universe_map x y;
 
     id_map : PMap;
-    id_map_spec : forall x y, eval_pmap id_map x y = (x == y);
+    id_map_spec : forall (x y: total_map), eval_pmap id_map x y = (x == y);
 
     union_map : PMap -> PMap -> PMap;
     union_map_spec : forall p1 p2 x y,
@@ -87,7 +87,7 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
 
     is_subset_map : PMap -> PMap -> bool;
     is_subset_map_spec : forall p1 p2, is_subset_map p1 p2 <->
-                                  forall x y, eval_pmap p1 x y -> eval_pmap p2 x y;
+                                  forall (x y: total_map), eval_pmap p1 x y -> eval_pmap p2 x y;
 
     map_project_out_in : PMap -> string -> PMap;
     map_project_out_in_spec : forall p d (m_in: total_map) m_out, eval_pmap (map_project_out_in p d) m_in m_out <->
@@ -98,7 +98,7 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
                                                               exists v, eval_pmap p m_in (d !-> v; m_out);
 
     map_apply_range : PMap -> PMap -> PMap;
-    map_apply_range_spec : forall a1 a2 m_in m_out, eval_pmap (map_apply_range a1 a2) m_in m_out <-> exists m_mid, eval_pmap a1 m_in m_mid /\ eval_pmap a2 m_mid m_out;
+    map_apply_range_spec : forall a1 a2 m_in m_out, eval_pmap (map_apply_range a1 a2) m_in m_out <-> exists (m_mid: total_map), eval_pmap a1 m_in m_mid /\ eval_pmap a2 m_mid m_out;
 
     map_apply_range_bot : forall a, map_apply_range a empty_map = empty_map;
 
@@ -107,7 +107,7 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     transitive_closure_map_ge_id : forall a, is_subset_map id_map (transitive_closure_map a);
     transitive_closure_map_eq_compose : forall a, is_subset_map (map_apply_range (transitive_closure_map a) a) (transitive_closure_map a);
 
-    eval_pw_aff : PwAff -> @total_map string_eqType Z -> option Z;
+    eval_pw_aff : PwAff -> (string -> Z) -> option Z;
 
     pw_aff_from_aff : Aff -> PwAff;
     pw_aff_from_aff_spec : forall a x, eval_pw_aff (pw_aff_from_aff a) x = Some (eval_aff a x);
@@ -128,17 +128,17 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
 
     eq_set : PwAff -> PwAff -> PSet;
     eq_set_spec : forall p1 p2 x, eval_pset (eq_set p1 p2) x =
-                             match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
-                             | (Some v1, Some v2) => v1 == v2
-                             | _ => false
-                             end;
+                                          match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
+                                          | (Some v1, Some v2) => v1 == v2
+                                          | _ => false
+                                          end;
 
     ne_set : PwAff -> PwAff -> PSet;
     ne_set_spec : forall p1 p2 x, eval_pset (ne_set p1 p2) x =
-                             match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
-                             | (Some v1, Some v2) => (v1 != v2)
-                             | _ => false
-                             end;
+                                          match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
+                                          | (Some v1, Some v2) => (v1 != v2)
+                                          | _ => false
+                                          end;
 
     le_set : PwAff -> PwAff -> PSet;
     le_set_spec : forall p1 p2 x, eval_pset (le_set p1 p2) x =
@@ -158,6 +158,13 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     eq_map_spec : forall p1 p2 p1' p2' x y, eval_pmap (eq_map p1 p2 p1' p2') x y =
                                        match (eval_pw_aff p1 x, eval_pw_aff p2 y, eval_pw_aff p1' x, eval_pw_aff p2' y) with
                                        | (Some v1, Some v2, Some v1', Some v2') => v1 + v2 == v1' + v2'
+                                       | _ => false
+                                       end;
+
+    ne_map : PwAff -> PwAff -> PwAff -> PwAff -> PMap;
+    ne_map_spec : forall p1 p2 p1' p2' x y, eval_pmap (ne_map p1 p2 p1' p2') x y =
+                                       match (eval_pw_aff p1 x, eval_pw_aff p2 y, eval_pw_aff p1' x, eval_pw_aff p2' y) with
+                                       | (Some v1, Some v2, Some v1', Some v2') => v1 + v2 != v1' + v2'
                                        | _ => false
                                        end;
   }.
@@ -236,11 +243,12 @@ End PresburgerTheorems.
 Hint Rewrite @empty_set_spec_rw @universe_set_spec @union_set_spec @intersect_set_spec
      @empty_map_spec_rw @universe_map_spec @id_map_spec @union_map_spec @intersect_map_spec
      @pw_aff_from_aff_spec @intersect_domain_spec @union_pw_aff_spec @eq_set_spec @ne_set_spec @le_set_spec @indicator_function_spec
+     @eq_map_spec @ne_map_spec
   using by first [liassr | autossr ] : prw.
 
-Hint Resolve @is_subset_spec @is_subset_map_spec @set_project_out_spec @is_subset_map_spec @map_project_out_in_spec @map_project_out_out_spec.
+Hint Resolve @is_subset_spec @is_subset_map_spec @set_project_out_spec @is_subset_map_spec.
 
-Ltac simpl_presburger_ := repeat (autorewrite with prw; simplssr).
+Ltac simpl_presburger_ := repeat (autorewrite with prw; simpl_map).
 Ltac simpl_presburger := reflect_ne_in simpl_presburger_.
 
 Ltac auto_presburger := intros ; simpl_presburger; autossr.
