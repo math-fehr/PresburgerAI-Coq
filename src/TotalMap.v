@@ -305,10 +305,10 @@ Hint Rewrite @t_apply_empty @t_update_eq @t_update_eq_hyp @t_update_neq @t_updat
 
 (* Pointwise operations on one or multiple maps *)
 
-Section TotalMapPointwiseUn.
+Section TotalMapPointwise.
 
   Context {Key: eqType}
-          {Value Value': Type}.
+          {Value Value' Value'': Type}.
 
   Fixpoint t_pointwise_un_op (m: @total_map Key Value) (f: Value -> Value') :=
     match m with
@@ -336,9 +336,40 @@ Section TotalMapPointwiseUn.
       by case (k =P x); autossr.
   Qed.
 
-End TotalMapPointwiseUn.
+  Fixpoint t_pointwise_bin_op_aux (m1: @total_map Key Value) (k2: Value') (f: Value -> Value' -> Value'') :=
+    match m1 with
+    | TDefault k1 => (_ !-> f k1 k2)
+    | TUpdate m1' v k1 => let new_m := t_pointwise_bin_op_aux m1' k2 f in
+                         (v !-> f k1 k2; new_m)
+    end.
 
-Hint Rewrite @t_pointwise_un_op_spec @t_pointwise_un_op_in_seq_spec : maprw.
+  Lemma t_pointwise_bin_op_aux_spec (m1: @total_map Key Value) (v2: Value') (f: Value -> Value' -> Value'') (k: Key):
+    (t_pointwise_bin_op_aux m1 v2 f) k = f (m1 k) v2.
+  Proof.
+    elim: m1 => [// | m1 Hind k1 v1 /=].
+    rewrite Hind.
+      by case (k1 == k).
+  Qed.
+
+  Fixpoint t_pointwise_bin_op (m1: @total_map Key Value) (m2: @total_map Key Value') (f: Value -> Value' -> Value'') :=
+    match m2 with
+    | TDefault v2 => t_pointwise_bin_op_aux m1 v2 f
+    | TUpdate m2' k v2 => let new_m := t_pointwise_bin_op m1 m2' f in
+                         (k !-> (f (m1 k) v2); new_m)
+    end.
+
+  Theorem t_pointwise_bin_op_spec (m1: @total_map Key Value) (m2: @total_map Key Value') (f: Value -> Value' -> Value'') (k: Key):
+    (t_pointwise_bin_op m1 m2 f) k = f (m1 k) (m2 k).
+  Proof.
+    elim: m2 m1 => [v m1 | m2 Hind k2 v2 m1 /=].
+    - by apply t_pointwise_bin_op_aux_spec.
+    - rewrite Hind.
+        by case (k2 =P k) => [-> // | //].
+  Qed.
+
+End TotalMapPointwise.
+
+Hint Rewrite @t_pointwise_un_op_spec @t_pointwise_un_op_in_seq_spec @t_pointwise_bin_op_spec : maprw.
 
 Section TotalMapForallBin.
 
