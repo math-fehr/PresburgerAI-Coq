@@ -3,7 +3,7 @@ Local Set Warnings "-notation-overridden".
 From mathcomp Require Import ssreflect.ssrnat eqtype seq.
 From Coq Require Export Arith.Arith Bool.Bool.
 From Coq Require Import Logic.FunctionalExtensionality.
-From PolyAI Require Import Tactic.
+From PolyAI Require Import Tactic ssrstring.
 
 (* This code is inspired from the programming language fundations book *)
 
@@ -339,6 +339,96 @@ Section TotalMapPointwiseUn.
 End TotalMapPointwiseUn.
 
 Hint Rewrite @t_pointwise_un_op_spec @t_pointwise_un_op_in_seq_spec : maprw.
+
+Section TotalMapForallBin.
+
+  Context {Value Value': Type}.
+
+  Fixpoint t_forall_bin_op_aux (m1: total_map) (v2: Value')
+           (f: Value -> Value' -> bool) (seen: list string) :=
+    match m1 with
+    | TDefault v1 => f v1 v2
+    | TUpdate m1' k v1 =>
+      if k \in seen then
+        t_forall_bin_op_aux m1' v2 f seen
+      else
+        f v1 v2 && t_forall_bin_op_aux m1' v2 f (k::seen)
+    end.
+
+  Lemma t_forall_bin_op_aux_spec (m1: total_map) (v2: Value')
+        (f: Value -> Value' -> bool) (seen: list string) :
+    t_forall_bin_op_aux m1 v2 f seen <->
+    (forall k, k \notin seen -> f (m1 k) v2).
+  Proof.
+    elim: m1 seen => [v seen /= | m Hind k v1 seen /=].
+      by split => [// | H]; by apply (H (construct_not_in_list seen)), construct_not_in_list_spec.
+      case Hseen: (k \in seen).
+    - rewrite Hind.
+      split => [Hin k0 HnotIn | Hin k0 /negP Hf]; move: Hseen.
+      + case (k =P k0) => [-> Hin2 | //]; autossr.
+        move => /negb_true_iff in HnotIn. by rewrite Hin2 in HnotIn.
+      + case (k =P k0) => [-> // | /eqP /negb_true_iff Hkk0].
+        move => /negP /Hin in Hf.
+          by rewrite Hkk0 in Hf.
+    - split => [/andP[Hf /Hind Hforall] k0 Hk0notin | H ].
+      + case (k =P k0) => [// | Hkk0 ].
+        apply Hforall.
+          by autossr.
+      + move => /negb_true_iff in Hseen.
+        apply /andP. split.
+        * apply H in Hseen.
+            by rewrite eq_refl in Hseen.
+        * apply Hind => k0 /=. rewrite in_cons => /norP [/negb_true_iff Hkk0 /H Hnotin].
+            by rewrite eq_sym Hkk0 in Hnotin.
+  Qed.
+
+  Fixpoint t_forall_bin_op_fix (m1 m2: total_map) (f: Value -> Value' -> bool) (seen: list string):=
+    match m2 with
+    | TDefault v2 => t_forall_bin_op_aux m1 v2 f seen
+    | TUpdate m2' k v2 =>
+      if k \in seen then
+        t_forall_bin_op_fix m1 m2' f seen
+      else
+        f (m1 k) v2 && t_forall_bin_op_fix m1 m2' f (k::seen)
+    end.
+
+  Lemma t_forall_bin_op_fix_spec (m1 m2: total_map) (f: Value -> Value' -> bool) (seen: list string) :
+    t_forall_bin_op_fix m1 m2 f seen <-> forall k, k \notin seen -> f (m1 k) (m2 k).
+  Proof.
+    elim: m2 m1 seen => [v1 m2 seen /= | m2 Hind k v1 m1 seen /=].
+      by split => /t_forall_bin_op_aux_spec.
+      case_eq (k \in seen) => Hseen. rewrite Hseen.
+    - rewrite Hind.
+      split => [Hin k0 HnotIn| HIn k0 Hf]; move: Hseen.
+      + case (k =P k0) => [-> | //]; auto.
+        move => /negb_true_iff in HnotIn. by rewrite HnotIn.
+      + case (k =P k0) => [-> // | Hkk0].
+        * move => /negb_true_iff in Hf. by rewrite Hf.
+        * move: Hf => /HIn.
+            by move: Hkk0 => /eqP /negb_true_iff ->.
+    - rewrite Hseen. split => [/andP[Hf /Hind Hforall] k0 Hk0notin | H ].
+      + case (k =P k0) => [<- // | Hkk0].
+        apply Hforall. rewrite in_cons. apply /norP. split; auto. apply /eqP. auto.
+      + apply /andP. split.
+        * move => /negb_true_iff in Hseen. apply H in Hseen.
+            by rewrite eq_refl in Hseen.
+        * apply Hind => v0 /=. rewrite in_cons => /norP [/negb_true_iff Hvv0 /H Hnotin].
+            by rewrite eq_sym Hvv0 in Hnotin.
+  Qed.
+
+  Definition t_forall_bin_op (m1 m2: total_map) (f: Value -> Value' -> bool) :=
+    t_forall_bin_op_fix m1 m2 f nil.
+
+  Theorem t_forall_bin_op_spec (m1 m2: total_map) (f: Value -> Value' -> bool) :
+    t_forall_bin_op m1 m2 f <-> forall k, f (m1 k) (m2 k).
+  Proof.
+    rewrite t_forall_bin_op_fix_spec /=.
+    split; auto.
+  Qed.
+
+End TotalMapForallBin.
+
+Hint Rewrite @t_forall_bin_op_spec : maprw.
 
 Global Opaque eval_total_map.
 
