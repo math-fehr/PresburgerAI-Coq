@@ -10,11 +10,13 @@ Section PMapAbstractDomain.
 
   Definition concrete_state := prod_eqType RegisterMap RegisterMap.
 
-  Definition gamma_pmap (m: PMap) : Ensemble concrete_state:=
+  Definition gamma_pmap (m: PMap) : Ensemble concrete_state :=
     fun R => eval_pmap m R.1 R.2.
 
+  Definition le_pmap (m1 m2: PMap) := Included _ (gamma_pmap m1) (gamma_pmap m2).
+
   Theorem gamma_pmap_monotone :
-    forall a1 a2, is_subset_map a1 a2 <-> Included concrete_state (gamma_pmap a1) (gamma_pmap a2).
+    forall a1 a2, is_subset_map a1 a2 <-> le_pmap a1 a2.
   Proof.
     move => a1 a2.
     rewrite is_subset_map_spec /Included.
@@ -45,34 +47,29 @@ Section PMapAbstractDomain.
   Qed.
 
   Theorem join_pmap_sound_l :
-    forall a1 a2, is_subset_map a1 (union_map a1 a2).
+    forall a1 a2, le_pmap a1 (union_map a1 a2).
   Proof.
     move => a1 a2.
-    apply is_subset_map_spec => x1 x2.
-      by simpl_presburger => ->.
+    apply gamma_pmap_monotone, is_subset_map_spec => x1 x2.
+      by auto_presburger.
   Qed.
 
   Theorem join_pmap_sound_r :
-    forall a1 a2, is_subset_map a2 (union_map a1 a2).
+    forall a1 a2, le_pmap a2 (union_map a1 a2).
   Proof.
     move => a1 a2.
-    apply is_subset_map_spec => x1 x2.
-    simpl_presburger => ->.
-    by autossr.
+    apply gamma_pmap_monotone, is_subset_map_spec => x1 x2.
+    by auto_presburger.
   Qed.
 
   Instance adom_pmap : adom concrete_state PMap :=
     {
-      le := is_subset_map;
       bot := empty_map;
       top := universe_map;
       join := union_map;
 
       gamma := gamma_pmap;
 
-      le_refl := is_subset_map_refl;
-      le_trans := is_subset_map_trans;
-      gamma_monotone := gamma_pmap_monotone;
       gamma_top := gamma_pmap_top;
       gamma_bot := gamma_pmap_bot;
       join_sound_l := join_pmap_sound_l;
@@ -83,8 +80,7 @@ Section PMapAbstractDomain.
     forall x, Ensembles.In _ (gamma id_map) (x, x).
   Proof.
     move => x.
-    rewrite /Ensembles.In /gamma /= /gamma_pmap /= id_map_spec.
-      by autossr.
+    by rewrite /Ensembles.In /gamma /= /gamma_pmap /= id_map_spec.
   Qed.
 
   Theorem pmap_compose_relation_spec :
@@ -94,6 +90,24 @@ Section PMapAbstractDomain.
     move => a1 a2 x0 x2.
     rewrite /Ensembles.In /gamma /= /gamma_pmap /=.
       by apply map_apply_range_spec.
+  Qed.
+
+  Theorem pmap_transitive_closure_ge_step :
+    forall a, le a (transitive_closure_map a).
+  Proof.
+    move => a. by apply gamma_pmap_monotone, transitive_closure_map_ge_step.
+  Qed.
+
+  Theorem pmap_transitive_closure_ge_id :
+    forall a, le id_map (transitive_closure_map a).
+  Proof.
+    move => a. by apply gamma_pmap_monotone, transitive_closure_map_ge_id.
+  Qed.
+
+  Theorem pmap_transitive_closure_ge_compose :
+    forall a, le (map_apply_range (transitive_closure_map a) a) (transitive_closure_map a).
+  Proof.
+    move => a. by apply gamma_pmap_monotone, transitive_closure_map_eq_compose.
   Qed.
 
   Instance adom_relational_pmap : adom_relational adom_pmap :=
@@ -107,9 +121,9 @@ Section PMapAbstractDomain.
       compose_bot := map_apply_range_bot;
 
       transitive_closure := transitive_closure_map;
-      transitive_closure_ge_id := transitive_closure_map_ge_id;
-      transitive_closure_ge_step := transitive_closure_map_ge_step;
-      transitive_closure_eq_compose := transitive_closure_map_eq_compose;
+      transitive_closure_ge_id := pmap_transitive_closure_ge_id;
+      transitive_closure_ge_step := pmap_transitive_closure_ge_step;
+      transitive_closure_eq_compose := pmap_transitive_closure_ge_compose;
     }.
 
   Definition pmap_set_out_var_const (m: PMap) (v: string) (c: Z) :=
@@ -204,8 +218,7 @@ Section PMapAbstractDomain.
       le (pmap_tf_inst inst (map_apply_range comp_m m))
          (map_apply_range comp_m (pmap_tf_inst inst m)).
   Proof.
-    move => inst m comp_m.
-    apply /gamma_monotone => [[x0 x1]].
+    move => inst m comp_m [x0 x1].
     case inst => [ v c /= | ].
     - rewrite /pmap_set_out_var_const /gamma_pmap /Ensembles.In /=.
       simpl_presburger => /andP[Hx1v].
@@ -278,11 +291,11 @@ Section PMapAbstractDomain.
     elim : vars m1 m2 Hle => [ // | var vars Hind m1 m2 Hle].
     case => [ // | input inputs /=].
     case (var =P input) => [ _ | Hne ]. by apply Hind.
-    apply Hind.
-    apply is_subset_map_spec => x y. simpl_presburger.
+    apply Hind, gamma_pmap_monotone, is_subset_map_spec => x y.
+    simpl_presburger.
     move => /andP[-> /= /map_project_out_out_spec [v Heval]].
     apply /map_project_out_out_spec. exists v.
-    move => /is_subset_map_spec in Hle.
+    move => /gamma_pmap_monotone /is_subset_map_spec in Hle.
       by apply Hle.
   Qed.
 
@@ -296,7 +309,7 @@ Section PMapAbstractDomain.
     case (var =P input) => [ _ | Hne ]. by apply Hind.
     eapply AbstractDomain.le_trans; last first. apply Hind.
     apply pmap_affect_variables_quotient_le.
-    apply is_subset_map_spec => x y.
+    apply gamma_pmap_monotone, is_subset_map_spec => x y.
     simpl_presburger => /andP[Hneyvar /map_project_out_out_spec[v /map_apply_range_spec[m_mid [Heval_l Heval_r]]]].
     apply map_apply_range_spec.
     exists m_mid. split; auto.
@@ -396,7 +409,7 @@ Section PMapAbstractDomain.
       + eexists. split. rewrite in_cons. apply /orP. left. apply eq_refl.
         set ne_m := (ne_map _ _ _ _).
         have Heqm : le (intersect_map ne_m (map_apply_range comp_a a)) (map_apply_range comp_a (intersect_map ne_m a)).
-        * apply is_subset_map_spec => x y. rewrite /ne_m.
+        * apply gamma_pmap_monotone, is_subset_map_spec => x y. rewrite /ne_m.
           simpl_presburger => /andP[Hne /map_apply_range_spec [m_mid [Heval_l Heval_r]]].
           apply map_apply_range_spec. exists m_mid. split; auto.
           by simpl_presburger.
@@ -406,7 +419,7 @@ Section PMapAbstractDomain.
       + eexists. split. rewrite in_cons. apply /orP. right. rewrite mem_seq1. apply eq_refl.
         set eq_m := (Presburger.eq_map _ _ _ _).
         have Heqm : le (intersect_map eq_m (map_apply_range comp_a a)) (map_apply_range comp_a (intersect_map eq_m a)).
-        * apply is_subset_map_spec => x y. rewrite /eq_m.
+        * apply gamma_pmap_monotone, is_subset_map_spec => x y. rewrite /eq_m.
           simpl_presburger => /andP[Hne /map_apply_range_spec [m_mid [Heval_l Heval_r]]].
           apply map_apply_range_spec. exists m_mid. split; auto.
           by simpl_presburger.

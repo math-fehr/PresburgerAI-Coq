@@ -38,46 +38,45 @@ Section RelationalAbstractDomainTheorems.
   Theorem compose_relation_le:
     le a1 a2 -> le (compose_relation a a1) (compose_relation a a2).
   Proof.
-    move => /gamma_monotone Hle.
-    apply gamma_monotone => [[x0 x2]] /compose_relation_spec => [[x1 [Hin1 Hin2]]].
-    apply compose_relation_spec.
-    eauto.
+    move => Hle [x0 x2] /compose_relation_spec => [[x1 [Hin1 Hin2]]].
+      by apply compose_relation_spec; eauto.
   Qed.
 
   Theorem compose_relation_id :
     le a (compose_relation a id_relation).
   Proof.
-    apply gamma_monotone => [[x0 x1] Hin].
-    apply compose_relation_spec.
-    by eauto.
+    move => [x0 x1] Hin.
+      by apply compose_relation_spec; eauto.
   Qed.
 
   Theorem compose_assoc_l :
     le (compose_relation a1 (compose_relation a2 a3)) (compose_relation (compose_relation a1 a2) a3).
   Proof.
-    apply gamma_monotone => [[x0 x1]] /compose_relation_spec[x2 [H1 /compose_relation_spec[x3 [H2 H3]]]].
-    apply compose_relation_spec. exists x3. split; auto. apply compose_relation_spec. eauto.
+    move => [x0 x1] /compose_relation_spec[x2 [H1 /compose_relation_spec[x3 [H2 H3]]]].
+    apply compose_relation_spec. exists x3. split; auto.
+      by apply compose_relation_spec; eauto.
   Qed.
 
   Theorem compose_assoc_r :
     le (compose_relation (compose_relation a1 a2) a3) (compose_relation a1 (compose_relation a2 a3)).
   Proof.
-    apply gamma_monotone => [[x0 x1]] /compose_relation_spec[x2 [/compose_relation_spec[x3 [H2 H3]] H1]].
-    apply compose_relation_spec. exists x3. split; auto. apply compose_relation_spec. eauto.
+    move => [x0 x1] /compose_relation_spec[x2 [/compose_relation_spec[x3 [H2 H3]] H1]].
+    apply compose_relation_spec. exists x3. split; auto.
+      by apply compose_relation_spec; eauto.
   Qed.
 
   Theorem compose_relation_quotient_right :
     le a2 a3 -> le (compose_relation a1 a2) (compose_relation a1 a3).
   Proof.
-    move => /gamma_monotone Hle. apply gamma_monotone => [[x1 x2]] /compose_relation_spec[x3 [Hin1 Hin2]].
-    apply compose_relation_spec; eauto.
+    move => Hle [x1 x2] /compose_relation_spec[x3 [Hin1 Hin2]].
+      by apply compose_relation_spec; eauto.
   Qed.
 
   Theorem compose_relation_quotient_left :
     le a1 a2 -> le (compose_relation a1 a3) (compose_relation a2 a3).
   Proof.
-    move => /gamma_monotone Hle. apply gamma_monotone => [[x1 x2]] /compose_relation_spec[x3 [Hin1 Hin2]].
-    apply compose_relation_spec; eauto.
+    move => Hle [x1 x2] /compose_relation_spec[x3 [Hin1 Hin2]].
+      by apply compose_relation_spec; eauto.
   Qed.
 
 End RelationalAbstractDomainTheorems.

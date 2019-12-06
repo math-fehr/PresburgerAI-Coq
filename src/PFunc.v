@@ -151,7 +151,7 @@ Class PFuncImpl (PFunc: Type) :=
     constant_pfunc_spec : forall v, eval_pfunc (constant_pfunc v) = (fun x => v);
 
     le_pfunc : PFunc -> PFunc -> bool;
-    le_pfunc_spec: forall p1 p2, le_pfunc p1 p2 <-> forall x, le_V (eval_pfunc p1 x) (eval_pfunc p2 x);
+    le_pfunc_spec: forall p1 p2, le_pfunc p1 p2 <-> forall (x: total_map), le_V (eval_pfunc p1 x) (eval_pfunc p2 x);
 
     join_pfunc : PFunc -> PFunc -> PFunc;
     join_pfunc_spec_l : forall p1 p2, le_pfunc p1 (join_pfunc p1 p2);
@@ -231,4 +231,3 @@ Qed.
 
 Hint Resolve le_pfunc_refl : core.
 Hint Rewrite @is_constant_on_var_update_spec using by first [liassr | autossr] : pfuncrw.
-
