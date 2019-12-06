@@ -229,10 +229,6 @@ Proof.
   by auto_map.
 Qed.
 
-(* A useful lemma used in the next tactic *)
-Lemma t_update_other {Value: Type} (m : @total_map string_eqType Value):
-    forall x v v', v != v' ->
-              (v !-> x; m) v' = m v'.
-Proof.
-  by auto_map.
-Qed.
+Hint Resolve le_pfunc_refl : core.
+Hint Rewrite @is_constant_on_var_update_spec using by first [liassr | autossr] : pfuncrw.
+
