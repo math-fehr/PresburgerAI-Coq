@@ -80,11 +80,11 @@ Section PMapAbstractDomain.
     }.
 
   Theorem pmap_id_relation_spec :
-    forall x0 x1, Ensembles.In _ (gamma id_map) (x0, x1) <-> x0 = x1.
+    forall x, Ensembles.In _ (gamma id_map) (x, x).
   Proof.
-    move => x0 x1.
+    move => x.
     rewrite /Ensembles.In /gamma /= /gamma_pmap /= id_map_spec.
-      by split; autossr.
+      by autossr.
   Qed.
 
   Theorem pmap_compose_relation_spec :

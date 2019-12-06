@@ -9,7 +9,7 @@ Class adom_relational {concrete_state abstract_state: eqType}
   {
     (* The identity relation *)
     id_relation : abstract_state;
-    id_relation_spec : forall x0 x1, In _ (gamma id_relation) (x0, x1) <-> x0 = x1;
+    id_relation_spec : forall x, In _ (gamma id_relation) (x, x);
 
     (* Composing two abstract domains by their relation representation *)
     compose_relation : abstract_state -> abstract_state -> abstract_state;
@@ -26,7 +26,7 @@ Class adom_relational {concrete_state abstract_state: eqType}
   }.
 
 Hint Rewrite @compose_bot : airw.
-Hint Resolve @compose_bot @transitive_closure_ge_step transitive_closure_ge_id transitive_closure_eq_compose : core.
+Hint Resolve @compose_bot @transitive_closure_ge_step transitive_closure_ge_id transitive_closure_eq_compose @id_relation_spec : core.
 
 Section RelationalAbstractDomainTheorems.
 
@@ -48,8 +48,8 @@ Section RelationalAbstractDomainTheorems.
     le a (compose_relation a id_relation).
   Proof.
     apply gamma_monotone => [[x0 x1] Hin].
-    apply compose_relation_spec. exists x1. split; eauto.
-      by apply id_relation_spec.
+    apply compose_relation_spec.
+    by eauto.
   Qed.
 
   Theorem compose_assoc_l :
