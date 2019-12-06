@@ -232,7 +232,7 @@ Qed.
 Hint Resolve le_pfunc_refl : core.
 Hint Rewrite @is_constant_on_var_update_spec using by first [liassr | autossr] : pfuncrw.
 
-Ltac simpl_pfunc_ := repeat (autorewrite with pfuncrw; simplssr).
+Ltac simpl_pfunc_ := repeat (autorewrite with maprw; autorewrite with pfuncrw; simplssr).
 Ltac simpl_pfunc := reflect_ne_in simpl_pfunc_.
 
 Ltac auto_pfunc := intros; simpl_pfunc; autossr.
