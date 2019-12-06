@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 From Coq Require Export Strings.String ZArith.BinInt.
-From PolyAI Require Export TotalMap ssrZ ssrstring.
+From PolyAI Require Export TotalMap ssrZ ssrstring Tactic.
 Local Open Scope Z_scope.
 
 Local Set Warnings "-notation-overridden".
@@ -139,7 +139,7 @@ Definition unop_V (v: V) (op: Z -> Z) :=
 Definition mul_V (z: Z) (v: V) :=
   unop_V v (fun v => z * v).
 
-Hint Resolve le_V_refl add_V_spec sub_V_spec le_binop_V_spec: PFuncHint.
+Hint Resolve le_V_refl add_V_spec sub_V_spec le_binop_V_spec: core.
 
 (* Specification of a PFunc *)
 
@@ -199,7 +199,10 @@ Class PFuncImpl (PFunc: Type) :=
                  (eval_pfunc p m);
   }.
 
-Hint Resolve le_pfunc_spec join_pfunc_spec_l join_pfunc_spec_r: PFuncHint.
+Hint Resolve le_pfunc_spec join_pfunc_spec_l join_pfunc_spec_r: core.
+Hint Rewrite @constant_pfunc_spec @add_pfunc_spec @sub_pfunc_spec @mul_pfunc_spec
+     @le_binop_pfunc_spec @pfunc_restrict_eq_set_spec @pfunc_restrict_ne_set_spec
+     using by first [liassr | autossr] : pfuncrw.
 
 Theorem le_pfunc_refl {PFunc: Type} {PI: PFuncImpl PFunc} :
   forall a, le_pfunc a a.
