@@ -145,7 +145,7 @@ Hint Resolve le_V_refl add_V_spec sub_V_spec le_binop_V_spec: core.
 
 Class PFuncImpl (PFunc: Type) :=
   {
-    eval_pfunc : PFunc -> (string -> V) -> V;
+    eval_pfunc : PFunc -> (string -> Z) -> V;
 
     constant_pfunc : V -> PFunc;
     constant_pfunc_spec : forall v, eval_pfunc (constant_pfunc v) = (fun x => v);

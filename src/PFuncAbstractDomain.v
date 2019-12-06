@@ -23,7 +23,7 @@ Section PFuncAbstractDomain.
     t_pointwise_bin_op p1 p2 (fun x1 x2 => join_pfunc x1 x2).
 
   Definition gamma_PFunc (p: PFuncAD) :=
-    fun (x: concrete_state) => forall i, in_V (x.2 i) (eval_pfunc (p i) (t_pointwise_un_op x.1 VVal)).
+    fun (x: concrete_state) => forall i, in_V (x.2 i) (eval_pfunc (p i) x.1).
 
   Theorem gamma_top_PFunc :
     forall x, Ensembles.In _ (gamma_PFunc top_PFunc) x.
