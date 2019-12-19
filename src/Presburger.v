@@ -58,6 +58,10 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     intersect_set_spec : forall p1 p2 x,
         eval_pset (intersect_set p1 p2) x = eval_pset p1 x && eval_pset p2 x;
 
+    subtract_set : PSet -> PSet -> PSet;
+    subtract_set_spec : forall p1 p2 x,
+        eval_pset (subtract_set p1 p2) x = eval_pset p1 x && ~~ (eval_pset p2 x);
+
     is_subset : PSet -> PSet -> bool;
     is_subset_spec : forall p1 p2, is_subset p1 p2 <->
                               forall x, eval_pset p1 x -> eval_pset p2 x;
@@ -112,6 +116,9 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
     pw_aff_from_aff : Aff -> PwAff;
     pw_aff_from_aff_spec : forall a x, eval_pw_aff (pw_aff_from_aff a) x = Some (eval_aff a x);
 
+    empty_pw_aff : PwAff;
+    empty_pw_aff_spec : forall x, eval_pw_aff empty_pw_aff x = None;
+
     intersect_domain : PwAff -> PSet -> PwAff;
     intersect_domain_spec : forall p s x, eval_pw_aff (intersect_domain p s) x =
                                      if eval_pset s x then
@@ -125,6 +132,13 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
                                    | None => eval_pw_aff p2 x
                                    | r => r
                                    end;
+
+    add_pw_aff : PwAff -> PwAff -> PwAff;
+    add_pw_aff_spec : forall p1 p2 x, eval_pw_aff (add_pw_aff p1 p2) x =
+                                 match (eval_pw_aff p1 x, eval_pw_aff p2 x) with
+                                 | (Some v1, Some v2) => Some (v1 + v2)
+                                 | _ => None
+                                 end;
 
     eq_set : PwAff -> PwAff -> PSet;
     eq_set_spec : forall p1 p2 x, eval_pset (eq_set p1 p2) x =
@@ -241,9 +255,11 @@ Section PresburgerTheorems.
 End PresburgerTheorems.
 
 Hint Rewrite @empty_set_spec_rw @universe_set_spec @union_set_spec @intersect_set_spec
+     @subtract_set_spec
      @empty_map_spec_rw @universe_map_spec @id_map_spec @union_map_spec @intersect_map_spec
      @pw_aff_from_aff_spec @intersect_domain_spec @union_pw_aff_spec @eq_set_spec @ne_set_spec @le_set_spec @indicator_function_spec
-     @eq_map_spec @ne_map_spec
+     @add_pw_aff_spec
+     @eq_map_spec @ne_map_spec @empty_pw_aff_spec
   using by first [liassr | autossr ] : prw.
 
 Hint Resolve @is_subset_spec @is_subset_map_spec @is_subset_refl @is_subset_map_refl @set_project_out_spec @is_subset_map_spec.

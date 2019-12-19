@@ -1,6 +1,7 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 From Coq Require Export Strings.String ZArith.BinInt.
-From PolyAI Require Export TotalMap ssrZ ssrstring Tactic.
+From Coq Require Import Logic.FunctionalExtensionality.
+From PolyAI Require Export TotalMap ssrZ ssrstring Tactic Presburger.
 Local Open Scope Z_scope.
 
 Local Set Warnings "-notation-overridden".
@@ -66,7 +67,7 @@ Proof.
     by apply /eqP.
 Qed.
 
-Definition le_V_spec :
+Theorem le_V_spec :
   forall v1 v2, le_V v1 v2 <-> forall n, in_V n v1 -> in_V n v2.
 Proof.
   move => v1 v2.
@@ -84,153 +85,130 @@ Proof.
   - by move => n /(_ n (eq_refl n)) Hin.
 Qed.
 
-Definition binop_V (v1 v2: V) (op: Z -> Z -> Z):=
+Definition join_V (v1 v2: V) :=
   match (v1, v2) with
-  | (VBot, _) | (_, VBot) => VBot
-  | (VTop, _) | (_, VTop) => VTop
-  | (VVal v1, VVal v2) => VVal (op v1 v2)
+  | (VBot, _) => v2
+  | (_, VBot) => v1
+  | (VTop, _) => VTop
+  | (_, VTop) => VTop
+  | (VVal z1, VVal z2) => if z1 == z2 then VVal z1 else VTop
   end.
 
-Definition add_V v1 v2 :=
-  binop_V v1 v2 Z.add.
-
-Theorem add_V_spec :
-  forall x1 v1, in_V x1 v1 ->
-           forall x2 v2, in_V x2 v2 ->
-                    in_V (x1 + x2) (add_V v1 v2).
+Theorem join_V_leftP :
+  forall v1 v2, le_V v1 (join_V v1 v2).
 Proof.
-  move => x1 v1 H1 x2 v2 H2.
-  rewrite /in_V /binop_V.
-  by case: v1 H1 H2; case v2 => //= n n0 /eqP -> /eqP ->.
+  case => [ | n1 | ]; case => [ | n2 | ] => //=; rewrite /join_V /le_V //.
+    by case (n1 =P n2).
 Qed.
 
-Definition sub_V v1 v2 :=
-  binop_V v1 v2 Z.sub.
-
-Theorem sub_V_spec :
-  forall x1 v1, in_V x1 v1 ->
-           forall x2 v2, in_V x2 v2 ->
-                    in_V (x1 - x2) (sub_V v1 v2).
+Theorem join_V_rightP :
+  forall v1 v2, le_V v2 (join_V v1 v2).
 Proof.
-  move => x1 v1 H1 x2 v2 H2.
-  rewrite /in_V /binop_V.
-  by case: v1 H1 H2; case v2 => //= n n0 /eqP -> /eqP ->.
+  case => [ | n1 | ]; case => [ | n2 | ] => //=; rewrite /join_V /le_V //.
+  case (n1 =P n2); by autossr.
 Qed.
 
-Definition le_binop_V (v1 v2: V) :=
-  binop_V v1 v2 (fun v1 v2 => if v1 <=? v2 then 1 else 0).
+Section PFuncDefinition.
 
-Theorem le_binop_V_spec :
-  forall x1 v1, in_V x1 v1 ->
-           forall x2 v2, in_V x2 v2 ->
-                    in_V (if x1 <=? x2 then 1 else 0) (le_binop_V v1 v2).
-Proof.
-  move => x1 v1 H1 x2 v2 H2.
-  rewrite /in_V /le_binop_V /binop_V.
-  by case: v1 H1 H2; case v2 => //= n n0 /eqP -> /eqP ->.
-Qed.
+  Context {PMap PSet PwAff: eqType}
+          {PI: PresburgerImpl PMap PSet PwAff}.
 
-Definition unop_V (v: V) (op: Z -> Z) :=
-  match v with
-  | VVal v => VVal (op v)
-  | other => other
-  end.
-
-Definition mul_V (z: Z) (v: V) :=
-  unop_V v (fun v => z * v).
-
-Hint Resolve le_V_refl add_V_spec sub_V_spec le_binop_V_spec: core.
-
-(* Specification of a PFunc *)
-
-Class PFuncImpl (PFunc: Type) :=
-  {
-    eval_pfunc : PFunc -> (string -> Z) -> V;
-
-    constant_pfunc : V -> PFunc;
-    constant_pfunc_spec : forall v, eval_pfunc (constant_pfunc v) = (fun x => v);
-
-    le_pfunc : PFunc -> PFunc -> bool;
-    le_pfunc_spec: forall p1 p2, le_pfunc p1 p2 <-> forall (x: total_map), le_V (eval_pfunc p1 x) (eval_pfunc p2 x);
-
-    join_pfunc : PFunc -> PFunc -> PFunc;
-    join_pfunc_spec_l : forall p1 p2, le_pfunc p1 (join_pfunc p1 p2);
-    join_pfunc_spec_r : forall p1 p2, le_pfunc p2 (join_pfunc p1 p2);
-
-    is_constant_on_var: PFunc -> string -> bool;
-    is_constant_on_var_spec:
-      forall p v, is_constant_on_var p v <->
-             forall m m', (forall v', v != v' -> m v' = m' v') -> eval_pfunc p m = eval_pfunc p m';
-
-    add_pfunc: PFunc -> PFunc -> PFunc;
-    add_pfunc_spec:
-      forall p1 p2 x, eval_pfunc (add_pfunc p1 p2) x =
-                 add_V (eval_pfunc p1 x) (eval_pfunc p2 x);
-
-    sub_pfunc: PFunc -> PFunc -> PFunc;
-    sub_pfunc_spec:
-      forall p1 p2 x, eval_pfunc (sub_pfunc p1 p2) x =
-                 sub_V (eval_pfunc p1 x) (eval_pfunc p2 x);
-
-    mul_pfunc: Z -> PFunc -> PFunc;
-    mul_pfunc_spec:
-      forall n p x, eval_pfunc (mul_pfunc n p) x =
-               mul_V n (eval_pfunc p x);
-
-    le_binop_pfunc: PFunc -> PFunc -> PFunc;
-    le_binop_pfunc_spec:
-      forall p1 p2 x, eval_pfunc (le_binop_pfunc p1 p2) x =
-                 le_binop_V (eval_pfunc p1 x) (eval_pfunc p2 x);
-
-    pfunc_restrict_eq_set: PFunc -> Z -> PFunc;
-    pfunc_restrict_eq_set_spec:
-      forall p m v, eval_pfunc (pfunc_restrict_eq_set p v) m =
-                 if in_V v (eval_pfunc p m) then
-                   VVal v
-                 else
-                   VBot;
-
-    pfunc_restrict_ne_set: PFunc -> Z -> PFunc;
-    pfunc_restrict_ne_set_spec:
-      forall p m v, eval_pfunc (pfunc_restrict_ne_set p v) m =
-               if (eval_pfunc p m) == (VVal v) then
-                 VBot
-               else
-                 (eval_pfunc p m);
+  Record PFunc := mkPFunc {
+    Val : PwAff;
+    Assumed : PSet;
   }.
 
-Hint Resolve le_pfunc_spec join_pfunc_spec_l join_pfunc_spec_r: core.
-Hint Rewrite @constant_pfunc_spec @add_pfunc_spec @sub_pfunc_spec @mul_pfunc_spec
-     @le_binop_pfunc_spec @pfunc_restrict_eq_set_spec @pfunc_restrict_ne_set_spec
-     using by first [liassr | autossr] : pfuncrw.
+  Definition eval_pfunc (P: PFunc) (x: string -> Z) :=
+    match (eval_pset (Assumed P) x, eval_pw_aff (Val P) x) with
+    | (false, _ ) => VTop
+    | (true, Some v) => VVal v
+    | (true, None) => VBot
+    end.
 
-Theorem le_pfunc_refl {PFunc: Type} {PI: PFuncImpl PFunc} :
-  forall a, le_pfunc a a.
+  Definition in_pfunc (P: PFunc) (m: string -> Z) (z: Z) :=
+    in_V z (eval_pfunc P m).
+
+  Definition constant_pfunc (v: V) :=
+    match v with
+    | VBot => mkPFunc empty_pw_aff universe_set
+    | VTop => mkPFunc empty_pw_aff empty_set
+    | VVal z => mkPFunc (pw_aff_from_aff (AConst z)) universe_set
+    end.
+
+  Theorem constant_pfuncP :
+    forall v, eval_pfunc (constant_pfunc v) = (fun x => v).
+  Proof.
+      by case => [ | z | ]; rewrite /eval_pfunc /=; extensionality x; auto_presburger.
+  Qed.
+
+  Definition join_pfunc (p1 p2: PFunc) :=
+    let assumed_inter := intersect_set (Assumed p1) (Assumed p2) in
+    let assumed_join := subtract_set assumed_inter (ne_set (Val p1) (Val p2)) in
+    let val_join := union_pw_aff (Val p1) (Val p2) in
+    mkPFunc val_join assumed_join.
+
+  Theorem join_pfuncP :
+    forall p1 p2 x, eval_pfunc (join_pfunc p1 p2) x = join_V (eval_pfunc p1 x) (eval_pfunc p2 x).
+  Proof.
+    move => p1 p2 x. rewrite /join_pfunc /eval_pfunc /=. simpl_presburger.
+    case: (eval_pset (Assumed p1) x); case: (eval_pset (Assumed p2) x);
+    case (eval_pw_aff (Val p2) x); case (eval_pw_aff (Val p1) x) => //=.
+      by move => z z0; case (z =P z0) => [ -> | ] /=; rewrite /join_V; autossr.
+  Qed.
+
+  Definition binop_pfunc (f: PwAff -> PwAff -> PwAff) (p1 p2: PFunc) :=
+    let assumed_join := intersect_set (Assumed p1) (Assumed p2) in
+    let val_join := f (Val p1) (Val p2) in
+    mkPFunc val_join assumed_join.
+
+  Definition add_pfunc :=
+    binop_pfunc add_pw_aff.
+
+  Theorem add_pfuncP :
+    forall p1 x z1, in_pfunc p1 x z1 ->
+               forall p2 z2, in_pfunc p2 x z2 ->
+                        in_pfunc (add_pfunc p1 p2) x (z1 + z2).
+  Proof.
+    move => p1 x z1 Hin1 p2 z2. move: Hin1.
+    rewrite /in_pfunc /add_pfunc /eval_pfunc /=.
+    simpl_presburger.
+    case: (eval_pset (Assumed p1)); case: (eval_pset (Assumed p2));
+      case: (eval_pw_aff (Val p2) x); case: (eval_pw_aff (Val p1) x) => //=.
+    by autossr.
+  Qed.
+
+  Definition le_binop_pfunc :=
+    binop_pfunc (fun p1 p2 => indicator_function (le_set p1 p2)).
+
+  Theorem le_binop_pfuncP :
+    forall p1 x z1, in_pfunc p1 x z1 ->
+               forall p2 z2, in_pfunc p2 x z2 ->
+                        in_pfunc (le_binop_pfunc p1 p2) x (if z1 <=? z2 then 1 else 0).
+  Proof.
+    move => p1 x z1 Hin1 p2 z2. move: Hin1.
+    rewrite /in_pfunc /add_pfunc /eval_pfunc /=.
+    simpl_presburger.
+    case: (eval_pset (Assumed p1)); case: (eval_pset (Assumed p2));
+      case: (eval_pw_aff (Val p2) x); case: (eval_pw_aff (Val p1) x) => //=.
+    move => a a0 /eqP -> /eqP ->. by case (a <=? a0).
+  Qed.
+
+End PFuncDefinition.
+
+Definition eq_PFunc {PSet PwAff: eqType} (P1 P2: @PFunc PSet PwAff) :=
+  (Val P1 == Val P2) && (Assumed P1 == Assumed P2).
+
+Lemma eqPFuncP {PSet PwAff: eqType} : Equality.axiom (@eq_PFunc PSet PwAff).
 Proof.
-  move => a.
-  apply le_pfunc_spec => x.
-  by auto with PFuncHint.
+  rewrite /eq_PFunc => x y.
+  case: x => Vx Ax. case: y => Vy Ay /=.
+  case (Vx =P Vy); case (Ax =P Ay); intros; apply (iffP idP); autossr; by case.
 Qed.
 
-Theorem le_pfunc_trans {PFunc: Type} {PI: PFuncImpl PFunc} :
-  forall a1 a2 a3, le_pfunc a1 a2 -> le_pfunc a2 a3 -> le_pfunc a1 a3.
-Proof.
-  move => a1 a2 a3 /le_pfunc_spec H12 /le_pfunc_spec H23.
-  apply le_pfunc_spec => x.
-  by eapply le_V_trans.
-Qed.
+Canonical PFunc_eqType {PSet PwAff: eqType} := Eval hnf in EqType PFunc (EqMixin (@eqPFuncP PSet PwAff)).
 
-Theorem is_constant_on_var_update_spec {PFunc: Type} {PI: PFuncImpl PFunc} :
-      forall p v, is_constant_on_var p v ->
-             forall z m, eval_pfunc p (v !-> z; m) = eval_pfunc p m.
-Proof.
-  move => p v Hconst z m.
-  eapply is_constant_on_var_spec; eauto.
-  by auto_map.
-Qed.
-
-Hint Resolve le_pfunc_refl : core.
-Hint Rewrite @is_constant_on_var_update_spec using by first [liassr | autossr] : pfuncrw.
+Hint Rewrite @constant_pfuncP @join_pfuncP @join_V_leftP @join_V_rightP using by first [liassr | autossr] : pfuncrw.
+Hint Resolve @add_pfuncP @le_binop_pfuncP : core.
 
 Ltac simpl_pfunc_ := repeat (autorewrite with maprw; autorewrite with pfuncrw; simplssr).
 Ltac simpl_pfunc := reflect_ne_in simpl_pfunc_.
