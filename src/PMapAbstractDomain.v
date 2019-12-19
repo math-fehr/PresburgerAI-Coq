@@ -84,12 +84,63 @@ Section PMapAbstractDomain.
   Qed.
 
   Theorem pmap_compose_relation_spec :
-    forall a1 a2 x0 x2, Ensembles.In _ (gamma (map_apply_range a1 a2)) (x0, x2) <->
-                   exists x1, Ensembles.In _ (gamma a1) (x0, x1) /\ Ensembles.In _ (gamma a2) (x1, x2).
+    forall x1 x0 x2 a1 a2, Ensembles.In _ (gamma a1) (x0, x1) ->
+                      Ensembles.In _ (gamma a2) (x1, x2) ->
+                      Ensembles.In _ (gamma (map_apply_range a1 a2)) (x0,x2).
   Proof.
-    move => a1 a2 x0 x2.
+    move => x1 x0 x2 a1 a2.
     rewrite /Ensembles.In /gamma /= /gamma_pmap /=.
-      by apply map_apply_range_spec.
+    by rewrite map_apply_range_spec; eauto.
+  Qed.
+
+  Theorem pmap_compose_relation_le :
+    forall a a1 a2, le a1 a2 -> le (map_apply_range a a1) (map_apply_range a a2).
+  Proof.
+    move => a a1 a2.
+    rewrite /le /gamma /= /Included /Ensembles.In /gamma_pmap /= => Hle x.
+    simpl_presburger => [[m_mid [H1 H2]]].
+    exists m_mid. split; auto.
+      by apply (Hle (m_mid , x.2)).
+  Qed.
+
+  Theorem pmap_compose_assoc_l :
+    forall a1 a2 a3, le (map_apply_range a1 (map_apply_range a2 a3)) (map_apply_range (map_apply_range a1 a2) a3).
+  Proof.
+    move => a1 a2 a3.
+    rewrite /le /Included /gamma /= /gamma_pmap /Ensembles.In => x.
+    simpl_presburger => [[x_mid1 [H1]]]. simpl_presburger => [[x_mid2 [H2 H3]]].
+    exists x_mid2. split; auto.
+    simpl_presburger; eauto.
+  Qed.
+
+  Theorem pmap_compose_assoc_r :
+    forall a1 a2 a3, le (map_apply_range (map_apply_range a1 a2) a3) (map_apply_range a1 (map_apply_range a2 a3)).
+  Proof.
+    move => a1 a2 a3.
+    rewrite /le /Included /gamma /= /gamma_pmap /Ensembles.In => x.
+    simpl_presburger => [[x_mid1]]. simpl_presburger => [[[x_mid2 [H1 H2]]] H3].
+    exists x_mid2. split; auto.
+    simpl_presburger; eauto.
+  Qed.
+
+  Theorem pmap_compose_relation_quotient_right :
+    forall a1 a2 a3, le a2 a3 -> le (map_apply_range a1 a2) (map_apply_range a1 a3).
+  Proof.
+    move => a1 a2 a3.
+    rewrite /le /Included /gamma /= /gamma_pmap /Ensembles.In => Hle x.
+    simpl_presburger => [[x_mid [H1 H2]]].
+    exists x_mid. split; eauto.
+      by apply (Hle (x_mid, x.2)).
+  Qed.
+
+  Theorem pmap_compose_relation_quotient_left :
+    forall a1 a2 a3, le a1 a2 -> le (map_apply_range a1 a3) (map_apply_range a2 a3).
+  Proof.
+    move => a1 a2 a3.
+    rewrite /le /Included /gamma /= /gamma_pmap /Ensembles.In => Hle x.
+    simpl_presburger => [[x_mid [H1 H2]]].
+    exists x_mid. split; eauto.
+      by apply (Hle (x.1, x_mid)).
   Qed.
 
   Theorem pmap_transitive_closure_ge_step :
@@ -119,6 +170,11 @@ Section PMapAbstractDomain.
       compose_relation_spec := pmap_compose_relation_spec;
 
       compose_bot := map_apply_range_bot;
+      compose_relation_le := pmap_compose_relation_le;
+      compose_assoc_l := pmap_compose_assoc_l;
+      compose_assoc_r := pmap_compose_assoc_r;
+      compose_relation_quotient_right := pmap_compose_relation_quotient_right;
+      compose_relation_quotient_left := pmap_compose_relation_quotient_left;
 
       transitive_closure := transitive_closure_map;
       transitive_closure_ge_id := pmap_transitive_closure_ge_id;
@@ -224,7 +280,6 @@ Section PMapAbstractDomain.
       simpl_presburger => /andP[Hx1v].
       rewrite map_project_out_out_spec => [[x]].
       rewrite map_apply_range_spec => [[m_mid [Hincomp Hinm]]].
-      apply map_apply_range_spec.
       exists m_mid. split; auto.
       simpl_presburger. apply map_project_out_out_spec.
       eauto.
@@ -234,20 +289,17 @@ Section PMapAbstractDomain.
       + move => /andP[Hx1v].
         rewrite map_project_out_out_spec => [[x]].
         rewrite map_apply_range_spec => [[m_mid [Hincomp Hinm]]].
-        apply map_apply_range_spec.
         exists m_mid. split; auto.
         simpl_presburger. apply map_project_out_out_spec.
         eauto.
       + rewrite map_project_out_out_spec => [[x]].
         rewrite map_apply_range_spec => [[m_mid [Hincomp Hinm]]].
-        apply map_apply_range_spec.
         exists m_mid. split; auto.
         simpl_presburger. apply map_project_out_out_spec.
         eauto.
       + move => /andP[Hx1v].
         rewrite map_project_out_out_spec => [[x]].
         rewrite map_apply_range_spec => [[m_mid [Hincomp Hinm]]].
-        apply map_apply_range_spec.
         exists m_mid. split; auto.
         simpl_presburger. apply map_project_out_out_spec.
         eauto.
@@ -311,7 +363,6 @@ Section PMapAbstractDomain.
     apply pmap_affect_variables_quotient_le.
     apply gamma_pmap_monotone, is_subset_map_spec => x y.
     simpl_presburger => /andP[Hneyvar /map_project_out_out_spec[v /map_apply_range_spec[m_mid [Heval_l Heval_r]]]].
-    apply map_apply_range_spec.
     exists m_mid. split; auto.
     simpl_presburger.
     apply map_project_out_out_spec.
@@ -411,7 +462,7 @@ Section PMapAbstractDomain.
         have Heqm : le (intersect_map ne_m (map_apply_range comp_a a)) (map_apply_range comp_a (intersect_map ne_m a)).
         * apply gamma_pmap_monotone, is_subset_map_spec => x y. rewrite /ne_m.
           simpl_presburger => /andP[Hne /map_apply_range_spec [m_mid [Heval_l Heval_r]]].
-          apply map_apply_range_spec. exists m_mid. split; auto.
+          exists m_mid. split; auto.
           by simpl_presburger.
         * eapply AbstractDomain.le_trans.
           apply pmap_affect_variables_quotient_le. apply Heqm.
@@ -421,7 +472,7 @@ Section PMapAbstractDomain.
         have Heqm : le (intersect_map eq_m (map_apply_range comp_a a)) (map_apply_range comp_a (intersect_map eq_m a)).
         * apply gamma_pmap_monotone, is_subset_map_spec => x y. rewrite /eq_m.
           simpl_presburger => /andP[Hne /map_apply_range_spec [m_mid [Heval_l Heval_r]]].
-          apply map_apply_range_spec. exists m_mid. split; auto.
+          exists m_mid. split; auto.
           by simpl_presburger.
         * eapply AbstractDomain.le_trans.
           apply pmap_affect_variables_quotient_le. apply Heqm.

@@ -255,7 +255,7 @@ Section PresburgerTheorems.
 End PresburgerTheorems.
 
 Hint Rewrite @empty_set_spec_rw @universe_set_spec @union_set_spec @intersect_set_spec
-     @subtract_set_spec
+     @subtract_set_spec @map_apply_range_spec
      @empty_map_spec_rw @universe_map_spec @id_map_spec @union_map_spec @intersect_map_spec
      @pw_aff_from_aff_spec @intersect_domain_spec @union_pw_aff_spec @eq_set_spec @ne_set_spec @le_set_spec @indicator_function_spec
      @add_pw_aff_spec
