@@ -202,6 +202,12 @@ Section TotalMapDefinition.
 
   Coercion eval_total_map : total_map >-> Funclass.
 
+  Fixpoint t_update_multiple (m: total_map) (l: seq (Key * Value)) :=
+    match l with
+    | nil => m
+    | (k, v)::l' => (TUpdate (t_update_multiple m l') k v)
+    end.
+
 End TotalMapDefinition.
 
 
