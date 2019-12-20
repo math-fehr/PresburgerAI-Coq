@@ -188,7 +188,18 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
 
     get_involved_dim : PwAff -> seq string;
     get_involved_dim_spec :
-      forall p s, s \in get_involved_dim p = pw_aff_involves_dim p s
+      forall p s, s \in get_involved_dim p = pw_aff_involves_dim p s;
+
+    pullback_dims : PwAff -> seq (string * PwAff) -> PwAff;
+    pullback_dims_spec :
+      forall p l (x: total_map),
+        let l_option_Z := [seq (v.1, eval_pw_aff v.2 x) | v <- l] in
+        eval_pw_aff (pullback_dims p l) x =
+        if all (fun x => x.2 != None) l_option_Z then
+          let l_Z := [seq (v.1, if v.2 is Some z then z else 0) | v <- l_option_Z] in
+          eval_pw_aff p (t_update_multiple x l_Z)
+        else
+          None;
   }.
 
 Section PresburgerTheorems.
