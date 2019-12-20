@@ -181,6 +181,14 @@ Class PresburgerImpl (PMap PSet PwAff: eqType) :=
                                        | (Some v1, Some v2, Some v1', Some v2') => v1 + v2 != v1' + v2'
                                        | _ => false
                                        end;
+
+    pw_aff_involves_dim : PwAff -> string -> bool;
+    pw_aff_involves_dim_spec :
+      forall p s, pw_aff_involves_dim p s <-> forall (x: total_map) v, eval_pw_aff p x = eval_pw_aff p (s !-> v ; x);
+
+    get_involved_dim : PwAff -> seq string;
+    get_involved_dim_spec :
+      forall p s, s \in get_involved_dim p = pw_aff_involves_dim p s
   }.
 
 Section PresburgerTheorems.
