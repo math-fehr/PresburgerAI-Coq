@@ -1,6 +1,7 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 Local Set Warnings "-notation-overridden".
-From mathcomp Require Import ssreflect.ssrnat eqtype seq.
+From mathcomp Require Import ssreflect.ssrnat.
+From mathcomp Require Export eqtype seq.
 From Coq Require Export Arith.Arith Bool.Bool.
 From Coq Require Import Logic.FunctionalExtensionality.
 From PolyAI Require Import Tactic ssrstring.
