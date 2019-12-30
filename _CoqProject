@@ -7,6 +7,7 @@ src/ssrstring.v
 src/ssrZ.v
 src/TotalMap.v
 src/PFunc.v
+src/FinitePresburger.v
 src/Presburger.v
 src/AbstractDomain.v
 src/PMapAbstractDomain.v
