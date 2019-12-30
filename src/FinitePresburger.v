@@ -39,7 +39,7 @@ Module Type FPresburgerImpl.
   Axiom f_empty_setP: forall n x, ~~(x \ins (f_empty_set n)).
 
   Parameter f_universe_set: forall n, PSet n.
-  Axiom f_universe_setP: forall n x, x \ins (f_empty_set n).
+  Axiom f_universe_setP: forall n x, x \ins (f_universe_set n).
 
   Parameter f_union_set: forall n, PSet n -> PSet n -> PSet n.
   Arguments f_union_set {n}.
@@ -216,5 +216,20 @@ Module Type FPresburgerImpl.
   Arguments f_get_involved_dim {n}.
   Axiom f_get_involved_dimP :
     forall n (p: PwAff n) d, d \in (f_get_involved_dim p) = f_involves_dim_pw_aff p d.
+
+  Hint Rewrite @f_universe_setP @f_union_setP @f_intersect_setP
+       @f_subtract_setP @f_apply_range_mapP
+       @f_universe_mapP @f_id_mapP @f_union_mapP @f_intersect_mapP
+       @f_pw_aff_from_affP @f_intersect_domainP @f_union_pw_affP @f_eq_setP @f_ne_setP @f_le_setP @f_indicator_functionP
+       @f_add_pw_affP
+       @f_empty_pw_affP
+       using by first [liassr | autossr ] : prw.
+
+  Hint Resolve @f_is_subset_setP @f_is_subset_mapP @f_project_out_setP @f_is_subset_mapP : core.
+
+  Ltac simpl_finite_presburger_ := repeat (autorewrite with prw; simpl_map).
+  Ltac simpl_finite_presburger := reflect_ne_in simpl_finite_presburger_.
+
+  Ltac auto_finite_presburger := intros ; simpl_finite_presburger; autossr.
 
 End FPresburgerImpl.
