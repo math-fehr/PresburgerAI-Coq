@@ -62,7 +62,7 @@ Section PMapAbstractDomain.
     by auto_presburger.
   Qed.
 
-  Instance adom_pmap : adom concrete_state PMap :=
+  Instance adom_pmap : adom concrete_state PMap prog :=
     {
       bot := empty_map;
       top := universe_map;

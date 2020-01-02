@@ -16,9 +16,9 @@ Section AbstractInterpreter.
   Ltac auto_ai := intros ; simpl_ai ; autossr.
 
   Context {ab: eqType}
-          {ad: adom (prod_eqType RegisterMap RegisterMap) ab}
-          {adr: adom_relational ad}
           {p: Program}
+          {ad: adom (prod_eqType RegisterMap RegisterMap) ab p}
+          {adr: adom_relational ad}
           (tf: transfer_function_relational adr p).
 
   (* Associate for every control location an abstract state *)
@@ -682,7 +682,9 @@ Section AbstractInterpreter.
     move: Hreachable_states. rewrite /reachable_states.
     move Hs : ("entry", O, R) => s.
     move Hs' : (bb_id, pos, R') => s'.
-    move Hp : p => p'.
+    set p'hack := (p, 0).
+    move Hp : p'hack.1 => p'. rewrite /= in Hp.
+    rewrite [in p "entry"]Hp [in multi_step _ _ _]Hp.
     move => Hmulti_step. move: Hs' Hs Hp.
     move: bb_id bb Hbb pos R'.
     elim Hmulti_step => [ p0 s0 bb_id bb Hbb pos R' <- [<- <- <-] <- | ].
@@ -725,7 +727,7 @@ Section AbstractInterpreter.
               move: (Hmulti_step') => Hinbounds.
               apply reachable_states_pos in Hinbounds. rewrite /= Hbb'' in Hinbounds.
               apply nth_error_None in H5.
-              have Hpos': (Datatypes.length insts = pos') by lia.
+              have Hpos': (Datatypes.length insts = pos') by liassr.
               move => /(_ _ Hbb''). rewrite Hpos'.
               eapply transfer_term_sound in H6; last first. apply Hind.
               move: H6 => [a' [HInTerm HIn]] /(_ (a', bb_id'')).
@@ -751,7 +753,7 @@ Section AbstractInterpreter.
               move: (Hmulti_step') => Hinbounds.
               apply reachable_states_pos in Hinbounds. rewrite /= Hbb'' in Hinbounds.
               apply nth_error_None in H5.
-              have Hpos': (Datatypes.length insts = pos') by lia.
+              have Hpos': (Datatypes.length insts = pos') by liassr.
               move => /(_ _ Hbb''). rewrite Hpos'.
               eapply transfer_term_sound in H6; last first. apply Hind.
               move: H6 => [a' [HInTerm HIn]] /(_ (a', bb_id'')).

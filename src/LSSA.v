@@ -1,7 +1,9 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
-From PolyAI Require Export TotalMap ssrstring ssrZ.
+From PolyAI Require Export TotalMap ssrstring ssrZ Tactic.
 From Coq Require Export Bool.Bool Strings.String Numbers.BinNums ZArith.BinInt.
 From mathcomp.ssreflect Require Export seq.
+Local Set Warnings "-notation-overridden".
+From mathcomp.ssreflect Require Import ssrnat.
 
 Local Open Scope type_scope.
 
@@ -69,6 +71,25 @@ Fixpoint get_inputs (p: Program) (id: bbid) :=
   | Some (inputs, _, _) => inputs
   | None => nil
   end.
+
+Definition vars_in_inst (i: Inst) :=
+  match i with
+  | Const v _ | BinOp v _ _ _ _ _ => [::v]
+  end.
+
+Fixpoint vars_in_program (p: Program) :=
+  match p with
+  | PEmpty => [::""]
+  | PUpdate m' _ bb => (List.fold_left (fun acc inst => acc ++ (vars_in_inst inst)) bb.1.2 [::]) ++ (vars_in_program m')
+  end.
+
+Theorem size_vars_in_program :
+  forall p, 0 < size (vars_in_program p).
+Proof.
+  elim => [ // | m H k v /=].
+  rewrite size_cat.
+    by apply ltn_addl.
+Qed.
 
 Fixpoint bbs_in_program (p: ProgramStructure) :=
   match p with
@@ -262,15 +283,16 @@ Proof.
   - move => p0 s0 <- /= .
     case (p0 "entry") => [ [[_ insts] _] | //].
     case insts => [ // | i l /=].
-      by apply /leb_complete.
+      by apply leq0n.
   - move => p0 s0 s' s'' Hmulti_step Hind Hstep Hs0.
     inversion Hstep; subst.
     + move: Hind => /(_ (erefl _)) /=. case_eq (p0 bb_id) => [ [[inputs' insts'] term'] Hbb'| //].
       rewrite H in Hbb'. inversion Hbb'. subst.
       have Hne_None : (List.nth_error insts' l <> None). move: H0. case (List.nth_error insts' l) => //.
-      by apply List.nth_error_Some in Hne_None.
+      apply List.nth_error_Some in Hne_None.
+      by move => /ltP in Hne_None.
     + rewrite /=. case (p0 new_bbid) => [[[_ insts'] _] | //]. case insts' => [ // | i' l' /=].
-        by apply /leb_complete.
+      by apply leq0n.
 Qed.
 
 

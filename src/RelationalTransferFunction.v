@@ -5,8 +5,8 @@ Require Export Coq.Lists.List.
 Local Open Scope type_scope.
 
 (* Transfer functions for our language, using relational abstract domain *)
-Class transfer_function_relational {abstract_state: eqType}
-      {A: adom (prod_eqType RegisterMap RegisterMap) abstract_state}
+Class transfer_function_relational {abstract_state: eqType} {p: Program}
+      {A: adom (prod_eqType RegisterMap RegisterMap) abstract_state p}
       (AR: adom_relational A)
       (prog: Program) :=
   {

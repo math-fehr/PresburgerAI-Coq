@@ -81,6 +81,7 @@ Ltac remove_SS :=
 Ltac to_coq_nat :=
   repeat match goal with
          | [ H: is_true (?x < ?y) |- _ ] => move => /ltP in H
+         | [ H: is_true (?x <= ?y) |- _ ] => move => /leP in H
          | [ |- is_true (?x != ?y) ] => apply /eqP
          | [ |- is_true (?x == ?y) ] => apply /eqP
          | [ H: is_true (~~ (?x < ?y)) |- _ ] => rewrite -leqNgt in H; move => /leP in H
@@ -97,6 +98,11 @@ Ltac bigsubst :=
           | [ H1: ?a = Some ?s1, H2: ?a = Some ?s2 |- _ ] => move: (H1); rewrite H2 => [[Heq]]; bigsubst
           | _ => idtac
           end.
+
+Ltac case_if :=
+  match goal with
+  | [ |- context[ if ?c then _ else _ ] ] => let H := fresh "H" in case H : c
+  end.
 
 Ltac simplssr_ := rewrite_is_true; simpl_seq; simpl_bool; simpleq.
 Ltac simplssr := repeat (reflect_ne_in simplssr_).

@@ -2,9 +2,10 @@ From Coq Require Import ssreflect ssrfun ssrbool.
 From Coq Require Export Ensembles.
 From Coq Require Import ssrbool.
 From mathcomp Require Export eqtype.
+From PolyAI Require Export LSSA.
 
 (* The abstract domain *)
-Class adom (concrete_state abstract_state: eqType) :=
+Class adom (concrete_state abstract_state: eqType) (p: Program) :=
   {
     bot : abstract_state;
     top : abstract_state;
@@ -23,7 +24,8 @@ Hint Resolve gamma_top join_sound_l join_sound_r : core.
 Section AbstractDomainTheorems.
 
   Context {concrete_state abstract_state: eqType}
-          {ad: adom concrete_state abstract_state}.
+          {p: Program}
+          {ad: adom concrete_state abstract_state p}.
 
   Definition le := (fun a1 a2 => Included _ (gamma a1) (gamma a2)).
 

@@ -1,7 +1,7 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 From Coq Require Export Strings.String ZArith.BinInt.
 From Coq Require Import Logic.FunctionalExtensionality.
-From PolyAI Require Export TotalMap ssrZ ssrstring Tactic Presburger.
+From PolyAI Require Export TotalMap ssrZ ssrstring Tactic FinitePresburger.
 Local Open Scope Z_scope.
 
 Local Set Warnings "-notation-overridden".
@@ -42,6 +42,8 @@ Definition in_V (n: Z) (v: V) :=
   | VBot => false
   end.
 
+Notation "z \inV v" := (in_V z v) (at level 70, no associativity).
+
 Definition le_V (v1 v2: V) :=
   match (v1, v2) with
   | (_, VTop) => true
@@ -68,7 +70,7 @@ Proof.
 Qed.
 
 Theorem le_V_spec :
-  forall v1 v2, le_V v1 v2 <-> forall n, in_V n v1 -> in_V n v2.
+  forall v1 v2, le_V v1 v2 <-> forall n, n \inV v1 -> n \inV v2.
 Proof.
   move => v1 v2.
   split. by case v1; case v2 => // n n0; rewrite /le_V => /eqP -> //.
@@ -108,109 +110,111 @@ Proof.
   case (n1 =P n2); by autossr.
 Qed.
 
-Section PFuncDefinition.
+Module PFuncImpl (FPI: FPresburgerImpl).
+  Import FPI.
 
-  Context {PMap PSet PwAff: eqType}
-          {PI: PresburgerImpl PMap PSet PwAff}.
-
-  Record PFunc := mkPFunc {
-    Val : PwAff;
-    Assumed : PSet;
+  Record PFunc (n: nat) := mkPFunc {
+    Val : PwAff n;
+    Assumed : PSet n;
   }.
+  Arguments Val {n}.
+  Arguments Assumed {n}.
+  Arguments mkPFunc {n}.
 
-  Definition eval_pfunc (P: PFunc) (x: string -> Z) :=
-    match (eval_pset (Assumed P) x, eval_pw_aff (Val P) x) with
+  Definition eval_pfunc {n: nat} (P: PFunc n) (x: seq Z) :=
+    match (x \ins (Assumed P), f_eval_pw_aff (Val P) x) with
     | (false, _ ) => VTop
     | (true, Some v) => VVal v
     | (true, None) => VBot
     end.
 
-  Definition in_pfunc (P: PFunc) (m: string -> Z) (z: Z) :=
-    in_V z (eval_pfunc P m).
+  Definition in_pfunc {n: nat} (P: PFunc n) (m: seq Z) (z: Z) :=
+    z \inV (eval_pfunc P m).
 
-  Definition constant_pfunc (v: V) :=
+  Definition constant_pfunc (n: nat) (v: V) :=
     match v with
-    | VBot => mkPFunc empty_pw_aff universe_set
-    | VTop => mkPFunc empty_pw_aff empty_set
-    | VVal z => mkPFunc (pw_aff_from_aff (AConst z)) universe_set
+    | VBot => mkPFunc (f_empty_pw_aff n) (f_universe_set n)
+    | VTop => mkPFunc (f_empty_pw_aff n) (f_empty_set n)
+    | VVal z => mkPFunc (f_pw_aff_from_aff (FAConst n z)) (f_universe_set n)
     end.
 
   Theorem constant_pfuncP :
-    forall v, eval_pfunc (constant_pfunc v) = (fun x => v).
+    forall n v, eval_pfunc (constant_pfunc n v) = (fun x => v).
   Proof.
-      by case => [ | z | ]; rewrite /eval_pfunc /=; extensionality x; auto_presburger.
+    move => n.
+    by case => [ | z | ]; rewrite /eval_pfunc /=; extensionality x; auto_finite_presburger.
   Qed.
 
-  Definition join_pfunc (p1 p2: PFunc) :=
-    let assumed_inter := intersect_set (Assumed p1) (Assumed p2) in
-    let assumed_join := subtract_set assumed_inter (ne_set (Val p1) (Val p2)) in
-    let val_join := union_pw_aff (Val p1) (Val p2) in
+  Definition join_pfunc {n: nat} (p1 p2: PFunc n) :=
+    let assumed_inter := f_intersect_set (Assumed p1) (Assumed p2) in
+    let assumed_join := f_subtract_set assumed_inter (f_ne_set (Val p1) (Val p2)) in
+    let val_join := f_union_pw_aff (Val p1) (Val p2) in
     mkPFunc val_join assumed_join.
 
   Theorem join_pfuncP :
-    forall p1 p2 x, eval_pfunc (join_pfunc p1 p2) x = join_V (eval_pfunc p1 x) (eval_pfunc p2 x).
+    forall n {p1 p2: PFunc n} x, eval_pfunc (join_pfunc p1 p2) x = join_V (eval_pfunc p1 x) (eval_pfunc p2 x).
   Proof.
-    move => p1 p2 x. rewrite /join_pfunc /eval_pfunc /=. simpl_presburger.
-    case: (eval_pset (Assumed p1) x); case: (eval_pset (Assumed p2) x);
-    case (eval_pw_aff (Val p2) x); case (eval_pw_aff (Val p1) x) => //=.
+    move => n p1 p2 x. rewrite /join_pfunc /eval_pfunc /=. simpl_finite_presburger.
+    case: (x \ins (Assumed p1)); case: (x \ins (Assumed p2));
+    case (f_eval_pw_aff (Val p2) x); case (f_eval_pw_aff (Val p1) x) => //=.
       by move => z z0; case (z =P z0) => [ -> | ] /=; rewrite /join_V; autossr.
   Qed.
 
-  Definition binop_pfunc (f: PwAff -> PwAff -> PwAff) (p1 p2: PFunc) :=
-    let assumed_join := intersect_set (Assumed p1) (Assumed p2) in
+  Definition binop_pfunc {n: nat} (f: PwAff n -> PwAff n -> PwAff n) (p1 p2: PFunc n) :=
+    let assumed_join := f_intersect_set (Assumed p1) (Assumed p2) in
     let val_join := f (Val p1) (Val p2) in
     mkPFunc val_join assumed_join.
 
-  Definition add_pfunc :=
-    binop_pfunc add_pw_aff.
+  Definition add_pfunc {n: nat} :=
+    @binop_pfunc n f_add_pw_aff.
 
   Theorem add_pfuncP :
-    forall p1 x z1, in_pfunc p1 x z1 ->
-               forall p2 z2, in_pfunc p2 x z2 ->
-                        in_pfunc (add_pfunc p1 p2) x (z1 + z2).
+    forall n (p1: PFunc n) x z1, in_pfunc p1 x z1 ->
+      forall p2 z2, in_pfunc p2 x z2 ->
+        in_pfunc (add_pfunc p1 p2) x (z1 + z2).
   Proof.
-    move => p1 x z1 Hin1 p2 z2. move: Hin1.
+    move => n p1 x z1 Hin1 p2 z2. move: Hin1.
     rewrite /in_pfunc /add_pfunc /eval_pfunc /=.
-    simpl_presburger.
-    case: (eval_pset (Assumed p1)); case: (eval_pset (Assumed p2));
-      case: (eval_pw_aff (Val p2) x); case: (eval_pw_aff (Val p1) x) => //=.
+    simpl_finite_presburger.
+    case: (f_eval_pset (Assumed p1) x); case: (f_eval_pset (Assumed p2) x);
+      case: (f_eval_pw_aff (Val p2) x); case: (f_eval_pw_aff (Val p1) x) => //=.
     by autossr.
   Qed.
 
-  Definition le_binop_pfunc :=
-    binop_pfunc (fun p1 p2 => indicator_function (le_set p1 p2)).
+  Definition le_binop_pfunc {n: nat} :=
+    binop_pfunc (fun p1 p2 => @f_indicator_function n (f_le_set p1 p2)).
 
   Theorem le_binop_pfuncP :
-    forall p1 x z1, in_pfunc p1 x z1 ->
-               forall p2 z2, in_pfunc p2 x z2 ->
-                        in_pfunc (le_binop_pfunc p1 p2) x (if z1 <=? z2 then 1 else 0).
+    forall n {p1: PFunc n} x z1, in_pfunc p1 x z1 ->
+      forall p2 z2, in_pfunc p2 x z2 ->
+        in_pfunc (le_binop_pfunc p1 p2) x (if z1 <=? z2 then 1 else 0).
   Proof.
-    move => p1 x z1 Hin1 p2 z2. move: Hin1.
+    move => n p1 x z1 Hin1 p2 z2. move: Hin1.
     rewrite /in_pfunc /add_pfunc /eval_pfunc /=.
-    simpl_presburger.
-    case: (eval_pset (Assumed p1)); case: (eval_pset (Assumed p2));
-      case: (eval_pw_aff (Val p2) x); case: (eval_pw_aff (Val p1) x) => //=.
+    simpl_finite_presburger.
+    case: (f_eval_pset (Assumed p1) x); case: (f_eval_pset (Assumed p2) x);
+      case: (f_eval_pw_aff (Val p2) x); case: (f_eval_pw_aff (Val p1) x) => //=.
     move => a a0 /eqP -> /eqP ->. by case (a <=? a0).
   Qed.
 
-End PFuncDefinition.
+  Definition eq_PFunc {n: nat} (P1 P2: PFunc n) :=
+    (Val P1 == Val P2) && (Assumed P1 == Assumed P2).
 
-Definition eq_PFunc {PSet PwAff: eqType} (P1 P2: @PFunc PSet PwAff) :=
-  (Val P1 == Val P2) && (Assumed P1 == Assumed P2).
+  Lemma eqPFuncP {n: nat} : Equality.axiom (@eq_PFunc n).
+  Proof.
+    rewrite /eq_PFunc => x y.
+    case: x => Vx Ax. case: y => Vy Ay /=.
+    case (Vx =P Vy); case (Ax =P Ay); intros; apply (iffP idP); autossr; by case.
+  Qed.
 
-Lemma eqPFuncP {PSet PwAff: eqType} : Equality.axiom (@eq_PFunc PSet PwAff).
-Proof.
-  rewrite /eq_PFunc => x y.
-  case: x => Vx Ax. case: y => Vy Ay /=.
-  case (Vx =P Vy); case (Ax =P Ay); intros; apply (iffP idP); autossr; by case.
-Qed.
+  Canonical PFunc_eqType (n: nat) := Eval hnf in EqType (@PFunc n) (EqMixin (@eqPFuncP n)).
 
-Canonical PFunc_eqType {PSet PwAff: eqType} := Eval hnf in EqType PFunc (EqMixin (@eqPFuncP PSet PwAff)).
+  Hint Rewrite @constant_pfuncP @join_pfuncP @join_V_leftP @join_V_rightP using by first [liassr | autossr] : pfuncrw.
+  Hint Resolve @add_pfuncP @le_binop_pfuncP : core.
 
-Hint Rewrite @constant_pfuncP @join_pfuncP @join_V_leftP @join_V_rightP using by first [liassr | autossr] : pfuncrw.
-Hint Resolve @add_pfuncP @le_binop_pfuncP : core.
+  Ltac simpl_pfunc_ := repeat (autorewrite with maprw; autorewrite with pfuncrw; simplssr).
+  Ltac simpl_pfunc := reflect_ne_in simpl_pfunc_.
 
-Ltac simpl_pfunc_ := repeat (autorewrite with maprw; autorewrite with pfuncrw; simplssr).
-Ltac simpl_pfunc := reflect_ne_in simpl_pfunc_.
+  Ltac auto_pfunc := intros; simpl_pfunc; autossr.
 
-Ltac auto_pfunc := intros; simpl_pfunc; autossr.
+End PFuncImpl.

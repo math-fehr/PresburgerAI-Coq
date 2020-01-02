@@ -4,8 +4,8 @@ From Coq Require Import ssrbool.
 From PolyAI Require Export AbstractDomain.
 
 (* The abstract domain over relations of concrete states *)
-Class adom_relational {concrete_state abstract_state: eqType}
-      (A: adom (prod_eqType concrete_state concrete_state) abstract_state) :=
+Class adom_relational {concrete_state abstract_state: eqType} {p: Program}
+      (A: adom (prod_eqType concrete_state concrete_state) abstract_state p) :=
   {
     (* The identity relation *)
     id_relation : abstract_state;
@@ -40,7 +40,8 @@ Hint Resolve @compose_bot @transitive_closure_ge_step transitive_closure_ge_id t
 Section RelationalAbstractDomainTheorems.
 
   Context {concrete_state abstract_state: eqType}
-          {A: adom (prod_eqType concrete_state concrete_state) abstract_state}
+          {p: Program}
+          {A: adom (prod_eqType concrete_state concrete_state) abstract_state p}
           (AR: adom_relational A)
           (a a1 a2 a3: abstract_state).
 
