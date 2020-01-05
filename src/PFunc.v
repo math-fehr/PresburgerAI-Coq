@@ -145,6 +145,17 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     by case => [ | z | ]; rewrite /eval_pfunc /=; extensionality x; auto_finite_presburger.
   Qed.
 
+  Definition constant_var_pfunc (n var: nat) :=
+    mkPFunc (f_pw_aff_from_aff (FAVar n var)) (f_universe_set n).
+
+  Theorem constant_var_pfuncP :
+    forall n v, eval_pfunc (constant_var_pfunc n v) = (fun x => VVal (nth 0 x v)).
+  Proof.
+    move => n v. rewrite /eval_pfunc /=.
+    extensionality x.
+    by auto_finite_presburger.
+  Qed.
+
   Definition join_pfunc {n: nat} (p1 p2: PFunc n) :=
     let assumed_inter := f_intersect_set (Assumed p1) (Assumed p2) in
     let assumed_join := f_subtract_set assumed_inter (f_ne_set (Val p1) (Val p2)) in
