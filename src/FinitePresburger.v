@@ -217,6 +217,16 @@ Module Type FPresburgerImpl.
   Axiom f_get_involved_dimP :
     forall n (p: PwAff n) d, d \in (f_get_involved_dim p) = f_involves_dim_pw_aff p d.
 
+  Parameter f_map_from_pw_aff : forall n, PwAff n -> PMap n 1.
+  Arguments f_map_from_pw_aff {n}.
+  Axiom f_map_from_pw_affP :
+    forall n (p: PwAff n) x,
+      let pmap := f_map_from_pw_aff p in
+      match f_eval_pw_aff p x with
+      | Some v => (x, [::v]) \inm pmap /\ forall v', (x, v') \inm pmap -> v = nth 0%Z v' 0
+      | None => ~ exists v, (x, [::v]) \inm pmap
+      end.
+
   Theorem f_empty_set_rw :
     forall n x, x \ins (f_empty_set n) = false.
   Proof.
