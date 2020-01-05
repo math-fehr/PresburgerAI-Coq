@@ -9,7 +9,7 @@ Local Open Scope Z_scope.
 
 Inductive FiniteAff (dim: nat) :=
 | FAConst (c: Z)
-| FAVar (n: nat) (Hinbounds: (n < dim)%nat)
+| FAVar (n: nat)
 | FAPlus (a1 a2: FiniteAff dim)
 | AMul (c: Z) (a: FiniteAff dim).
 
@@ -18,7 +18,7 @@ Inductive FiniteAff (dim: nat) :=
 Fixpoint eval_finite_aff {dim: nat} (a: FiniteAff dim) (x: seq Z) :=
   match a with
   | FAConst c => c
-  | FAVar n _ => nth 0 x n
+  | FAVar n => nth 0 x n
   | FAPlus a1 a2 => (eval_finite_aff a1 x) + (eval_finite_aff a2 x)
   | AMul c a => c * (eval_finite_aff a x)
   end.
