@@ -1,6 +1,6 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 From Coq Require Import ssrbool Ensembles.
-From PolyAI Require Export PFunc LSSA AbstractDomain.
+From PolyAI Require Export PFunc LSSA AbstractDomain RelationalAbstractDomain.
 Local Set Warnings "-notation-overridden".
 From mathcomp Require Import ssrnat eqtype.
 
@@ -14,7 +14,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
   Definition concrete_state := prod_eqType RegisterMap RegisterMap.
 
   Definition to_var_values_seq (p: Program) (R: RegisterMap) :=
-    List.map (fun v => R v) (vars_in_program p).
+    [ seq R v | v <- vars_in_program p ].
 
   Definition PFuncMap (p: Program) :=
     let n := size (vars_in_program p) in
@@ -44,20 +44,25 @@ Module PFuncMap (FPI: FPresburgerImpl).
   Qed.
 
   Definition gamma_PFuncMap {p: Program} (pf: PFuncMap p) (x: concrete_state) :=
+    let n := size (vars_in_program p) in
     let inputs := to_var_values_seq p x.1 in
-    forall i, (x.2 (nth "" (vars_in_program p) i)) \inV (eval_pfunc (nth (constant_pfunc _ VTop) (sval pf) i) inputs).
+    forall i, i < n ->
+         (x.2 (nth "" (vars_in_program p) i)) \inV (eval_pfunc (nth (constant_pfunc _ VTop) (sval pf) i) inputs).
 
   Theorem gamma_top_PFuncMap :
     forall p x, Ensembles.In _ (gamma_PFuncMap (top_PFuncMap p)) x.
   Proof.
-    move => p x var_values i. rewrite /In /gamma_PFuncMap /top_PFuncMap nth_nseq.
+    move => p x n var_values i Hibounds.
+    rewrite /In /gamma_PFuncMap /top_PFuncMap nth_nseq.
     case_if; auto_pfunc.
   Qed.
 
   Theorem gamma_bot_PFuncMap :
     forall p x, ~ Ensembles.In _ (gamma_PFuncMap (bot_PFuncMap p)) x.
   Proof.
-    rewrite /In /gamma_PFuncMap /bot_PFuncMap => p x /(_ 0). rewrite nth_nseq.
+    rewrite /In /gamma_PFuncMap /bot_PFuncMap => p x /(_ 0).
+    rewrite size_vars_in_program => /(_ is_true_true).
+    rewrite nth_nseq.
     case_if. by simpl_pfunc.
       by rewrite size_vars_in_program in H.
   Qed.
@@ -70,6 +75,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
       move => /eqP in size_a1. move => /eqP in size_a2.
       move => size_a1' size_a2' x Hle i.
       move => /(_ i) in Hle. move: Hle. simpl_pfunc.
+      move => Htemp Hibounds. move: (Htemp Hibounds).
       apply le_V_spec.
       case Hs : (i < size a1).
       - erewrite nth_map; last first. by rewrite size_zip size_a1 size_a2 minnn -size_a1.
@@ -94,6 +100,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
       move => /eqP in size_a1. move => /eqP in size_a2.
       move => size_a1' size_a2' x Hle i.
       move => /(_ i) in Hle. move: Hle. simpl_pfunc.
+      move => Htemp Hibounds. move: (Htemp Hibounds).
       apply le_V_spec.
       case Hs : (i < size a2).
       - erewrite nth_map; last first. by rewrite size_zip size_a1 size_a2 minnn -size_a2.
@@ -127,6 +134,30 @@ Module PFuncMap (FPI: FPresburgerImpl).
       gamma_bot := gamma_bot_PFuncMap p;
       join_sound_l := join_sound_l_PFuncMap p;
       join_sound_r := join_sound_r_PFuncMap p;
+    }.
+
+  Program Definition id_relation_PFuncMap (p: Program) : PFuncMap p :=
+    let n := size (vars_in_program p) in
+    mkseq (fun var => constant_var_pfunc n var) n.
+  Next Obligation.
+      by rewrite size_mkseq.
+  Qed.
+
+  Theorem id_relation_PFuncMapP (p: Program) :
+    forall x, In _ (gamma_PFuncMap (id_relation_PFuncMap p)) (x, x).
+  Proof.
+    move => x.
+    rewrite /gamma_PFuncMap /In /= => i Hibounds.
+    rewrite nth_mkseq => [ | //].
+    simpl_pfunc.
+    rewrite /to_var_values_seq.
+      by erewrite nth_map => [ | //].
+  Qed.
+
+  Fail Instance adom_relational_pmap (p: Program) : adom_relational (adom_pmap p) :=
+    {
+      id_relation := id_relation_PFuncMap p;
+      id_relation_spec := id_relation_PFuncMapP p;
     }.
 
 End PFuncMap.
