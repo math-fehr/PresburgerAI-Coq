@@ -23,6 +23,9 @@ Fixpoint eval_finite_aff {dim: nat} (a: FiniteAff dim) (x: seq Z) :=
   | AMul c a => c * (eval_finite_aff a x)
   end.
 
+Definition point_equality (n: nat) (x1 x2: seq Z) :=
+  forall m, (m < n)%nat -> nth 0 x1 m = nth 0 x2 m.
+
 (* Specification of a Presburger library with finite dimensions *)
 
 Module Type FPresburgerImpl.
@@ -80,7 +83,7 @@ Module Type FPresburgerImpl.
 
   Parameter f_id_map: forall n, PMap n n.
   Axiom f_id_mapP: forall n x1 x2,
-      (x1, x2) \inm (f_id_map n) <-> forall m, (m < n)%nat -> nth 0 x1 m = nth 0 x2 m.
+      (x1, x2) \inm (f_id_map n) <-> point_equality n x1 x2.
 
   Parameter f_union_map: forall n m, PMap n m -> PMap n m -> PMap n m.
   Arguments f_union_map {n m}.
@@ -124,6 +127,13 @@ Module Type FPresburgerImpl.
   Axiom f_transitive_closure_map_ge_compose : forall n (m: PMap n n),
       f_is_subset_map (f_apply_range_map (f_transitive_closure_map m) m)
                       (f_transitive_closure_map m).
+
+  Parameter f_is_single_valued_map : forall n m, PMap n m -> bool.
+  Arguments f_is_single_valued_map {n} {m}.
+  Axiom f_is_single_valued_mapP :
+    forall n m (pm: PMap n m),
+      f_is_single_valued_map pm <->
+      (forall x v1 v2, (x, v1) \inm pm -> (x, v2) \inm pm -> point_equality m v1 v2).
 
   Parameter f_eval_pw_aff : forall n, PwAff n -> seq Z -> option Z.
   Arguments f_eval_pw_aff {n}.
@@ -226,6 +236,39 @@ Module Type FPresburgerImpl.
       | Some v => (x, [::v]) \inm pmap /\ forall v', (x, v') \inm pmap -> v = nth 0%Z v' 0
       | None => ~ exists v, (x, [::v]) \inm pmap
       end.
+
+  Parameter f_pw_aff_from_map : forall n m (pm: PMap n m), f_is_single_valued_map pm -> seq (PwAff n).
+  Arguments f_pw_aff_from_map {n} {m}.
+  Axiom f_pw_aff_from_map_size :
+    forall n m (pm: PMap n m) H,
+      size (f_pw_aff_from_map pm H) = m.
+  Axiom f_pw_aff_from_mapP :
+    forall n m (pm: PMap n m) H,
+    forall x_in val,
+    forall i, (i < m)%nat ->
+    (exists x_out, nth 0%Z x_out i = val /\ (x_in, x_out) \inm pm) <->
+    (let pw_aff_i := nth (f_empty_pw_aff n) (f_pw_aff_from_map pm H) i in
+     f_eval_pw_aff pw_aff_i x_in = Some val).
+
+  Theorem f_pw_aff_from_map_noneP :
+    forall n m (pm: PMap n m) (H: f_is_single_valued_map pm),
+    forall x_in i, (i < m)%N ->
+    let pw_aff_i := nth (f_empty_pw_aff n) (f_pw_aff_from_map pm H) i in
+    f_eval_pw_aff pw_aff_i x_in = None <->
+    (~ exists x_out, (x_in, x_out) \inm pm).
+  Proof.
+    move => n m pm Hsingle x_in i Hi.
+    split.
+    - move => HNone [x_out Hin].
+      move: (f_pw_aff_from_mapP n m pm Hsingle x_in (nth 0 x_out i) i Hi) => [H _].
+      have Hx_out: (exists x_out0, nth 0 x_out0 i = nth 0 x_out i /\ (x_in, x_out0) \inm pm). by exists x_out.
+      apply H in Hx_out. rewrite HNone in Hx_out. by [].
+    - move => Hnotin.
+      case Heval: (f_eval_pw_aff _ _) => [val| //]. exfalso.
+      move: (f_pw_aff_from_mapP n m pm Hsingle x_in val i Hi) => [_ H].
+      apply H in Heval. case: Heval => x_out [_ Hin]. apply Hnotin.
+        by eauto.
+  Qed.
 
   Theorem f_empty_set_rw :
     forall n x, x \ins (f_empty_set n) = false.
