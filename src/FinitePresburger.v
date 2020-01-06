@@ -237,6 +237,13 @@ Module Type FPresburgerImpl.
       | None => ~ exists v, (x, [::v]) \inm pmap
       end.
 
+  Parameter f_concat_map : forall n (s: seq (PMap n 1)), PMap n (size s).
+  Arguments f_concat_map {n}.
+  Axiom f_concat_mapP :
+    forall n (s: seq (PMap n 1)) x_in x_out,
+      (x_in, x_out) \inm f_concat_map s
+      <-> (forall i, (i < n)%N -> (x_in, [::(nth 0 x_out i)]) \inm nth (f_empty_map n 1) s i).
+
   Parameter f_pw_aff_from_map : forall n m (pm: PMap n m), f_is_single_valued_map pm -> seq (PwAff n).
   Arguments f_pw_aff_from_map {n} {m}.
   Axiom f_pw_aff_from_map_size :
