@@ -220,7 +220,7 @@ Module PFuncImpl (FPI: FPresburgerImpl).
 
   Canonical PFunc_eqType (n: nat) := Eval hnf in EqType (@PFunc n) (EqMixin (@eqPFuncP n)).
 
-  Hint Rewrite @constant_pfuncP @join_pfuncP @join_V_leftP @join_V_rightP using by first [liassr | autossr] : pfuncrw.
+  Hint Rewrite @constant_pfuncP @constant_var_pfuncP @join_pfuncP @join_V_leftP @join_V_rightP using by first [liassr | autossr] : pfuncrw.
   Hint Resolve @add_pfuncP @le_binop_pfuncP : core.
 
   Ltac simpl_pfunc_ := repeat (autorewrite with maprw; autorewrite with pfuncrw; simplssr).
