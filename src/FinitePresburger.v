@@ -26,6 +26,13 @@ Fixpoint eval_finite_aff {dim: nat} (a: FiniteAff dim) (x: seq Z) :=
 Definition point_equality (n: nat) (x1 x2: seq Z) :=
   forall m, (m < n)%nat -> nth 0 x1 m = nth 0 x2 m.
 
+Theorem point_equality_sym :
+  forall n x1 x2, point_equality n x1 x2 <-> point_equality n x2 x1.
+Proof.
+  move => n x1 x2.
+    by split; rewrite /point_equality => H m Hm; move => /(_ m Hm) in H.
+Qed.
+
 (* Specification of a Presburger library with finite dimensions *)
 
 Module Type FPresburgerImpl.
@@ -37,6 +44,10 @@ Module Type FPresburgerImpl.
   Parameter f_eval_pset : forall n, PSet n -> seq Z -> bool.
   Arguments f_eval_pset {n}.
   Notation "P \ins S" := (f_eval_pset S P) (at level 70, no associativity).
+
+  Axiom f_eval_pset_same : forall n (p: PSet n) x1 x2,
+      point_equality n x1 x2 ->
+      (x1 \ins p) = (x2 \ins p).
 
   Parameter f_empty_set: forall n, PSet n.
   Axiom f_empty_setP: forall n x, ~~(x \ins (f_empty_set n)).
@@ -155,6 +166,10 @@ Module Type FPresburgerImpl.
 
   Parameter f_eval_pw_aff : forall n, PwAff n -> seq Z -> option Z.
   Arguments f_eval_pw_aff {n}.
+
+  Axiom f_eval_pw_aff_same : forall n (p: PwAff n) x1 x2,
+      point_equality n x1 x2 ->
+      f_eval_pw_aff p x1 = f_eval_pw_aff p x2.
 
   Parameter f_pw_aff_from_aff : forall n, FiniteAff n -> PwAff n.
   Arguments f_pw_aff_from_aff {n}.
@@ -323,6 +338,34 @@ Module Type FPresburgerImpl.
   Next Obligation.
     apply f_apply_range_preserves_single_valued => //.
       by apply f_map_from_pw_aff_single_valued.
+  Qed.
+
+  Theorem f_apply_map_to_pw_affP :
+    forall n m map H pw_aff x_in x_mid,
+      (x_in, x_mid) \inm map ->
+      f_eval_pw_aff (@f_apply_map_to_pw_aff n m map H pw_aff) x_in =
+      f_eval_pw_aff pw_aff x_mid.
+  Proof.
+    move => n m map H pw_aff x_in x_mid Hinmap.
+    rewrite /f_apply_map_to_pw_aff.
+    set map' := f_apply_range_map map (f_map_from_pw_aff pw_aff).
+    set Hsingle' := (f_apply_map_to_pw_aff_obligation_1 _ _ _ _ _).
+    case Heval: (f_eval_pw_aff pw_aff x_mid) => [ v | ].
+    - move: (f_pw_aff_from_mapP n 1 map' Hsingle' x_in v 0 (ltn0Sn _)) => [H1 H2].
+      rewrite H1. by [].
+      exists [::v]. split; auto.
+      rewrite /map'.
+      apply f_apply_range_mapP. exists x_mid. simplssr.
+        by rewrite f_map_from_pw_affP Heval.
+    - rewrite f_pw_aff_from_map_noneP => //.
+      move => [x_out Hin].
+      move => /f_apply_range_mapP in Hin.
+      case: Hin => x_mid2 /andP[Hinmap2 Hinpw_aff].
+      move: (H) => /f_is_single_valued_mapP /(_ x_in x_mid x_mid2 Hinmap Hinmap2).
+      move => /f_eval_pmap_same_in. move => /(_ 1%N (f_map_from_pw_aff pw_aff) x_out).
+      move => [_ Hequiv]. apply Hequiv in Hinpw_aff.
+      move => /f_map_from_pw_affP in Hinpw_aff.
+        by rewrite Heval in Hinpw_aff.
   Qed.
 
   Theorem f_empty_set_rw :
