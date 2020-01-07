@@ -223,7 +223,7 @@ Module PFuncImpl (FPI: FPresburgerImpl).
   Hint Rewrite @constant_pfuncP @constant_var_pfuncP @join_pfuncP @join_V_leftP @join_V_rightP using by first [liassr | autossr] : pfuncrw.
   Hint Resolve @add_pfuncP @le_binop_pfuncP : core.
 
-  Ltac simpl_pfunc_ := repeat (autorewrite with maprw; autorewrite with prw; simplssr).
+  Ltac simpl_pfunc_ := repeat (autorewrite with maprw; autorewrite with pfuncrw; autorewrite with prw; simplssr).
   Ltac simpl_pfunc := reflect_ne_in simpl_pfunc_.
 
   Ltac auto_pfunc := intros; simpl_pfunc; autossr.
