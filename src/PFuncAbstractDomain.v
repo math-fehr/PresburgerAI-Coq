@@ -291,14 +291,40 @@ Module PFuncMap (FPI: FPresburgerImpl).
         by erewrite f_eval_pw_aff_same; eauto.
   Qed.
 
+  Definition compose_relation_with_bot_PFuncMap {p: Program} (pf1 pf2: PFuncMap p) : PFuncMap p :=
+    if (pf2 == bot_PFuncMap p) then
+      bot_PFuncMap p
+    else
+      compose_relation_PFuncMap pf1 pf2.
+
+  Theorem compose_relation_with_bot_PFuncMapP :
+    forall p x1 x0 x2 (pf1 pf2: PFuncMap p),
+      In _ (gamma_PFuncMap pf1) (x0, x1) ->
+      In _ (gamma_PFuncMap pf2) (x1, x2) ->
+      In _ (gamma (compose_relation_with_bot_PFuncMap pf1 pf2)) (x0, x2).
+  Proof.
+    move => p x1 x0 x2 pf1 pf2 Hin01 Hin12.
+    rewrite /compose_relation_with_bot_PFuncMap.
+    case_if.
+    - move => /eqP in H. rewrite H in Hin12. by move: (gamma_bot_PFuncMap p (x1, x2)).
+    - by eapply compose_relation_PFuncMapP; eauto.
+  Qed.
+
+  Theorem compose_relation_bot_PFuncMap :
+    forall p x1, compose_relation_with_bot_PFuncMap x1 (bot_PFuncMap p) = (bot_PFuncMap p).
+  Proof.
+    move => p x1. rewrite /compose_relation_with_bot_PFuncMap.
+      by rewrite eq_refl.
+  Qed.
 
   Fail Instance adom_relational_pmap (p: Program) : adom_relational (adom_pmap p) :=
     {
       id_relation := id_relation_PFuncMap p;
       id_relation_spec := id_relation_PFuncMapP p;
 
-      compose_relation := compose_relation_PFuncMap;
-      compose_relation_spec := compose_relation_PFuncMapP p;
+      compose_relation := compose_relation_with_bot_PFuncMap;
+      compose_relation_spec := compose_relation_with_bot_PFuncMapP p;
+      compose_bot := compose_relation_bot_PFuncMap p;
     }.
 
 End PFuncMap.
