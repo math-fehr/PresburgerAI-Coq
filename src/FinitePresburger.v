@@ -75,11 +75,23 @@ Module Type FPresburgerImpl.
   Arguments f_eval_pmap {n m}.
   Notation "P \inm S" := (f_eval_pmap S P.1 P.2) (at level 70, no associativity).
 
+  Axiom f_eval_pmap_same_in : forall n m (pm: PMap n m) x_in1 x_in2 x_out,
+      point_equality n x_in1 x_in2 ->
+      (x_in1, x_out) \inm pm <-> (x_in2, x_out) \inm pm.
+  Axiom f_eval_pmap_same_out : forall n m (pm: PMap n m) x_in x_out1 x_out2,
+      point_equality m x_out1 x_out2 ->
+      (x_in, x_out1) \inm pm <-> (x_in, x_out2) \inm pm.
+
   Parameter f_empty_map: forall n m, PMap n m.
   Axiom f_empty_mapP: forall n m x y, ~~((x,y) \inm (f_empty_map n m)).
 
   Parameter f_universe_map: forall n m, PMap n m.
   Axiom f_universe_mapP: forall n m x y, (x, y) \inm (f_empty_map n m).
+
+  Parameter f_get_domain_map: forall n m, PMap n m -> PSet n.
+  Arguments f_get_domain_map {n} {m}.
+  Axiom f_get_domain_mapP: forall n m (map: PMap n m) x_in,
+      x_in \ins (f_get_domain_map map) <-> exists x_out, (x_in, x_out) \inm map.
 
   Parameter f_id_map: forall n, PMap n n.
   Axiom f_id_mapP: forall n x1 x2,
@@ -94,6 +106,12 @@ Module Type FPresburgerImpl.
   Arguments f_intersect_map {n m}.
   Axiom f_intersect_mapP: forall n m (p1 p2: PMap n m) x y,
       (x, y) \inm (f_intersect_map p1 p2) = ((x, y) \inm p1) && ((x, y) \inm p2).
+
+  Parameter f_intersect_range_map: forall n m, PMap n m -> PSet m -> PMap n m.
+  Arguments f_intersect_range_map {n} {m}.
+  Axiom f_intersect_range_mapP: forall n m (map: PMap n m) pset x_in x_out,
+      (x_in, x_out) \inm (f_intersect_range_map map pset) =
+      ((x_in, x_out) \inm map) && (x_out \ins pset).
 
   Parameter f_is_subset_map: forall n m, PMap n m -> PMap n m -> bool.
   Arguments f_is_subset_map {n m}.
@@ -117,7 +135,7 @@ Module Type FPresburgerImpl.
   Arguments f_apply_range_map {n m p}.
   Axiom f_apply_range_mapP : forall n1 n2 n3 (m1: PMap n1 n2) (m2: PMap n2 n3) x1 x3,
       (x1, x3) \inm (f_apply_range_map m1 m2) <->
-      exists x2, ((x1, x2) \inm m1) && ((x1, x3) \inm m2).
+      exists x2, ((x1, x2) \inm m1) && ((x2, x3) \inm m2).
 
   Parameter f_transitive_closure_map : forall n, PMap n n -> PMap n n.
   Arguments f_transitive_closure_map {n}.
@@ -230,12 +248,9 @@ Module Type FPresburgerImpl.
   Parameter f_map_from_pw_aff : forall n, PwAff n -> PMap n 1.
   Arguments f_map_from_pw_aff {n}.
   Axiom f_map_from_pw_affP :
-    forall n (p: PwAff n) x,
-      let pmap := f_map_from_pw_aff p in
-      match f_eval_pw_aff p x with
-      | Some v => (x, [::v]) \inm pmap /\ forall v', (x, v') \inm pmap -> v = nth 0%Z v' 0
-      | None => ~ exists v, (x, [::v]) \inm pmap
-      end.
+    forall n (p: PwAff n) x_in x_out,
+      (x_in, x_out) \inm (f_map_from_pw_aff p) <->
+      f_eval_pw_aff p x_in = Some (nth 0 x_out 0).
 
   Parameter f_concat_map : forall n (s: seq (PMap n 1)), PMap n (size s).
   Arguments f_concat_map {n}.
@@ -257,6 +272,20 @@ Module Type FPresburgerImpl.
     (let pw_aff_i := nth (f_empty_pw_aff n) (f_pw_aff_from_map pm H) i in
      f_eval_pw_aff pw_aff_i x_in = Some val).
 
+  Theorem f_apply_range_preserves_single_valued :
+    forall n m p (pm1: PMap n m) (H1: f_is_single_valued_map pm1) (pm2: PMap m p) (H2: f_is_single_valued_map pm2),
+      f_is_single_valued_map (f_apply_range_map pm1 pm2).
+  Proof.
+    move => n m p pm1 H1 pm2 H2.
+    rewrite f_is_single_valued_mapP => x x_out1 x_out2.
+    rewrite !f_apply_range_mapP => [[x_mid1 /andP[H11 H21]]] [x_mid2 /andP[H12 H22]].
+    rewrite ->f_is_single_valued_mapP in H1.
+    move => /(_ x x_mid1 x_mid2 H11 H12) in H1.
+    rewrite ->f_eval_pmap_same_in in H21; [ | apply H1 ].
+    rewrite ->f_is_single_valued_mapP in H2.
+    by move => /(_ x_mid2 x_out1 x_out2 H21 H22) in H2.
+  Qed.
+
   Theorem f_pw_aff_from_map_noneP :
     forall n m (pm: PMap n m) (H: f_is_single_valued_map pm),
     forall x_in i, (i < m)%N ->
@@ -277,6 +306,25 @@ Module Type FPresburgerImpl.
         by eauto.
   Qed.
 
+  Theorem f_map_from_pw_aff_single_valued :
+    forall n (map: PwAff n), f_is_single_valued_map (f_map_from_pw_aff map).
+  Proof.
+    move => n map.
+    rewrite f_is_single_valued_mapP => x_in x_out1 x_out2 Hin1 Hin2.
+    move => /f_map_from_pw_affP in Hin1. move => /f_map_from_pw_affP in Hin2.
+    rewrite /point_equality.
+    case => [ _ | //].
+    rewrite Hin1 in Hin2.
+      by move: Hin2 => /= [->].
+  Qed.
+
+  Program Definition f_apply_map_to_pw_aff {n m: nat} (map: PMap n m) (H: f_is_single_valued_map map) (pw_aff: PwAff m) : PwAff n :=
+    nth (f_empty_pw_aff n) (f_pw_aff_from_map (f_apply_range_map map (f_map_from_pw_aff pw_aff)) _) 0.
+  Next Obligation.
+    apply f_apply_range_preserves_single_valued => //.
+      by apply f_map_from_pw_aff_single_valued.
+  Qed.
+
   Theorem f_empty_set_rw :
     forall n x, x \ins (f_empty_set n) = false.
   Proof.
@@ -284,7 +332,58 @@ Module Type FPresburgerImpl.
       by rewrite (negbTE (f_empty_setP _ _)).
   Qed.
 
-  Hint Rewrite @f_empty_set_rw @f_universe_setP @f_union_setP @f_intersect_setP
+  Theorem f_is_subset_set_refl :
+    forall n (s: PSet n), f_is_subset_set s s.
+  Proof.
+    move => n s.
+      by rewrite f_is_subset_setP.
+  Qed.
+
+  Theorem f_is_subset_set_trans :
+    forall n (s1 s2 s3: PSet n),
+      f_is_subset_set s1 s2 ->
+      f_is_subset_set s2 s3 ->
+      f_is_subset_set s1 s3.
+  Proof.
+    move => n s1 s2 s3 /f_is_subset_setP H12 /f_is_subset_setP H23.
+    apply f_is_subset_setP => x.
+    move => /(_ x) in H12. move => /(_ x) in H23.
+      by auto.
+  Qed.
+
+  Theorem f_is_subset_intersect_right :
+    forall n (s1 s2: PSet n), f_is_subset_set (f_intersect_set s1 s2) s1.
+  Proof.
+    move => n s1 s2. rewrite f_is_subset_setP => x.
+    rewrite f_intersect_setP.
+      by autossr.
+  Qed.
+
+  Theorem f_is_subset_intersect_left :
+    forall n (s1 s2: PSet n), f_is_subset_set (f_intersect_set s1 s2) s2.
+  Proof.
+    move => n s1 s2. rewrite f_is_subset_setP => x.
+    rewrite f_intersect_setP.
+      by autossr.
+  Qed.
+
+  Definition f_cast_map {n1 n2 m1 m2: nat} (Hn: n1 = n2) (Hm: m1 = m2) (p: PMap n1 m1) : PMap n2 m2.
+      by rewrite -Hn -Hm.
+  Defined.
+
+  Theorem f_cast_mapP :
+    forall n1 n2 m1 m2 Hn Hm p x,
+      x \inm (@f_cast_map n1 n2 m1 m2 Hn Hm p) <-> x \inm p.
+  Proof.
+    move => n1 n2 m1 m2 Hn Hm p x.
+    rewrite /f_cast_map /eq_rect_r /eq_rect.
+    case Hn. case Hm.
+      by [].
+  Qed.
+
+
+  Hint Rewrite @f_empty_set_rw @f_is_subset_set_refl @f_universe_setP @f_union_setP @f_intersect_setP
+       @f_intersect_range_mapP @f_get_domain_mapP
        @f_subtract_setP @f_apply_range_mapP
        @f_universe_mapP @f_id_mapP @f_union_mapP @f_intersect_mapP
        @f_pw_aff_from_affP @f_intersect_domainP @f_union_pw_affP @f_eq_setP @f_ne_setP @f_le_setP @f_indicator_functionP
@@ -292,7 +391,8 @@ Module Type FPresburgerImpl.
        @f_empty_pw_affP
        using by first [liassr | autossr ] : prw.
 
-  Hint Resolve @f_is_subset_setP @f_is_subset_mapP @f_project_out_setP @f_is_subset_mapP : core.
+  Hint Resolve @f_is_subset_setP @f_is_subset_mapP @f_project_out_setP @f_is_subset_mapP
+    @f_is_subset_intersect_right @f_is_subset_intersect_left: core.
 
   Ltac simpl_finite_presburger_ := repeat (autorewrite with prw; simpl_map).
   Ltac simpl_finite_presburger := reflect_ne_in simpl_finite_presburger_.
