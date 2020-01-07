@@ -104,6 +104,12 @@ Ltac case_if :=
   | [ |- context[ if ?c then _ else _ ] ] => let H := fresh "H" in case H : c
   end.
 
+Ltac case_match :=
+  match goal with
+  | [ |- context[ match ?x with _ => _ end] ] => let H := fresh "H" in case H: x
+  end.
+
+
 Ltac simplssr_ := rewrite_is_true; simpl_seq; simpl_bool; simpleq.
 Ltac simplssr := repeat (reflect_ne_in simplssr_).
 Ltac autossr :=
