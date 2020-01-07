@@ -53,6 +53,7 @@ Ltac simpl_seq :=
 Ltac simpl_bool :=
   repeat match goal with
          | [ |- context[_ && true] ] => rewrite Bool.andb_true_r
+         | [ |- context[_ && false] ] => rewrite Bool.andb_false_r
          | [ |- context[_ || true] ] => rewrite Bool.orb_true_r
          | _ => rewrite /=
          end.
