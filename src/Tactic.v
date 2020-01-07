@@ -106,7 +106,7 @@ Ltac case_if :=
 
 Ltac case_match :=
   match goal with
-  | [ |- context[ match ?x with _ => _ end] ] => let H := fresh "H" in case H: x
+  | [ |- context[ match ?x with _ => _ end] ] => case: x
   end.
 
 
