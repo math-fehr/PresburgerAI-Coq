@@ -113,6 +113,32 @@ Section AbstractInterpreter.
           by rewrite add0n Hinst0 => [[->]].
   Qed.
 
+  Theorem abstract_interpret_inst_listP (bb: BasicBlock) (bb_id: bbid) :
+    p bb_id = Some bb ->
+    forall (l: seq Inst) pos, (forall n, nth_error l n = nth_error bb.1.2 (n + pos)) ->
+      forall stateV, (forall n', n' < pos -> inst_fixpoint' stateV bb_id n') ->
+        forall n'', inst_fixpoint' (abstract_interpret_inst_list l bb_id pos stateV) bb_id n''.
+  Proof.
+    move => Hbb. elim.
+    - move => pos Hnth stateV Hfixpoint n''.
+      case Hn''pos: (n'' < pos). by autossr.
+      move => bb_same Hbb_same inst Hinst. exfalso. bigsubst.
+      move => /negb_true_iff in Hn''pos. rewrite -leqNgt in Hn''pos.
+      move: (Hnth (n'' - pos)). rewrite subnK => [ | //]. rewrite /= Hinst.
+        by case (n'' - pos).
+    - move => inst l Hind pos Hnth stateV Hfixpoint n''.
+      apply Hind => [n | n' Hn'ltpos1]. by rewrite addnS; apply (Hnth n.+1).
+      case Hn'pos: (n' < pos) => /=.
+      + have Hn'posne: (pos.+1 != n'.+1). rewrite eqSS neq_ltn Hn'pos. by autossr.
+        rewrite /inst_fixpoint'. simpl_map.
+          by apply Hfixpoint.
+      + have Heq : (n' = pos). rewrite leq_eqVlt ltnS Hn'pos orb_false_r eqSS in Hn'ltpos1. autossr.
+        rewrite /inst_fixpoint'. simpl_map.
+        move => bb0 Hbb0 inst0 Hinst0 R R' Hreachable HIn R'' Hstep.
+        bigsubst. move: (Hnth 0) => /=. rewrite add0n Hinst0. case => ->.
+          by eapply transfer_inst_sound; eauto.
+  Qed.
+
   Theorem abstract_interpret_inst_list_0_unchanged (l: list Inst) (bb_id bb_id': bbid) (pos: nat) (stateV: ASValues) :
     (abstract_interpret_inst_list l bb_id pos stateV) bb_id' 0 = stateV bb_id' 0.
   Proof.
