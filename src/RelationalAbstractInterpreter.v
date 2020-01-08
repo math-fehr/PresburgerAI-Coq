@@ -33,13 +33,36 @@ Section AbstractInterpreter.
           forall inst, nth_error bb.1.2 pos = Some inst ->
                   le (transfer_inst inst (stateV bb_id pos)) (stateV bb_id (S pos)).
 
+  Definition inst_fixpoint' (stateV: ASValues) (bb_id: bbid) (pos: nat) :=
+    forall bb, p bb_id = Some bb ->
+          forall inst, nth_error bb.1.2 pos = Some inst ->
+                  forall R R', reachable_states p R (bb_id, pos, R') ->
+                          Ensembles.In _ (gamma (stateV bb_id pos)) (R, R') ->
+                          forall R'', inst_step inst R' R'' ->
+                                 Ensembles.In _ (gamma (stateV bb_id (S pos))) (R, R'').
+
   Definition term_fixpoint (state: AS) (bb_id: bbid) :=
     forall bb, p bb_id = Some bb ->
           forall abbbid, (abbbid \in (transfer_term bb.2 (state.1 bb_id (length bb.1.2)))) ->
                     le abbbid.1 (state.2 bb_id abbbid.2).
 
+  Definition term_fixpoint' (state: AS) (bb_id: bbid) :=
+    forall bb, p bb_id = Some bb ->
+          let pos := size bb.1.2 in
+          forall R R', reachable_states p R (bb_id, pos, R') ->
+                  Ensembles.In _ (gamma (state.1 bb_id pos)) (R, R') ->
+                  forall bb_id' R'', term_step p bb.2 R' (bb_id', R'') ->
+                                Ensembles.In _ (gamma (state.2 bb_id bb_id')) (R, R'').
+
   Definition edge_fixpoint (state: AS) (bb_id: bbid) :=
     forall in_id, le (state.2 in_id bb_id) (state.1 bb_id 0).
+
+  Definition edge_fixpoint' (state: AS) (bb_id_out: bbid) :=
+    forall bb_in bb_id_in, p bb_id_in = Some bb_in ->
+          let pos := size bb_in.1.2 in
+          forall R R', reachable_states p R (bb_id_in, pos, R') ->
+                  Ensembles.In _ (gamma (state.2 bb_id_in bb_id_out)) (R, R') ->
+                  Ensembles.In _ (gamma (state.1 bb_id_out 0)) (R, R').
 
   Definition edges_invariant_some (stateE: ASEdges) :=
     forall in_id in_bb, p in_id = Some in_bb ->
