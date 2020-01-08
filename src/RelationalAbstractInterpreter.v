@@ -227,6 +227,19 @@ Section AbstractInterpreter.
     by auto.
   Qed.
 
+  Theorem abstract_interpret_termP (bb: BasicBlock) (bb_id: bbid) (state: AS) :
+    p bb_id = Some bb ->
+    term_fixpoint' (state.1, (abstract_interpret_term bb bb_id state)) bb_id.
+  Proof.
+    move: state => [stateV stateE].
+    move => Hbb /= bb0 Hbb0 pos R R' Hreachable_states /= HIn bb_id' R'' Hterm.
+    bigsubst. rewrite /abstract_interpret_term /=.
+    pose proof transfer_term_sound.
+    move => /(_ _ _ _ _ Hterm _ _ HIn) in H.
+    case: H => [a' [Hintransfer HIna']].
+      by eapply abstract_interpret_term_join_edges_spec; eauto.
+  Qed.
+
   Hint Resolve abstract_interpret_term_spec : core.
 
   Lemma abstract_interpret_term_bb_edge_out_unchanged (bb_id: bbid) (bb: BasicBlock):
