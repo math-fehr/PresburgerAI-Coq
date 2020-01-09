@@ -317,7 +317,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
       by rewrite eq_refl.
   Qed.
 
-  Fail Instance adom_relational_pmap (p: Program) : adom_relational (adom_pmap p) :=
+  (* Fail Instance adom_relational_pmap (p: Program) : adom_relational (adom_pmap p) :=
     {
       id_relation := id_relation_PFuncMap p;
       id_relation_spec := id_relation_PFuncMapP p;
@@ -325,6 +325,6 @@ Module PFuncMap (FPI: FPresburgerImpl).
       compose_relation := compose_relation_with_bot_PFuncMap;
       compose_relation_spec := compose_relation_with_bot_PFuncMapP p;
       compose_bot := compose_relation_bot_PFuncMap p;
-    }.
+    }. *)
 
 End PFuncMap.
