@@ -270,6 +270,15 @@ multi_step p ("entry", O, R) s.
 
 Open Scope nat_scope.
 
+Theorem multi_step_trans :
+  forall p s0 s1 s2, multi_step p s0 s1 -> multi_step p s1 s2 -> multi_step p s0 s2.
+Proof.
+  move => p s0 s1 s2 H01 H12.
+  induction H12 => [// | ].
+  apply IHmulti_step in H01.
+    by eapply StepTrans; eauto.
+Qed.
+
 Theorem reachable_states_pos (p: Program) (R: RegisterMap) (s: state) :
   reachable_states p R s ->
   match p s.1.1 with
@@ -295,7 +304,51 @@ Proof.
       by apply leq0n.
 Qed.
 
+Theorem step_entering_loop :
+  forall p header_id body,
+    let loop := Loop header_id body in
+    structure_sound p loop ->
+    forall s_in, (s_in.1.1 \notin (bbs_in_program loop)) ->
+            forall s_out, (s_out.1.1 \in (bbs_in_program loop)) ->
+                     step p s_in s_out ->
+                     s_out.1.1 = header_id /\ s_out.1.2 = 0.
+Proof.
+  move => p header_id body loop Hsound s_in Hs_in_notin s_out Hs_out_in Hstep.
+  have H_s_in_out_ne: (s_in <> s_out). move => H_s_in_out_eq. subst. by rewrite Hs_out_in in Hs_in_notin.
+  inversion Hstep. bigsubst. by rewrite Hs_out_in in Hs_in_notin.
+  bigsubst. rewrite /=. split; auto.
+  inversion Hsound. move: H3 => /andP[/andP[/andP[_ /allP Hpred] _] _].
+  move => /= in Hs_out_in. rewrite in_cons in Hs_out_in. move => /orP in Hs_out_in.
+  case: Hs_out_in; first by autossr.
+  move => /Hpred /allP.
+  apply term_successors_spec in H1.
+  move: (program_predecessors_spec p new_bbid bb_id).
+  rewrite H H1 => H_in_predecessors. move => /(_ bb_id H_in_predecessors).
+    by autossr.
+Qed.
 
+Theorem multi_step_loop :
+  forall p header_id body,
+    let loop := Loop header_id body in
+    structure_sound p loop ->
+    forall s_entry, (s_entry.1.1 \notin (bbs_in_program loop)) ->
+               forall s_bb, (s_bb.1.1 \in (bbs_in_program loop)) ->
+                       multi_step p s_entry s_bb <->
+                       exists R_header, multi_step p s_entry (header_id, 0, R_header) /\
+                                   multi_step p (header_id, 0, R_header) s_bb.
+Proof.
+  move => p header_id body loop Hsound s_entry H_entry_notin s_bb H_bb_in.
+  split => [ H_multi_step | [R_header [H01 H12]]]; last by eapply multi_step_trans; eauto.
+  move Hp : p => p'. rewrite Hp in H_multi_step.
+  elim: H_multi_step Hp H_bb_in H_entry_notin; first by move => p0 s _ ->.
+  move => p0 s s' s'' Hmulti_step Hind Hstep Hp H_s''_in H_s_notin.
+  case Hs'_in : (s'.1.1 \in bbs_in_program loop). by case: (Hind Hp Hs'_in H_s_notin) => R_header [H0 H1]; eexists; split; eauto; econstructor; eauto.
+  have H_s'_s''_ne: (s' <> s''). move => H_s'_s''_eq. subst. by rewrite H_s''_in in Hs'_in.
+  bigsubst. move => /negb_true_iff in Hs'_in. move: (step_entering_loop _ _ _ Hsound _ Hs'_in _ H_s''_in Hstep) => [H_s''_header H_s''_pos_0].
+  exists s''.2. rewrite -H_s''_header -H_s''_pos_0.
+  rewrite -!surjective_pairing. split; last by constructor.
+  econstructor; eauto.
+Qed.
 
 Section Example.
 
