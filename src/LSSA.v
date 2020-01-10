@@ -350,6 +350,41 @@ Proof.
   econstructor; eauto.
 Qed.
 
+Definition step_cond (p: Program) (s s': state) (avoid: seq bbid) :=
+  step p s s' /\ ~~ ((s'.1.1 \in avoid) && (s'.1.2 != 0)).
+
+Inductive multi_step_cond: Program -> state -> state -> seq bbid -> Prop :=
+| StepCondRefl : forall p s l, multi_step_cond p s s l
+| StepCondTrans : forall p s s' s'' l, multi_step_cond p s s' l -> step_cond p s' s'' l -> multi_step_cond p s s'' l.
+
+Theorem multi_step_cond_trans:
+  forall p s' s s'' l, multi_step_cond p s s' l ->
+                     multi_step_cond p s' s'' l ->
+                     multi_step_cond p s s'' l.
+Proof.
+  move => p s' s s'' l H01 H12.
+  induction H12 => [ // | ].
+  apply IHmulti_step_cond in H01.
+    by eapply StepCondTrans; eauto.
+Qed.
+
+Theorem step_cond_cons:
+  forall p s s' bb_id l, step_cond p s s' (bb_id::l) -> step_cond p s s' l.
+Proof.
+  move => p s s' bb_id l [Hstep /nandP [Hnotin | Hnot0]]; rewrite /step_cond; autossr.
+Qed.
+
+Theorem multi_step_cond_cons:
+  forall p s s' bb_id l, multi_step_cond p s s' (bb_id::l) ->
+                    multi_step_cond p s s' l.
+Proof.
+  move => p s s' bb_id l Hmulti.
+  move Hl_cons : (bb_id :: l) => l_cons. rewrite Hl_cons in Hmulti.
+  induction Hmulti; first by constructor.
+  eapply StepCondTrans; eauto.
+  rewrite -Hl_cons in H. by eapply step_cond_cons; eauto.
+Qed.
+
 Section Example.
 
   Definition y_ne_x : "y" <> "x".
