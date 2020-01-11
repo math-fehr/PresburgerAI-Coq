@@ -180,6 +180,14 @@ Module Type FPresburgerImpl.
   Axiom f_empty_pw_affP :
     forall n x, f_eval_pw_aff (f_empty_pw_aff n) x = None.
 
+  Parameter f_get_domain_pw_aff : forall n, PwAff n -> PSet n.
+  Arguments f_get_domain_pw_aff {n}.
+  Axiom f_get_domain_pw_affP : forall n (p: PwAff n) x,
+      x \ins (f_get_domain_pw_aff p) = match f_eval_pw_aff p x with
+                                       | Some v => true
+                                       | None => false
+                                       end.
+
   Parameter f_intersect_domain : forall n, PwAff n -> PSet n -> PwAff n.
   Arguments f_intersect_domain {n}.
   Axiom f_intersect_domainP : forall n (p: PwAff n) (s: PSet n) x,
