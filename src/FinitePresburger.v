@@ -73,6 +73,12 @@ Module Type FPresburgerImpl.
   Definition f_complement_set {n: nat} :=
     f_subtract_set (f_universe_set n).
 
+  Theorem f_complement_setP :
+    forall n p x, x \ins (@f_complement_set n p) = ~~ (x \ins p).
+  Proof.
+    move => n p x. by rewrite /f_complement_set f_subtract_setP f_universe_setP.
+  Qed.
+
   Parameter f_is_subset_set: forall n, PSet n -> PSet n -> bool.
   Arguments f_is_subset_set {n}.
   Axiom f_is_subset_setP: forall n (p1 p2: PSet n),
