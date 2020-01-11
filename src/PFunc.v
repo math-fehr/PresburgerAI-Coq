@@ -208,10 +208,20 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     move => a a0 /eqP -> /eqP ->. by case (a <=? a0).
   Qed.
 
+  Definition pfunc_get_bot_set {n: nat} (p: PFunc n) :=
+    f_intersect_set (Assumed p) (f_complement_set (f_get_domain_pw_aff (Val p))).
+
+  Theorem pfunc_get_bot_setP :
+    forall n p x, x \ins (@pfunc_get_bot_set n p) = (eval_pfunc p x == VBot).
+  Proof.
+    move => n p x. rewrite /pfunc_get_bot_set /eval_pfunc. simpl_finite_presburger.
+    case: (x \ins Assumed p) => [ /= | // ].
+      by case_match.
+  Qed.
+
   Definition eq_PFunc {n: nat} (P1 P2: PFunc n) :=
     (Val P1 == Val P2) && (Assumed P1 == Assumed P2).
-
-  Lemma eqPFuncP {n: nat} : Equality.axiom (@eq_PFunc n).
+ Lemma eqPFuncP {n: nat} : Equality.axiom (@eq_PFunc n).
   Proof.
     rewrite /eq_PFunc => x y.
     case: x => Vx Ax. case: y => Vy Ay /=.
