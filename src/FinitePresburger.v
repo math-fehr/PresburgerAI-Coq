@@ -70,6 +70,9 @@ Module Type FPresburgerImpl.
   Axiom f_subtract_setP: forall n (p1 p2: PSet n) x,
       x \ins (f_subtract_set p1 p2) = (x \ins p1) && ~~ (x \ins p2).
 
+  Definition f_complement_set {n: nat} :=
+    f_subtract_set (f_universe_set n).
+
   Parameter f_is_subset_set: forall n, PSet n -> PSet n -> bool.
   Arguments f_is_subset_set {n}.
   Axiom f_is_subset_setP: forall n (p1 p2: PSet n),
@@ -434,7 +437,7 @@ Module Type FPresburgerImpl.
 
 
   Hint Rewrite @f_empty_set_rw @f_is_subset_set_refl @f_universe_setP @f_union_setP @f_intersect_setP
-       @f_intersect_range_mapP @f_get_domain_mapP
+       @f_intersect_range_mapP @f_get_domain_mapP @f_get_domain_pw_affP
        @f_subtract_setP @f_apply_range_mapP
        @f_universe_mapP @f_id_mapP @f_union_mapP @f_intersect_mapP
        @f_pw_aff_from_affP @f_intersect_domainP @f_union_pw_affP @f_eq_setP @f_ne_setP @f_le_setP @f_indicator_functionP
