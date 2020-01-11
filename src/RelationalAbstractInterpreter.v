@@ -33,36 +33,13 @@ Section AbstractInterpreter.
           forall inst, nth_error bb.1.2 pos = Some inst ->
                   le (transfer_inst inst (stateV bb_id pos)) (stateV bb_id (S pos)).
 
-  Definition inst_fixpoint' (stateV: ASValues) (bb_id: bbid) (pos: nat) :=
-    forall bb, p bb_id = Some bb ->
-          forall inst, nth_error bb.1.2 pos = Some inst ->
-                  forall R R', reachable_states p R (bb_id, pos, R') ->
-                          Ensembles.In _ (gamma (stateV bb_id pos)) (R, R') ->
-                          forall R'', inst_step inst R' R'' ->
-                                 Ensembles.In _ (gamma (stateV bb_id (S pos))) (R, R'').
-
   Definition term_fixpoint (state: AS) (bb_id: bbid) :=
     forall bb, p bb_id = Some bb ->
           forall abbbid, (abbbid \in (transfer_term bb.2 (state.1 bb_id (length bb.1.2)))) ->
                     le abbbid.1 (state.2 bb_id abbbid.2).
 
-  Definition term_fixpoint' (state: AS) (bb_id: bbid) :=
-    forall bb, p bb_id = Some bb ->
-          let pos := size bb.1.2 in
-          forall R R', reachable_states p R (bb_id, pos, R') ->
-                  Ensembles.In _ (gamma (state.1 bb_id pos)) (R, R') ->
-                  forall bb_id' R'', term_step p bb.2 R' (bb_id', R'') ->
-                                Ensembles.In _ (gamma (state.2 bb_id bb_id')) (R, R'').
-
   Definition edge_fixpoint (state: AS) (bb_id: bbid) :=
     forall in_id, le (state.2 in_id bb_id) (state.1 bb_id 0).
-
-  Definition edge_fixpoint' (state: AS) (bb_id_out: bbid) :=
-    forall bb_in bb_id_in, p bb_id_in = Some bb_in ->
-          let pos := size bb_in.1.2 in
-          forall R R', reachable_states p R (bb_id_in, pos, R') ->
-                  Ensembles.In _ (gamma (state.2 bb_id_in bb_id_out)) (R, R') ->
-                  Ensembles.In _ (gamma (state.1 bb_id_out 0)) (R, R').
 
   Definition edges_invariant_some (stateE: ASEdges) :=
     forall in_id in_bb, p in_id = Some in_bb ->
@@ -111,32 +88,6 @@ Section AbstractInterpreter.
         move: Hbb0 (Hnth 0) => /=.
         rewrite -Hbb => [[->]].
           by rewrite add0n Hinst0 => [[->]].
-  Qed.
-
-  Theorem abstract_interpret_inst_listP (bb: BasicBlock) (bb_id: bbid) :
-    p bb_id = Some bb ->
-    forall (l: seq Inst) pos, (forall n, nth_error l n = nth_error bb.1.2 (n + pos)) ->
-      forall stateV, (forall n', n' < pos -> inst_fixpoint' stateV bb_id n') ->
-        forall n'', inst_fixpoint' (abstract_interpret_inst_list l bb_id pos stateV) bb_id n''.
-  Proof.
-    move => Hbb. elim.
-    - move => pos Hnth stateV Hfixpoint n''.
-      case Hn''pos: (n'' < pos). by autossr.
-      move => bb_same Hbb_same inst Hinst. exfalso. bigsubst.
-      move => /negb_true_iff in Hn''pos. rewrite -leqNgt in Hn''pos.
-      move: (Hnth (n'' - pos)). rewrite subnK => [ | //]. rewrite /= Hinst.
-        by case (n'' - pos).
-    - move => inst l Hind pos Hnth stateV Hfixpoint n''.
-      apply Hind => [n | n' Hn'ltpos1]. by rewrite addnS; apply (Hnth n.+1).
-      case Hn'pos: (n' < pos) => /=.
-      + have Hn'posne: (pos.+1 != n'.+1). rewrite eqSS neq_ltn Hn'pos. by autossr.
-        rewrite /inst_fixpoint'. simpl_map.
-          by apply Hfixpoint.
-      + have Heq : (n' = pos). rewrite leq_eqVlt ltnS Hn'pos orb_false_r eqSS in Hn'ltpos1. autossr.
-        rewrite /inst_fixpoint'. simpl_map.
-        move => bb0 Hbb0 inst0 Hinst0 R R' Hreachable HIn R'' Hstep.
-        bigsubst. move: (Hnth 0) => /=. rewrite add0n Hinst0. case => ->.
-          by eapply transfer_inst_sound; eauto.
   Qed.
 
   Theorem abstract_interpret_inst_list_0_unchanged (l: list Inst) (bb_id bb_id': bbid) (pos: nat) (stateV: ASValues) :
@@ -225,19 +176,6 @@ Section AbstractInterpreter.
     move => Hbb. rewrite /term_fixpoint Hbb => bb0 [<-] [a out_id].
     rewrite /abstract_interpret_term /=.
     by auto.
-  Qed.
-
-  Theorem abstract_interpret_termP (bb: BasicBlock) (bb_id: bbid) (state: AS) :
-    p bb_id = Some bb ->
-    term_fixpoint' (state.1, (abstract_interpret_term bb bb_id state)) bb_id.
-  Proof.
-    move: state => [stateV stateE].
-    move => Hbb /= bb0 Hbb0 pos R R' Hreachable_states /= HIn bb_id' R'' Hterm.
-    bigsubst. rewrite /abstract_interpret_term /=.
-    pose proof transfer_term_sound.
-    move => /(_ _ _ _ _ Hterm _ _ HIn) in H.
-    case: H => [a' [Hintransfer HIna']].
-      by eapply abstract_interpret_term_join_edges_spec; eauto.
   Qed.
 
   Hint Resolve abstract_interpret_term_spec : core.
@@ -479,6 +417,9 @@ Section AbstractInterpreter.
     let loop_sym_effect := join_edges_cond stateE (fun bb_id => bb_id \in (bbs_in_program ps)) header_id in
     transitive_closure loop_sym_effect.
 
+  Definition compute_loop_enter (ps: ProgramStructure) (stateE: ASEdges) (header_id: bbid) :=
+    join_edges_cond stateE (fun bb_id => bb_id \notin (bbs_in_program ps)) header_id.
+
   Definition compute_loop_effect_with_enter (ps: ProgramStructure) (stateE: ASEdges) (header_id: bbid) :=
     let loop_effect := compute_loop_effect ps stateE header_id in
     let entering_loop := join_edges_cond stateE (fun bb_id => bb_id \notin (bbs_in_program ps)) header_id in
@@ -507,8 +448,12 @@ Section AbstractInterpreter.
         let state0 := set_input_to_identity state header_id in
         let state1 := abstract_interpret_bb header header_id state0 in
         let state2 := abstract_interpret_program body state1 in
-        let loop_effect_with_enter := compute_loop_effect_with_enter ps state2.2 header_id in
-        compose_relation_in_program ps state2 loop_effect_with_enter
+        (*let loop_effect_with_enter := compute_loop_effect_with_enter ps state2.2 header_id in
+        compose_relation_in_program ps state2 loop_effect_with_enter*)
+        let loop_effect := compute_loop_effect ps state2.2 header_id in
+        let loop_enter := compute_loop_enter ps state2.2 header_id in
+        let state3 := compose_relation_in_program ps state2 loop_effect in
+        compose_relation_in_program ps state3 loop_enter
       end
     end.
 
@@ -560,8 +505,12 @@ Section AbstractInterpreter.
     - move => header_id body Hind state /= /andP[/andP[_ Hsound] _] /negb_true_iff Hnotin pos.
       case H: (p header_id) => //=.
       rewrite compose_relation_in_program_values_spec Hnotin /=.
-      move: Hnotin. rewrite in_cons eq_sym => /orb_false_iff[/negb_true_iff Hne /negb_true_iff Hnotin].
-      by rewrite Hind; auto_ai.
+      move: Hnotin. rewrite in_cons eq_sym => /orb_false_iff[Hne Hnotin].
+      simpl_ai. rewrite in_cons. rewrite eq_sym in Hne. rewrite Hne Hnotin /=.
+      rewrite Hind => //; last by rewrite Hnotin.
+      rewrite abstract_interpret_bb_value_unchanged => //; last by rewrite eq_sym Hne.
+      rewrite /set_input_to_identity. rewrite td_update_neq => [ // | ].
+      by rewrite eq_sym Hne.
     - move => ps1 Hind1 ps2 Hind2 state /= /andP[/andP[_ Hsound1] Hsound2].
       rewrite /= mem_cat => /norP[Hnotin1 Hnotin2] pos.
       rewrite Hind2; auto.
@@ -594,17 +543,19 @@ Section AbstractInterpreter.
       simpl_ai.
       rewrite compose_relation_in_program_values_spec Hin in Hin2.
       apply transfer_term_compose in Hin2. move: Hin2 => [a'' [Hin2 Hle]] /=.
-      eapply AbstractDomain.le_trans. exact Hle.
-      apply compose_relation_le.
+      rewrite compose_relation_in_program_values_spec Hin in Hin2.
+      apply transfer_term_compose in Hin2. move: Hin2 => [a''' [Hin2 Hle']] /=.
+      eapply AbstractDomain.le_trans. exact Hle. apply compose_relation_le.
+      eapply AbstractDomain.le_trans. exact Hle'. apply compose_relation_le.
       move: Hin. rewrite in_cons => /orP [/eqP Heq | Hin].
       + bigsubst.
         rewrite abstract_interpret_program_edge_in_unchanged; auto.
         rewrite abstract_interpret_program_value_unchanged in Hin2; auto.
         move: (Hbb0) => Htransfer_bb.
         eapply abstract_interpret_bb_spec_term in Htransfer_bb.
-        by move => /(_ bb Hbb0 (a'', bb_id') Hin2) /= in Htransfer_bb.
+        by move => /(_ bb Hbb0 (a''', bb_id') Hin2) /= in Htransfer_bb.
       + set state' := (abstract_interpret_bb _ _ _).
-        by move => /(_ Hsoundbody bb_id Hin state' bb0 Hbb0 (a'', bb_id') Hin2) in Hind.
+        by move => /(_ Hsoundbody bb_id Hin state' bb0 Hbb0 (a''', bb_id') Hin2) in Hind.
     - move => ps1 Hind1 ps2 Hind2 /= /andP[/andP[/andP[/andP[/allP Hnotsame1 Hnotsame2] HsoundDAG] Hsound1] Hsound2] bb_id.
       rewrite mem_cat => /orP[Hin1 | Hin2] state; [ | auto].
       move => /(_ bb_id Hin1) in Hnotsame1.
@@ -635,8 +586,8 @@ Section AbstractInterpreter.
     - move => header body Hind /= /andP[/andP[/andP[Hheadernotinbody _] Hsoundbody] HheaderSome] bb_id Hin state pos.
       move: HheaderSome. case Hheader : (p header) => [ bb_header | //] _ bb Hbb inst Hinst.
       simpl_ai.
-      eapply AbstractDomain.le_trans. by apply transfer_inst_compose.
-      apply compose_relation_le.
+      eapply AbstractDomain.le_trans. by apply transfer_inst_compose. apply compose_relation_le.
+      eapply AbstractDomain.le_trans. by apply transfer_inst_compose. apply compose_relation_le.
       move: Hin. rewrite in_cons => /orP [/eqP Heq | Hin].
       + bigsubst.
         rewrite !abstract_interpret_program_value_unchanged; auto.
@@ -670,8 +621,6 @@ Section AbstractInterpreter.
         * rewrite abstract_interpret_program_value_unchanged => //.
           rewrite abstract_interpret_inst_list_0_unchanged. simpl_map.
           rewrite /compute_loop_effect_with_enter /compute_loop_effect.
-          eapply AbstractDomain.le_trans. apply compose_assoc_r.
-          eapply AbstractDomain.le_trans; last first. apply compose_assoc_l.
           apply compose_relation_le.
           eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, join_sound_l.
           eapply AbstractDomain.le_trans; last first. apply compose_relation_id.
@@ -679,7 +628,6 @@ Section AbstractInterpreter.
           auto_ai.
         * rewrite /state' /compute_loop_effect_with_enter /compute_loop_effect.
           simpl_ai.
-          eapply AbstractDomain.le_trans; last first. apply compose_assoc_l.
           eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, compose_relation_quotient_right, join_sound_l.
           eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, compose_relation_id.
           eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, transitive_closure_ge_id.
@@ -690,7 +638,8 @@ Section AbstractInterpreter.
         * apply compose_relation_le.
           have Hinvariant2 : (edges_invariant (set_input_to_identity state header).2) by [].
           eapply abstract_interpret_bb_edges_invariant_kept in Hinvariant2; last first. apply Hheader.
-          by move: (Hind Hsoundbody bb_id Hbbid_in _ Hinvariant2 in_id).
+          move: (Hind Hsoundbody bb_id Hbbid_in _ Hinvariant2 in_id) => Hgoal.
+          by apply compose_relation_le.
         * have Hinvariant' : (edges_invariant state'.2).
             by apply abstract_interpret_program_edges_invariant_kept, abstract_interpret_bb_edges_invariant_kept => //.
           move => /allP /(_ bb_id Hbbid_in) /allP /(_ in_id) in Hnaturalloop.

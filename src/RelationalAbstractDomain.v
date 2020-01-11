@@ -18,10 +18,6 @@ Class adom_relational {concrete_state abstract_state: eqType} {p: Program}
                                               In _ (gamma (compose_relation a1 a2)) (x0,x2);
     compose_bot : forall a, compose_relation a bot = bot;
     compose_relation_le: forall a a1 a2, le a1 a2 -> le (compose_relation a a1) (compose_relation a a2);
-    compose_assoc_l : forall a1 a2 a3,
-        le (compose_relation a1 (compose_relation a2 a3)) (compose_relation (compose_relation a1 a2) a3);
-    compose_assoc_r : forall a1 a2 a3,
-        le (compose_relation (compose_relation a1 a2) a3) (compose_relation a1 (compose_relation a2 a3));
     compose_relation_quotient_right : forall a1 a2 a3,
         le a2 a3 -> le (compose_relation a1 a2) (compose_relation a1 a3);
     compose_relation_quotient_left : forall a1 a2 a3,
@@ -54,5 +50,5 @@ Section RelationalAbstractDomainTheorems.
 
 End RelationalAbstractDomainTheorems.
 
-Hint Resolve @compose_relation_le @compose_relation_id @compose_assoc_l @compose_assoc_r
+Hint Resolve @compose_relation_le @compose_relation_id
      @compose_relation_quotient_right @compose_relation_quotient_left : core.

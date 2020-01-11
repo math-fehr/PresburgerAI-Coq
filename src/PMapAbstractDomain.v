@@ -103,26 +103,6 @@ Section PMapAbstractDomain.
       by apply (Hle (m_mid , x.2)).
   Qed.
 
-  Theorem pmap_compose_assoc_l :
-    forall a1 a2 a3, le (map_apply_range a1 (map_apply_range a2 a3)) (map_apply_range (map_apply_range a1 a2) a3).
-  Proof.
-    move => a1 a2 a3.
-    rewrite /le /Included /gamma /= /gamma_pmap /Ensembles.In => x.
-    simpl_presburger => [[x_mid1 [H1]]]. simpl_presburger => [[x_mid2 [H2 H3]]].
-    exists x_mid2. split; auto.
-    simpl_presburger; eauto.
-  Qed.
-
-  Theorem pmap_compose_assoc_r :
-    forall a1 a2 a3, le (map_apply_range (map_apply_range a1 a2) a3) (map_apply_range a1 (map_apply_range a2 a3)).
-  Proof.
-    move => a1 a2 a3.
-    rewrite /le /Included /gamma /= /gamma_pmap /Ensembles.In => x.
-    simpl_presburger => [[x_mid1]]. simpl_presburger => [[[x_mid2 [H1 H2]]] H3].
-    exists x_mid2. split; auto.
-    simpl_presburger; eauto.
-  Qed.
-
   Theorem pmap_compose_relation_quotient_right :
     forall a1 a2 a3, le a2 a3 -> le (map_apply_range a1 a2) (map_apply_range a1 a3).
   Proof.
@@ -171,8 +151,6 @@ Section PMapAbstractDomain.
 
       compose_bot := map_apply_range_bot;
       compose_relation_le := pmap_compose_relation_le;
-      compose_assoc_l := pmap_compose_assoc_l;
-      compose_assoc_r := pmap_compose_assoc_r;
       compose_relation_quotient_right := pmap_compose_relation_quotient_right;
       compose_relation_quotient_left := pmap_compose_relation_quotient_left;
 
