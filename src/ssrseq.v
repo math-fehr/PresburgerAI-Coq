@@ -48,3 +48,18 @@ Proof.
   rewrite !nth_zip_cond Hx Hy. move => [H1 H2].
     by auto.
 Qed.
+
+Theorem index_uniq_zip :
+  forall (A B: eqType) (a: A) (b: B) (s1: seq A) (s2: seq B),
+    uniq s1 ->
+    (a, b) \in (zip s1 s2) ->
+               index (a, b) (zip s1 s2) = index a s1.
+Proof.
+  move => A B a b s1 s2 Huniq Hin.
+  move: (Hin) => Hin'.
+  apply (nth_index (a,b)) in Hin'. rewrite nth_zip_cond in Hin'.
+  rewrite -index_mem in Hin. rewrite Hin in Hin'.
+  case: Hin' => [Hin' _].
+  rewrite -[in X in _ = X]Hin'. rewrite index_uniq => //.
+  move: Hin. by rewrite size_zip leq_min => /andP[H1 H2].
+Qed.
