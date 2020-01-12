@@ -77,18 +77,29 @@ Definition vars_in_inst (i: Inst) :=
   | Const v _ | BinOp v _ _ _ _ _ => [::v]
   end.
 
-Fixpoint vars_in_program (p: Program) :=
+Fixpoint vars_in_program_ (p: Program) :=
   match p with
   | PEmpty => [::""]
-  | PUpdate m' _ bb => (List.fold_left (fun acc inst => acc ++ (vars_in_inst inst)) bb.1.2 [::]) ++ (vars_in_program m')
+  | PUpdate m' _ bb => (foldl (fun acc inst => acc ++ (vars_in_inst inst)) [::] bb.1.2) ++ (vars_in_program_ m')
   end.
+
+Definition vars_in_program (p: Program) :=
+  undup (vars_in_program_ p).
 
 Theorem size_vars_in_program :
   forall p, 0 < size (vars_in_program p).
 Proof.
-  elim => [ // | m H k v /=].
-  rewrite size_cat.
-    by apply ltn_addl.
+  move => p.
+  have: ("" \in (vars_in_program p)).
+  - elim p => [ // | m Hind k v /= ]. rewrite /vars_in_program mem_undup /= mem_cat.
+    apply /orP. right. by rewrite /vars_in_program mem_undup in Hind.
+  - move => Hlt. rewrite -has_predT. apply /hasP. by exists "".
+Qed.
+
+Theorem uniq_vars_in_program :
+  forall p, uniq (vars_in_program p).
+Proof.
+  move => p. by rewrite undup_uniq.
 Qed.
 
 Fixpoint bbs_in_program (p: ProgramStructure) :=
