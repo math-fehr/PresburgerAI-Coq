@@ -5,6 +5,7 @@
 src/Tactic.v
 src/ssrstring.v
 src/ssrZ.v
+src/ssrseq.v
 src/TotalMap.v
 src/PFunc.v
 src/FinitePresburger.v
