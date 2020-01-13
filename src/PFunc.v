@@ -219,9 +219,22 @@ Module PFuncImpl (FPI: FPresburgerImpl).
       by case_match.
   Qed.
 
+  Definition f_involves_dim_pfunc {n: nat} (p: PFunc n) (d: nat) :=
+    f_involves_dim_pw_aff (Val p) d || f_involves_dim_set (Assumed p) d.
+
+  Theorem f_involves_dim_pfuncP :
+    forall n p d x v, ~~ (@f_involves_dim_pfunc n p d) -> eval_pfunc p x = eval_pfunc p (set_nth 0 x d v).
+  Proof.
+    move => n p d x v.
+    move => /norP [Hval Hassumed].
+    move: (f_involves_dim_setP _ _ _ Hassumed x v).
+    move: (f_involves_dim_pw_affP _ _ _ Hval x v).
+    by rewrite /eval_pfunc => -> ->.
+  Qed.
+
   Definition eq_PFunc {n: nat} (P1 P2: PFunc n) :=
     (Val P1 == Val P2) && (Assumed P1 == Assumed P2).
- Lemma eqPFuncP {n: nat} : Equality.axiom (@eq_PFunc n).
+  Lemma eqPFuncP {n: nat} : Equality.axiom (@eq_PFunc n).
   Proof.
     rewrite /eq_PFunc => x y.
     case: x => Vx Ax. case: y => Vy Ay /=.
