@@ -98,6 +98,11 @@ Module Type FPresburgerImpl.
       ~~ (f_involves_dim_set p d) ->
       forall x v, (x \ins p) = ((set_nth 0 x d v) \ins p).
 
+  Axiom f_eval_pset_same_involves :
+    forall n (p: PSet n) x1 x2,
+      (forall d, f_involves_dim_set p d -> nth 0 x1 d = nth 0 x2 d) ->
+      (x1 \ins p) = (x2 \ins p).
+
   Parameter f_eval_pmap : forall n m, PMap n m -> seq Z -> seq Z -> bool.
   Arguments f_eval_pmap {n m}.
   Notation "P \inm S" := (f_eval_pmap S P.1 P.2) (at level 70, no associativity).
@@ -279,6 +284,11 @@ Module Type FPresburgerImpl.
       ~~(f_involves_dim_pw_aff p d) ->
       forall x v, f_eval_pw_aff p x = f_eval_pw_aff p (set_nth 0 x d v).
 
+  Axiom f_eval_pw_aff_same_involves :
+    forall n (p: PwAff n) x1 x2,
+      (forall d, f_involves_dim_pw_aff p d -> nth 0 x1 d = nth 0 x2 d) ->
+      (f_eval_pw_aff p x1) = (f_eval_pw_aff p x2).
+
   Parameter f_get_involved_dim : forall n, PwAff n -> seq nat.
   Arguments f_get_involved_dim {n}.
   Axiom f_get_involved_dimP :
@@ -447,7 +457,6 @@ Module Type FPresburgerImpl.
     case Hn. case Hm.
       by [].
   Qed.
-
 
   Hint Rewrite @f_empty_set_rw @f_is_subset_set_refl @f_universe_setP @f_union_setP @f_intersect_setP
        @f_intersect_range_mapP @f_get_domain_mapP @f_get_domain_pw_affP
