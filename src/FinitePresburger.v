@@ -91,6 +91,13 @@ Module Type FPresburgerImpl.
         x \ins (f_project_out_set p d) <->
         exists v, (set_nth 0 x d v) \ins p.
 
+  Parameter f_involves_dim_set : forall n, PSet n -> nat -> bool.
+  Arguments f_involves_dim_set {n}.
+  Axiom f_involves_dim_setP :
+    forall n (p: PSet n) d x v,
+      ~~ (f_involves_dim_set p d) =
+      ((x \ins p) == ((set_nth 0 x d v) \ins p)).
+
   Parameter f_eval_pmap : forall n m, PMap n m -> seq Z -> seq Z -> bool.
   Arguments f_eval_pmap {n m}.
   Notation "P \inm S" := (f_eval_pmap S P.1 P.2) (at level 70, no associativity).
@@ -268,9 +275,9 @@ Module Type FPresburgerImpl.
   Parameter f_involves_dim_pw_aff : forall n, PwAff n -> nat -> bool.
   Arguments f_involves_dim_pw_aff {n}.
   Axiom f_involves_dim_pw_affP :
-    forall n (p: PwAff n) d,
-      f_involves_dim_pw_aff p d <->
-      forall x v, f_eval_pw_aff p x != f_eval_pw_aff p (set_nth 0 x d v).
+    forall n (p: PwAff n) d x v,
+      ~~(f_involves_dim_pw_aff p d) =
+      (f_eval_pw_aff p x == f_eval_pw_aff p (set_nth 0 x d v)).
 
   Parameter f_get_involved_dim : forall n, PwAff n -> seq nat.
   Arguments f_get_involved_dim {n}.
