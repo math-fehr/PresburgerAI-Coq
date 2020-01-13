@@ -450,7 +450,7 @@ Module Type FPresburgerImpl.
 
   Theorem f_cast_mapP :
     forall n1 n2 m1 m2 Hn Hm p x,
-      x \inm (@f_cast_map n1 n2 m1 m2 Hn Hm p) <-> x \inm p.
+      (x \inm (@f_cast_map n1 n2 m1 m2 Hn Hm p)) = (x \inm p).
   Proof.
     move => n1 n2 m1 m2 Hn Hm p x.
     rewrite /f_cast_map /eq_rect_r /eq_rect.
