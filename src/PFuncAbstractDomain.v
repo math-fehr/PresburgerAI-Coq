@@ -235,7 +235,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
     split => [ HIn x_out /= | HIn ].
     - apply /negP /allPn.
       move: HIn. rewrite get_unioned_bot_setP => /hasP [pfunc /nthP Hpfunc_in x_in_in].
-      move => /(_ top_pfunc) in Hpfunc_in. move: Hpfunc_in => [i [Hi Hnth]].
+      move => /(_ top_pfunc) in Hpfunc_in. move: Hpfunc_in => [i Hi Hnth].
       exists i. rewrite mem_iota. apply /andP. split; auto. by rewrite add0n -H_pf.
       rewrite Hnth.
       rewrite pfunc_get_bot_setP in x_in_in. move => /eqP in x_in_in. by rewrite x_in_in.
