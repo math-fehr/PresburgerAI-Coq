@@ -307,6 +307,13 @@ Module Type FPresburgerImpl.
       (x_in, x_out) \inm (f_map_from_pw_aff p) <->
       f_eval_pw_aff p x_in = Some (nth 0 x_out 0).
 
+  Parameter f_apply_map_to_pw_aff : forall n m (map: PMap n m), f_is_single_valued_map map -> PwAff m -> PwAff n.
+  Arguments f_apply_map_to_pw_aff {n m}.
+  Axiom f_apply_map_to_pw_affP :
+    forall n m map pw_aff H x_in v,
+      f_eval_pw_aff (@f_apply_map_to_pw_aff n m map H pw_aff) x_in = v
+      <-> exists x_mid, (x_in, x_mid) \inm map /\ f_eval_pw_aff pw_aff x_mid = v.
+
   Parameter f_concat_map : forall n (s: seq (PMap n 1)), PMap n (size s).
   Arguments f_concat_map {n}.
   Axiom f_concat_mapP :
@@ -371,41 +378,6 @@ Module Type FPresburgerImpl.
     case => [ _ | //].
     rewrite Hin1 in Hin2.
       by move: Hin2 => /= [->].
-  Qed.
-
-  Program Definition f_apply_map_to_pw_aff {n m: nat} (map: PMap n m) (H: f_is_single_valued_map map) (pw_aff: PwAff m) : PwAff n :=
-    nth (f_empty_pw_aff n) (f_pw_aff_from_map (f_apply_range_map map (f_map_from_pw_aff pw_aff)) _) 0.
-  Next Obligation.
-    apply f_apply_range_preserves_single_valued => //.
-      by apply f_map_from_pw_aff_single_valued.
-  Qed.
-
-  Theorem f_apply_map_to_pw_affP :
-    forall n m map H pw_aff x_in x_mid,
-      (x_in, x_mid) \inm map ->
-      f_eval_pw_aff (@f_apply_map_to_pw_aff n m map H pw_aff) x_in =
-      f_eval_pw_aff pw_aff x_mid.
-  Proof.
-    move => n m map H pw_aff x_in x_mid Hinmap.
-    rewrite /f_apply_map_to_pw_aff.
-    set map' := f_apply_range_map map (f_map_from_pw_aff pw_aff).
-    set Hsingle' := (f_apply_map_to_pw_aff_obligation_1 _ _ _ _ _).
-    case Heval: (f_eval_pw_aff pw_aff x_mid) => [ v | ].
-    - move: (f_pw_aff_from_mapP n 1 map' Hsingle' x_in v 0 (ltn0Sn _)) => [H1 H2].
-      rewrite H1. by [].
-      exists [::v]. split; auto.
-      rewrite /map'.
-      apply f_apply_range_mapP. exists x_mid. simplssr.
-        by rewrite f_map_from_pw_affP Heval.
-    - rewrite f_pw_aff_from_map_noneP => //.
-      move => [x_out Hin].
-      move => /f_apply_range_mapP in Hin.
-      case: Hin => x_mid2 /andP[Hinmap2 Hinpw_aff].
-      move: (H) => /f_is_single_valued_mapP /(_ x_in x_mid x_mid2 Hinmap Hinmap2).
-      move => /f_eval_pmap_same_in. move => /(_ 1%N (f_map_from_pw_aff pw_aff) x_out).
-      move => [_ Hequiv]. apply Hequiv in Hinpw_aff.
-      move => /f_map_from_pw_affP in Hinpw_aff.
-        by rewrite Heval in Hinpw_aff.
   Qed.
 
   Theorem f_empty_set_rw :
