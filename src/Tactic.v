@@ -102,14 +102,13 @@ Ltac bigsubst :=
 
 Ltac case_if :=
   match goal with
-  | [ |- context[ if ?c then _ else _ ] ] => let H := fresh "H" in case H : c
+  | [ |- context[ if ?c then _ else _ ] ] => let H := fresh "H" in destruct c eqn:H
   end.
 
 Ltac case_match :=
   match goal with
-  | [ |- context[ match ?x with _ => _ end] ] => case: x
+  | [ |- context[ match ?x with _ => _ end] ] => destruct x
   end.
-
 
 Ltac simplssr_ := rewrite_is_true; simpl_seq; simpl_bool; simpleq.
 Ltac simplssr := repeat (reflect_ne_in simplssr_).
