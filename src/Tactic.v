@@ -107,7 +107,7 @@ Ltac case_if :=
 
 Ltac case_match :=
   match goal with
-  | [ |- context[ match ?x with _ => _ end] ] => destruct x
+  | [ |- context[ match ?x with _ => _ end] ] => let H := fresh "H" in destruct x eqn:H
   end.
 
 Ltac simplssr_ := rewrite_is_true; simpl_seq; simpl_bool; simpleq.
