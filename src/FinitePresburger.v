@@ -139,6 +139,12 @@ Module Type FPresburgerImpl.
   Axiom f_intersect_mapP: forall n m (p1 p2: PMap n m) x y,
       (x, y) \inm (f_intersect_map p1 p2) = ((x, y) \inm p1) && ((x, y) \inm p2).
 
+  Parameter f_intersect_domain_map: forall n m, PMap n m -> PSet m -> PMap n m.
+  Arguments f_intersect_domain_map {n} {m}.
+  Axiom f_intersect_domain_mapP: forall n m (map: PMap n m) pset x_in x_out,
+      (x_in, x_out) \inm (f_intersect_domain_map map pset) =
+      ((x_in, x_out) \inm map) && (x_in \ins pset).
+
   Parameter f_intersect_range_map: forall n m, PMap n m -> PSet m -> PMap n m.
   Arguments f_intersect_range_map {n} {m}.
   Axiom f_intersect_range_mapP: forall n m (map: PMap n m) pset x_in x_out,
@@ -459,6 +465,7 @@ Module Type FPresburgerImpl.
   Qed.
 
   Hint Rewrite @f_empty_set_rw @f_is_subset_set_refl @f_universe_setP @f_union_setP @f_intersect_setP
+       @f_map_from_pw_affP @f_intersect_domain_mapP
        @f_intersect_range_mapP @f_get_domain_mapP @f_get_domain_pw_affP
        @f_subtract_setP @f_complement_setP @f_apply_range_mapP
        @f_universe_mapP @f_id_mapP @f_union_mapP @f_intersect_mapP
