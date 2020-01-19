@@ -312,7 +312,8 @@ Module Type FPresburgerImpl.
   Axiom f_apply_map_to_pw_affP :
     forall n m map pw_aff H x_in v,
       f_eval_pw_aff (@f_apply_map_to_pw_aff n m map H pw_aff) x_in = v
-      <-> exists x_mid, (x_in, x_mid) \inm map /\ f_eval_pw_aff pw_aff x_mid = v.
+      <-> (v = None /\ forall x_out, ~~((x_in, x_out) \inm map)) \/
+        (exists x_mid, (x_in, x_mid) \inm map /\ f_eval_pw_aff pw_aff x_mid = v).
 
   Parameter f_concat_map : forall n (s: seq (PMap n 1)), PMap n (size s).
   Arguments f_concat_map {n}.
