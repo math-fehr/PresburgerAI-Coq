@@ -232,6 +232,63 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     by rewrite /eval_pfunc => -> ->.
   Qed.
 
+  Definition apply_map_to_pfunc {n m: nat} (map: PMap n m) (H: f_is_single_valued_map map) (pf: PFunc m) : PFunc n :=
+    mkPFunc (f_apply_map_to_pw_aff map H (Val pf))
+            (f_complement_set (f_get_domain_map (f_intersect_range_map map (f_complement_set (Assumed pf))))).
+
+  Theorem apply_map_to_pfuncP :
+    forall n m map H pf x_in v,
+      v \inV eval_pfunc (@apply_map_to_pfunc n m map H pf) x_in
+      <-> exists x_mid, (x_in, x_mid) \inm map /\ (v \inV eval_pfunc pf x_mid).
+  Proof.
+    move => n m map H pf x_in v.
+    split => [ Heval | [x_mid [HInMap Heval]]].
+    - rewrite /apply_map_to_pfunc /eval_pfunc /= in Heval.
+      rewrite f_complement_setP in Heval.
+      move: Heval. case_if => [ | _].
+      + move => /negP in H0. rewrite ->f_get_domain_mapP in H0.
+        case_match => //. rewrite /= => /eqP Heq. subst.
+        rewrite ->f_apply_map_to_pw_affP in H1. move: H1 => [[H1 _] // | H1].
+        case: H1 => x_mid [HInMap Heval].
+        exists x_mid. split; auto.
+        rewrite /eval_pfunc Heval. case_if => //. by rewrite /=.
+      + move: H0. move => /negbFE /f_get_domain_mapP [x_mid].
+        simpl_finite_presburger.
+        move => /andP[HInMap HNotAssumed].
+        exists x_mid. split; auto. rewrite /eval_pfunc. by autossr.
+    - rewrite /apply_map_to_pfunc /eval_pfunc /=.
+      case HInAssumed: (x_in \ins _) => //.
+      case_match.
+      + apply f_apply_map_to_pw_affP in H0.
+        move: H0 => [[H0 _] // | [x_mid' [HInMap' Heval']]].
+        move: Heval. rewrite /eval_pfunc. case_if.
+        * rewrite ->f_is_single_valued_mapP in H.
+          move: (H _ _ _ HInMap HInMap') => Hequal.
+            by rewrite (f_eval_pw_aff_same _ _ _ _ Hequal) Heval'.
+        * exfalso.
+          rewrite f_complement_setP in HInAssumed. move => /negP in HInAssumed. apply HInAssumed.
+          apply f_get_domain_mapP.
+          exists x_mid. rewrite f_intersect_range_mapP. apply /andP.
+          split; auto.
+          simpl_finite_presburger. by rewrite H0.
+      + exfalso.
+        apply f_apply_map_to_pw_affP in H0.
+        move: H0 =>  [ [ _ /(_ x_mid) H0 ] | [x_mid' [HInMap' Heval']] ].
+          by rewrite HInMap in H0.
+          move: Heval. rewrite /eval_pfunc.
+          case_if.
+        * rewrite ->f_is_single_valued_mapP in H.
+          move: (H _ _ _ HInMap HInMap') => Hequal.
+            by rewrite (f_eval_pw_aff_same _ _ _ _ Hequal) Heval'.
+        * move => _.
+          rewrite f_complement_setP in HInAssumed. move => /negP in HInAssumed. apply HInAssumed.
+          apply f_get_domain_mapP.
+          exists x_mid. rewrite f_intersect_range_mapP. apply /andP.
+          split; auto.
+          simpl_finite_presburger. by rewrite H0.
+  Qed.
+
+
   Definition eq_PFunc {n: nat} (P1 P2: PFunc n) :=
     (Val P1 == Val P2) && (Assumed P1 == Assumed P2).
   Lemma eqPFuncP {n: nat} : Equality.axiom (@eq_PFunc n).
