@@ -2,6 +2,8 @@ From Coq Require Import ssreflect ssrfun ssrbool.
 From Coq Require Export Strings.String ZArith.BinInt.
 From Coq Require Import Logic.FunctionalExtensionality.
 From PolyAI Require Export TotalMap ssrZ ssrstring Tactic FinitePresburger.
+Local Set Warnings "-notation-overridden".
+From mathcomp Require Import ssrnat.
 Local Open Scope Z_scope.
 
 Local Set Warnings "-notation-overridden".
@@ -128,6 +130,16 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     | (true, None) => VBot
     end.
 
+  Theorem eval_pfunc_same :
+    forall n P x y, point_equality n x y ->
+               @eval_pfunc n P x = @eval_pfunc n P y.
+  Proof.
+    move => n P x y Heq.
+    rewrite /eval_pfunc.
+    rewrite -(f_eval_pset_same _ _ x y) => //.
+    by rewrite -(f_eval_pw_aff_same _ _ x y).
+  Qed.
+
   Definition in_pfunc {n: nat} (P: PFunc n) (m: seq Z) (z: Z) :=
     z \inV (eval_pfunc P m).
 
@@ -230,6 +242,21 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     move: (f_involves_dim_setP _ _ _ Hassumed x v).
     move: (f_involves_dim_pw_affP _ _ _ Hval x v).
     by rewrite /eval_pfunc => -> ->.
+  Qed.
+
+  Theorem eval_pfunc_same_involves :
+    forall (n: nat) (p: PFunc n) x y,
+      (forall (i: nat), (i < n)%N -> f_involves_dim_pfunc p i -> nth 0%Z x i = nth 0%Z y i) ->
+      eval_pfunc p x = eval_pfunc p y.
+  Proof.
+    move => n p x y Heq.
+    rewrite /eval_pfunc.
+    rewrite (f_eval_pw_aff_same_involves _ _ x y).
+    rewrite (f_eval_pset_same_involves _ _ x y) => //.
+    - move => i Hi Hinvolves. rewrite Heq => //.
+      rewrite /f_involves_dim_pfunc. autossr.
+    - move => i Hi Hinvolves. rewrite Heq => //.
+      rewrite /f_involves_dim_pfunc. autossr.
   Qed.
 
   Definition apply_map_to_pfunc {n m: nat} (map: PMap n m) (H: f_is_single_valued_map map) (pf: PFunc m) : PFunc n :=
