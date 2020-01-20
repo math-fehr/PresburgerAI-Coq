@@ -437,14 +437,15 @@ Module Type FPresburgerImpl.
       by [].
   Qed.
 
+  Global Opaque f_cast_map.
+
   Hint Rewrite @f_empty_set_rw @f_is_subset_set_refl @f_universe_setP @f_union_setP @f_intersect_setP
        @f_map_from_pw_affP @f_intersect_domain_mapP
        @f_intersect_range_mapP @f_get_domain_mapP @f_get_domain_pw_affP
        @f_subtract_setP @f_complement_setP @f_apply_range_mapP
        @f_universe_mapP @f_id_mapP @f_union_mapP @f_intersect_mapP
        @f_pw_aff_from_affP @f_intersect_domainP @f_union_pw_affP @f_eq_setP @f_ne_setP @f_le_setP @f_indicator_functionP
-       @f_add_pw_affP
-       @f_empty_pw_affP
+       @f_add_pw_affP @f_empty_pw_affP @f_cast_mapP
        using by first [liassr | autossr ] : prw.
 
   Hint Resolve @f_is_subset_setP @f_is_subset_mapP @f_project_out_setP @f_is_subset_mapP
