@@ -220,6 +220,20 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     move => a a0 /eqP -> /eqP ->. by case (a <=? a0).
   Qed.
 
+  Definition intersect_assumed {n: nat} (p: PFunc n) (s: PSet n) :=
+    mkPFunc (Val p) (f_intersect_set s (Assumed p)).
+
+  Theorem intersect_assumedP :
+    forall n p s x, eval_pfunc (@intersect_assumed n p s) x =
+               if x \ins s then eval_pfunc p x else VTop.
+  Proof.
+    move => n p s x.
+    rewrite /eval_pfunc.
+    rewrite /intersect_assumed /=.
+    simpl_finite_presburger.
+      by case: (x \ins s); case (x \ins Assumed p).
+  Qed.
+
   Definition pfunc_get_bot_set {n: nat} (p: PFunc n) :=
     f_intersect_set (Assumed p) (f_complement_set (f_get_domain_pw_aff (Val p))).
 
