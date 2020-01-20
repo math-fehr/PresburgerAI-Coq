@@ -525,7 +525,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
     let bot_inputs := get_unioned_bot_set (sval pf1) in
     let new_assumed_pf1 := fun pf => get_intersected_assumed_set_with_involves (sval pf1) pf in
     let new_pfunc := fun pf => apply_map_to_pfunc (map1 pf) (map1_single_valued pf) pf in
-    let new_pfunc' := fun pf => mkPFunc (Val (new_pfunc pf)) (f_intersect_set (new_assumed_pf1 pf) (Assumed (new_pfunc pf))) in
+    let new_pfunc' := fun pf => intersect_assumed (new_pfunc pf) (new_assumed_pf1 pf) in
     [ seq (new_pfunc' pf) | pf <- sval pf2 ].
   Next Obligation.
       by case pf1 => x_pf ->.
@@ -534,15 +534,61 @@ Module PFuncMap (FPI: FPresburgerImpl).
     rewrite size_map. by case pf2 => x_pf ->.
   Defined.
 
+  Definition compose_relation_PFuncMap_with_bot {p: Program} (pf1 pf2: PFuncMap p) : PFuncMap p :=
+    if pf2 == bot_PFuncMap p then
+      bot_PFuncMap p
+    else
+      compose_relation_PFuncMap pf1 pf2.
 
-  (* Fail Instance adom_relational_pmap (p: Program) : adom_relational (adom_pmap p) :=
+  Theorem compose_relation_PFuncMapP :
+    forall p x1 x0 x2 (a1 a2: PFuncMap p),
+      In _ (gamma_PFuncMap a1) (x0, x1) ->
+      In _ (gamma_PFuncMap a2) (x1, x2) ->
+      In _ (gamma_PFuncMap (compose_relation_PFuncMap a1 a2)) (x0, x2).
+  Proof.
+    move => p x1 x0 x2 a1 a2 HIn1 HIn2.
+    have Ha1_size: (size (sval a1) = size (vars_in_program p)). by case: (a1) => x_a1 /= /eqP ->.
+    have Ha2_size: (size (sval a2) = size (vars_in_program p)). by case: (a2) => x_a2 /= /eqP ->.
+    rewrite /In /gamma_PFuncMap /gamma_seq_PFuncMap /=.
+    apply /allP => i. rewrite mem_iota add0n => /andP[_ Hi] /=.
+    erewrite nth_map; last by rewrite Ha2_size. rewrite intersect_assumedP.
+    case_if => //.
+    rewrite pfuncmap_to_map_with_involvesP => //.
+    exists x1. split; auto.
+    rewrite /In /gamma_PFuncMap /gamma_seq_PFuncMap in HIn2.
+    have Hiota: (i \in iota 0 (size (vars_in_program p))). rewrite mem_iota add0n. apply /andP. split; auto.
+    move => /allP /(_ i Hiota) /= in HIn2.
+    eauto.
+  Qed.
+
+  Theorem compose_relation_PFuncMap_with_botP :
+    forall p x1 x0 x2 (a1 a2: PFuncMap p),
+      In _ (gamma_PFuncMap a1) (x0, x1) ->
+      In _ (gamma_PFuncMap a2) (x1, x2) ->
+      In _ (gamma_PFuncMap (compose_relation_PFuncMap_with_bot a1 a2)) (x0, x2).
+  Proof.
+    move => p x1 x0 x2 a1 a2 HIn1 HIn2.
+    rewrite /compose_relation_PFuncMap_with_bot.
+    case: (a2 =P bot_PFuncMap p) => Hbot; last by eapply compose_relation_PFuncMapP; eauto.
+    exfalso. subst. eapply gamma_bot_PFuncMap; eauto.
+  Qed.
+
+  Theorem compose_relation_bot_PFuncMap :
+    forall p a, compose_relation_PFuncMap_with_bot a (bot_PFuncMap p) = (bot_PFuncMap p).
+  Proof.
+    move => p a. rewrite /compose_relation_PFuncMap_with_bot.
+      by rewrite eq_refl.
+  Qed.
+
+  (*
+  Fail Instance adom_relational_pmap (p: Program) : adom_relational (adom_pmap p) :=
     {
       id_relation := id_relation_PFuncMap p;
       id_relation_spec := id_relation_PFuncMapP p;
 
-      compose_relation := compose_relation_with_bot_PFuncMap;
-      compose_relation_spec := compose_relation_with_bot_PFuncMapP p;
+      compose_relation := compose_relation_PFuncMap_with_bot;
+      compose_relation_spec := compose_relation_PFuncMap_with_botP p;
       compose_bot := compose_relation_bot_PFuncMap p;
-    }. *)
+    }.*)
 
 End PFuncMap.
