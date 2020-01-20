@@ -246,16 +246,25 @@ Module PFuncImpl (FPI: FPresburgerImpl).
   Qed.
 
   Definition f_involves_dim_pfunc {n: nat} (p: PFunc n) (d: nat) :=
-    f_involves_dim_pw_aff (Val p) d || f_involves_dim_set (Assumed p) d.
+    f_involves_dim_pw_aff (f_intersect_domain (Val p) (Assumed p)) d || f_involves_dim_set (Assumed p) d.
 
   Theorem f_involves_dim_pfuncP :
-    forall n p d x v, ~~ (@f_involves_dim_pfunc n p d) -> eval_pfunc p x = eval_pfunc p (set_nth 0 x d v).
+    forall n p d, ~~ (@f_involves_dim_pfunc n p d) <-> forall x v, eval_pfunc p x = eval_pfunc p (set_nth 0 x d v).
   Proof.
-    move => n p d x v.
-    move => /norP [Hval Hassumed].
-    move: (f_involves_dim_setP _ _ _ Hassumed x v).
-    move: (f_involves_dim_pw_affP _ _ _ Hval x v).
-    by rewrite /eval_pfunc => -> ->.
+    move => n p d. split => [ | ].
+    - move => /norP [Hval Hassumed] x v.
+      move => /f_involves_dim_setP /(_ x v) in Hassumed.
+      move => /f_involves_dim_pw_affP /(_ x v) in Hval.
+      rewrite !f_intersect_domainP in Hval. rewrite -Hassumed in Hval.
+      rewrite /eval_pfunc. rewrite -Hassumed.
+      case_if => //. by rewrite -Hval.
+    - rewrite /eval_pfunc => Heq.
+      rewrite /f_involves_dim_pfunc. apply /norP. split.
+      + apply f_involves_dim_pw_affP => x v. move: (Heq x v).
+        rewrite !f_intersect_domainP.
+        repeat (case_if); repeat (case_match) => //. by move => [->]. by [].
+      + apply f_involves_dim_setP => x v. move: (Heq x v).
+        by repeat (case_if); repeat (case_match) => //.
   Qed.
 
   Theorem eval_pfunc_same_involves :
@@ -263,12 +272,15 @@ Module PFuncImpl (FPI: FPresburgerImpl).
       (forall (i: nat), (i < n)%N -> f_involves_dim_pfunc p i -> nth 0%Z x i = nth 0%Z y i) ->
       eval_pfunc p x = eval_pfunc p y.
   Proof.
-    move => n p x y Heq.
-    rewrite /eval_pfunc.
-    rewrite (f_eval_pw_aff_same_involves _ _ x y).
-    rewrite (f_eval_pset_same_involves _ _ x y) => //.
-    - move => i Hi Hinvolves. rewrite Heq => //.
-      rewrite /f_involves_dim_pfunc. autossr.
+    move => n p x y Heq. rewrite /eval_pfunc.
+    have Heq_assumed: (forall d : nat, (d < n)%N -> f_involves_dim_set (Assumed p) d -> nth 0 x d = nth 0 y d).
+    move => i Hi Hinvolves. rewrite Heq => //. rewrite /f_involves_dim_pfunc Hinvolves. autossr.
+    rewrite (f_eval_pset_same_involves _ _ _ _ Heq_assumed).
+    case Hassumed_y: (y \ins Assumed p) => //.
+    have Hassumed_x: (x \ins Assumed p). by rewrite (f_eval_pset_same_involves _ _ _ _ Heq_assumed).
+    move: (f_eval_pw_aff_same_involves n (f_intersect_domain (Val p) (Assumed p)) x y) => Heq'.
+    rewrite !f_intersect_domainP Hassumed_y Hassumed_x in Heq'.
+    rewrite Heq' => //.
     - move => i Hi Hinvolves. rewrite Heq => //.
       rewrite /f_involves_dim_pfunc. autossr.
   Qed.
