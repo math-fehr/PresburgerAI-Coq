@@ -100,7 +100,7 @@ Module Type FPresburgerImpl.
 
   Axiom f_eval_pset_same_involves :
     forall n (p: PSet n) x1 x2,
-      (forall d, f_involves_dim_set p d -> nth 0 x1 d = nth 0 x2 d) ->
+      (forall d, (d < n)%N -> f_involves_dim_set p d -> nth 0 x1 d = nth 0 x2 d) ->
       (x1 \ins p) = (x2 \ins p).
 
   Parameter f_eval_pmap : forall n m, PMap n m -> seq Z -> seq Z -> bool.
@@ -292,7 +292,7 @@ Module Type FPresburgerImpl.
 
   Axiom f_eval_pw_aff_same_involves :
     forall n (p: PwAff n) x1 x2,
-      (forall d, f_involves_dim_pw_aff p d -> nth 0 x1 d = nth 0 x2 d) ->
+      (forall d, (d < n)%N -> f_involves_dim_pw_aff p d -> nth 0 x1 d = nth 0 x2 d) ->
       (f_eval_pw_aff p x1) = (f_eval_pw_aff p x2).
 
   Parameter f_get_involved_dim : forall n, PwAff n -> seq nat.
