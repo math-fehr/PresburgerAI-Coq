@@ -45,7 +45,6 @@ Proof.
   move => i Hi. by rewrite eq_refl.
 Qed.
 
-
 (* Specification of a Presburger library with finite dimensions *)
 
 Module Type FPresburgerImpl.
