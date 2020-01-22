@@ -91,7 +91,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
   Theorem to_var_values_map_equality :
     forall p s, point_equality (size (vars_in_program p)) (to_var_values_seq p (to_var_values_map p s)) s.
   Proof.
-    move => p s i Hi.
+    move => p s. apply /allP => i Hiota. simplssr.
     rewrite /to_var_values_seq (nth_map "") => //.
     by rewrite to_var_values_mapP.
   Qed.
@@ -134,11 +134,10 @@ Module PFuncMap (FPI: FPresburgerImpl).
       point_equality n x.2 y.2 ->
       @gamma_seq_PFuncMap p pf x = @gamma_seq_PFuncMap p pf y.
   Proof.
-    move => p pf x y n Heq1 Heq2.
-    rewrite /gamma_seq_PFuncMap.
-    apply eq_in_all => i. rewrite mem_iota add0n => /andP[_ Hi].
-    rewrite -(eval_pfunc_same _ _ x.1 y.1) => //.
-    rewrite /point_equality in Heq2. move => /(_ i Hi) in Heq2. by rewrite Heq2.
+    move => p pf x y n Heq1 Heq2. apply eq_in_all => i Hiota.
+    rewrite -/n in Hiota. rewrite /eval_pfunc.
+    rewrite_point x.1 y.1.
+    by rewrite_point x.2 y.2.
   Qed.
 
   Definition gamma_PFuncMap {p: Program} (pf: PFuncMap p) (x: concrete_state) :=
@@ -362,8 +361,8 @@ Module PFuncMap (FPI: FPresburgerImpl).
     rewrite f_is_single_valued_mapP => x_in x_out1 x_out2.
     rewrite /pfuncmap_to_map !f_cast_mapP.
     rewrite !f_concat_mapP => Hin1 Hin2.
-    rewrite /point_equality => i Hi.
-    move => /(_ i Hi) in Hin1. move => /(_ i Hi) in Hin2.
+    apply /allP => i Hi. apply /eqP. simplssr.
+    move => /(_ i H) in Hin1. move => /(_ i H) in Hin2.
     erewrite nth_map in Hin1; last first. by rewrite Hpf_eq.
     erewrite nth_map in Hin2; last first. by rewrite Hpf_eq.
     move => /f_map_from_pw_affP in Hin2.
@@ -395,13 +394,13 @@ Module PFuncMap (FPI: FPresburgerImpl).
     forall p pf pfunc, f_is_single_valued_map (@pfuncmap_to_map_with_involves p pf pfunc).
   Proof.
     move => p pf pfunc.
-    rewrite f_is_single_valued_mapP => x v1 v2 Hv1 Hv2 i Hi.
+    rewrite f_is_single_valued_mapP => x v1 v2 Hv1 Hv2. apply /allP => i Hi.
     rewrite /pfuncmap_to_map_with_involves in Hv1 Hv2.
     rewrite !f_intersect_domain_mapP in Hv1 Hv2.
     move: Hv1 Hv2 => /andP[Hv1 _] /andP[Hv2 _].
     rewrite !f_cast_mapP in Hv1 Hv2.
-    rewrite ->f_concat_mapP in Hv1, Hv2.
-    move => /(_ i Hi) in Hv1. move => /(_ i Hi) in Hv2.
+    rewrite ->f_concat_mapP in Hv1, Hv2. simplssr.
+    move => /(_ i H) in Hv1. move => /(_ i H) in Hv2.
     case: pf Hv1 Hv2 => x_pf /= /eqP H_pf Hv1 Hv2.
     set top_pfunc := constant_pfunc (size (vars_in_program p)) VTop.
     erewrite (nth_map (0, top_pfunc)) in Hv1, Hv2; try (by rewrite size_zip size_iota H_pf minnn).
@@ -412,6 +411,20 @@ Module PFuncMap (FPI: FPresburgerImpl).
     - by rewrite !f_map_from_pw_affP => -> [->].
     - by rewrite !f_map_from_pw_affP f_pw_aff_from_affP /= => [->] [->].
   Qed.
+
+    Ltac rewrite_point_aux x1 x2 n H ::=
+    rewrite
+      ?(f_eval_pset_same _ _ x1 x2 H)
+      ?(f_eval_pw_aff_same _ _ x1 x2 H)
+      ?(f_eval_pmap_same_in _ _ _ x1 x2 _ H)
+      ?(f_eval_pmap_same_out _ _ _ _ x1 x2 H)
+      ?(eval_pfunc_same _ _ _ _ H);
+    repeat (match goal with
+            | [ H1: is_true (?i \in iota 0%N n) |- context[nth 0%Z x1 ?i] ] =>
+              move: (H) => /allP /(_ i H1) /eqP ->
+            | [ H1: is_true (?i < _) |- context[nth 0%Z x1 ?i]] =>
+              (have: (i \in iota 0%N n) by simplssr); let Hiota := fresh "Hiota" in intro Hiota
+            end).
 
   Theorem pfuncmap_to_map_with_involves_in :
     forall p pf pfunc x_in x_out,
@@ -430,11 +443,12 @@ Module PFuncMap (FPI: FPresburgerImpl).
     rewrite /pfuncmap_to_map_with_involves in HIn.
     rewrite /In /gamma_PFuncMap /=.
     erewrite (gamma_seq_PFuncMap_equality _ _ _ (_, _)); last first. rewrite /=. apply to_var_values_map_equality.
-      by apply point_equality_sym.
+      rewrite /=. apply point_equality_refl.
     rewrite /= /x_out'_seq. rewrite f_intersect_domain_mapP in HIn. move: HIn => /andP[HIn Hnot_in_bot].
     split. apply get_result_pfuncmapP. by rewrite f_complement_setP in Hnot_in_bot.
     move => i Hi Hinvolves.
-    move: (to_var_values_map_equality p) => Hequal. rewrite Hequal => //.
+    move: (to_var_values_map_equality p) => /(_ (get_result_pfuncmap pf x_in_seq)) => Hequal.
+    rewrite_point_H Hequal.
     move: (get_result_pfuncmapP p pf x_in_seq).
     rewrite f_complement_setP in Hnot_in_bot. move => /(_ Hnot_in_bot) /= HIn_gamma.
     rewrite f_cast_mapP in HIn. move => /f_concat_mapP /(_ i Hi) /= in HIn.
@@ -446,149 +460,5 @@ Module PFuncMap (FPI: FPresburgerImpl).
     rewrite /eval_pfunc. rewrite HIn.
     erewrite get_intersected_assumed_set_with_involvesP; eauto.
   Qed.
-
-  Theorem pfuncmap_to_map_with_involvesP :
-    forall p pf pfunc x_in v,
-      let n := size (vars_in_program p) in
-      let map := pfuncmap_to_map_with_involves pf pfunc in
-      let map_single_valued := is_single_valued_pfunc_map_to_map_with_involves p pf pfunc in
-      let new_pfunc := apply_map_to_pfunc map map_single_valued pfunc in
-      let top_set := get_intersected_assumed_set_with_involves pf pfunc in
-      let x_in_seq := to_var_values_seq p x_in in
-      x_in_seq \ins top_set ->
-      (v \inV eval_pfunc (apply_map_to_pfunc map map_single_valued pfunc) x_in_seq
-      <-> (exists x_mid, In _ (gamma_PFuncMap pf) (x_in, x_mid) /\ v \inV eval_pfunc pfunc (to_var_values_seq p x_mid))).
-  Proof.
-    move => p pf pfunc x_in v n map map_single_valued new_pfunc top_set x_in_seq H_not_top.
-    split => [ HvIn | [x_mid [Hx_midIn HvIn]]].
-    - apply apply_map_to_pfuncP in HvIn. case: HvIn => x_mid [Hmid_in_map Hv].
-      move: (pfuncmap_to_map_with_involves_in _ pf pfunc x_in (to_var_values_map p x_mid)) => /=.
-      move => /(_ H_not_top). rewrite f_eval_pmap_same_out; last by apply to_var_values_map_equality.
-      move => /(_ Hmid_in_map) => [[x_out' [HIn Heq_x_out']]].
-      exists x_out'. split; auto.
-      erewrite eval_pfunc_same_involves. eauto.
-      move => i Hi Hinvolves. move => /(_ i Hi Hinvolves) in Heq_x_out'. rewrite -Heq_x_out'.
-        by rewrite to_var_values_map_equality => //.
-    - rewrite apply_map_to_pfuncP.
-      set x_mid_seq := to_var_values_seq p x_mid.
-      exists ([seq if f_involves_dim_pfunc pfunc x.1 then x.2 else 0%Z | x <- (zip (iota 0 n) x_mid_seq)]).
-      split.
-      + rewrite /map /pfuncmap_to_map_with_involves.
-        simpl_finite_presburger. apply /andP. split; last first.
-          apply /negP. rewrite get_unioned_bot_set_pfuncmapP => /(_ x_mid). auto.
-        rewrite f_concat_mapP => i Hi /=.
-        erewrite (nth_map (0%N, _)); last first. rewrite size_zip size_iota leq_min. case: (pf) => x_pf /= /eqP ->. autossr.
-        rewrite nth_zip /=; last first. rewrite size_iota. by case: (pf) => x_pf /= /eqP ->.
-        rewrite nth_iota => //. rewrite add0n.
-        case Hi_x_mid: (i < size x_mid_seq).
-        * rewrite (nth_map (0%N, 0%Z)); last first. rewrite size_zip size_iota /n leq_min Hi_x_mid. autossr.
-          rewrite nth_zip_cond. rewrite size_zip size_iota /n leq_min Hi Hi_x_mid /=.
-          rewrite nth_iota => //. rewrite add0n.
-          case Hinvolves: (f_involves_dim_pfunc pfunc i); last first. rewrite f_map_from_pw_affP. by simpl_finite_presburger.
-          rewrite f_map_from_pw_affP.
-          move: Hx_midIn. rewrite /In /gamma_PFuncMap /gamma_seq_PFuncMap.
-          have Hiota: (i \in iota 0 (size (vars_in_program p))). rewrite mem_iota. apply /andP. split; auto.
-          move => /allP /(_ i Hiota) /=.
-          set top_pfunc := {| Val := _ |}.
-          rewrite /eval_pfunc.
-          erewrite get_intersected_assumed_set_with_involvesP; eauto.
-          case_match => //.
-          rewrite /= => /eqP ->. eauto.
-        * rewrite [nth 0%Z _ _]nth_default; last first. rewrite size_map size_zip geq_min [size x_mid_seq <= _]leqNgt Hi_x_mid. autossr.
-          case Hinvolves: (f_involves_dim_pfunc pfunc i); last first. rewrite f_map_from_pw_affP. by simpl_finite_presburger.
-          rewrite f_map_from_pw_affP.
-          move: Hx_midIn. rewrite /In /gamma_PFuncMap /gamma_seq_PFuncMap.
-          have Hiota: (i \in iota 0 (size (vars_in_program p))). rewrite mem_iota. apply /andP. split; auto.
-          move => /allP /(_ i Hiota) /=.
-          set top_pfunc := {| Val := _ |}.
-          rewrite /eval_pfunc.
-          erewrite get_intersected_assumed_set_with_involvesP; eauto.
-          case_match => //.
-          rewrite H. rewrite nth_default; last first. rewrite leqNgt. by rewrite Hi_x_mid.
-          rewrite /= => /eqP ->. eauto.
-      + rewrite (eval_pfunc_same_involves _ _ _ x_mid_seq) => //.
-        move => i Hi Hinvolves.
-        case Hi_x_mid: (i < size x_mid_seq).
-        * rewrite (nth_map (0%N, 0%Z)); last first. rewrite size_zip size_iota /n leq_min. autossr.
-          rewrite nth_zip_cond size_zip size_iota /n leq_min Hi Hi_x_mid /= nth_iota => //.
-            by rewrite add0n Hinvolves.
-        * rewrite nth_default. rewrite nth_default => //. by rewrite leqNgt Hi_x_mid.
-          rewrite size_map size_zip size_iota /n geq_min [in X in _ || X]leqNgt Hi_x_mid.
-          autossr.
-  Qed.
-
-
-  Program Definition compose_relation_PFuncMap {p: Program} (pf1 pf2: PFuncMap p) : PFuncMap p :=
-    let n := size (vars_in_program p) in
-    let map1 : PFunc n -> PMap n n := fun pf => pfuncmap_to_map_with_involves pf1 pf in
-    let map1_single_valued := fun pf => is_single_valued_pfunc_map_to_map_with_involves p pf1 pf in
-    let bot_inputs := get_unioned_bot_set (sval pf1) in
-    let new_assumed_pf1 := fun pf => get_intersected_assumed_set_with_involves (sval pf1) pf in
-    let new_pfunc := fun pf => apply_map_to_pfunc (map1 pf) (map1_single_valued pf) pf in
-    let new_pfunc' := fun pf => intersect_assumed (new_pfunc pf) (new_assumed_pf1 pf) in
-    [ seq (new_pfunc' pf) | pf <- sval pf2 ].
-  Next Obligation.
-      by case pf1 => x_pf ->.
-  Defined.
-  Next Obligation.
-    rewrite size_map. by case pf2 => x_pf ->.
-  Defined.
-
-  Definition compose_relation_PFuncMap_with_bot {p: Program} (pf1 pf2: PFuncMap p) : PFuncMap p :=
-    if pf2 == bot_PFuncMap p then
-      bot_PFuncMap p
-    else
-      compose_relation_PFuncMap pf1 pf2.
-
-  Theorem compose_relation_PFuncMapP :
-    forall p x1 x0 x2 (a1 a2: PFuncMap p),
-      In _ (gamma_PFuncMap a1) (x0, x1) ->
-      In _ (gamma_PFuncMap a2) (x1, x2) ->
-      In _ (gamma_PFuncMap (compose_relation_PFuncMap a1 a2)) (x0, x2).
-  Proof.
-    move => p x1 x0 x2 a1 a2 HIn1 HIn2.
-    have Ha1_size: (size (sval a1) = size (vars_in_program p)). by case: (a1) => x_a1 /= /eqP ->.
-    have Ha2_size: (size (sval a2) = size (vars_in_program p)). by case: (a2) => x_a2 /= /eqP ->.
-    rewrite /In /gamma_PFuncMap /gamma_seq_PFuncMap /=.
-    apply /allP => i. rewrite mem_iota add0n => /andP[_ Hi] /=.
-    erewrite nth_map; last by rewrite Ha2_size. rewrite intersect_assumedP.
-    case_if => //.
-    rewrite pfuncmap_to_map_with_involvesP => //.
-    exists x1. split; auto.
-    rewrite /In /gamma_PFuncMap /gamma_seq_PFuncMap in HIn2.
-    have Hiota: (i \in iota 0 (size (vars_in_program p))). rewrite mem_iota add0n. apply /andP. split; auto.
-    move => /allP /(_ i Hiota) /= in HIn2.
-    eauto.
-  Qed.
-
-  Theorem compose_relation_PFuncMap_with_botP :
-    forall p x1 x0 x2 (a1 a2: PFuncMap p),
-      In _ (gamma_PFuncMap a1) (x0, x1) ->
-      In _ (gamma_PFuncMap a2) (x1, x2) ->
-      In _ (gamma_PFuncMap (compose_relation_PFuncMap_with_bot a1 a2)) (x0, x2).
-  Proof.
-    move => p x1 x0 x2 a1 a2 HIn1 HIn2.
-    rewrite /compose_relation_PFuncMap_with_bot.
-    case: (a2 =P bot_PFuncMap p) => Hbot; last by eapply compose_relation_PFuncMapP; eauto.
-    exfalso. subst. eapply gamma_bot_PFuncMap; eauto.
-  Qed.
-
-  Theorem compose_relation_bot_PFuncMap :
-    forall p a, compose_relation_PFuncMap_with_bot a (bot_PFuncMap p) = (bot_PFuncMap p).
-  Proof.
-    move => p a. rewrite /compose_relation_PFuncMap_with_bot.
-      by rewrite eq_refl.
-  Qed.
-
-  (*
-  Fail Instance adom_relational_pmap (p: Program) : adom_relational (adom_pmap p) :=
-    {
-      id_relation := id_relation_PFuncMap p;
-      id_relation_spec := id_relation_PFuncMapP p;
-
-      compose_relation := compose_relation_PFuncMap_with_bot;
-      compose_relation_spec := compose_relation_PFuncMap_with_botP p;
-      compose_bot := compose_relation_bot_PFuncMap p;
-    }.*)
 
 End PFuncMap.

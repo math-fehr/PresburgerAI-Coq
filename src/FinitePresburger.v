@@ -23,15 +23,24 @@ Fixpoint eval_finite_aff {dim: nat} (a: FiniteAff dim) (x: seq Z) :=
   | AMul c a => c * (eval_finite_aff a x)
   end.
 
-Definition point_equality (n: nat) (x1 x2: seq Z) :=
-  forall m, (m < n)%nat -> nth 0 x1 m = nth 0 x2 m.
+Definition point_equality (n: nat) : rel (seq Z) :=
+  fun x1 x2 => all (fun i => nth 0 x1 i == nth 0 x2 i) (iota 0 n).
 
-Theorem point_equality_sym :
-  forall n x1 x2, point_equality n x1 x2 <-> point_equality n x2 x1.
+Theorem point_equality_sym (n: nat) :
+  symmetric (point_equality n).
 Proof.
-  move => n x1 x2.
-    by split; rewrite /point_equality => H m Hm; move => /(_ m Hm) in H.
+  move => x1 x2. rewrite /point_equality. erewrite eq_in_all; eauto.
+    by move => i Hi.
 Qed.
+
+Theorem point_equality_refl (n: nat) :
+  reflexive (point_equality n).
+Proof.
+  move => x. rewrite /point_equality.
+  rewrite ->eq_in_all with (a2 := xpredT). by apply /allP.
+  move => i Hi. by rewrite eq_refl.
+Qed.
+
 
 (* Specification of a Presburger library with finite dimensions *)
 
@@ -109,10 +118,10 @@ Module Type FPresburgerImpl.
 
   Axiom f_eval_pmap_same_in : forall n m (pm: PMap n m) x_in1 x_in2 x_out,
       point_equality n x_in1 x_in2 ->
-      (x_in1, x_out) \inm pm <-> (x_in2, x_out) \inm pm.
+      ((x_in1, x_out) \inm pm) = ((x_in2, x_out) \inm pm).
   Axiom f_eval_pmap_same_out : forall n m (pm: PMap n m) x_in x_out1 x_out2,
       point_equality m x_out1 x_out2 ->
-      (x_in, x_out1) \inm pm <-> (x_in, x_out2) \inm pm.
+      ((x_in, x_out1) \inm pm) = ((x_in, x_out2) \inm pm).
 
   Parameter f_empty_map: forall n m, PMap n m.
   Axiom f_empty_mapP: forall n m x y, ~~((x,y) \inm (f_empty_map n m)).
@@ -127,7 +136,7 @@ Module Type FPresburgerImpl.
 
   Parameter f_id_map: forall n, PMap n n.
   Axiom f_id_mapP: forall n x1 x2,
-      (x1, x2) \inm (f_id_map n) <-> point_equality n x1 x2.
+      (x1, x2) \inm (f_id_map n) = point_equality n x1 x2.
 
   Parameter f_union_map: forall n m, PMap n m -> PMap n m -> PMap n m.
   Arguments f_union_map {n m}.
@@ -335,18 +344,53 @@ Module Type FPresburgerImpl.
     (let pw_aff_i := nth (f_empty_pw_aff n) (f_pw_aff_from_map pm H) i in
      f_eval_pw_aff pw_aff_i x_in = Some val).
 
+  Ltac rewrite_point_aux x1 x2 n H :=
+    rewrite
+      ?(f_eval_pset_same _ _ x1 x2 H)
+      ?(f_eval_pw_aff_same _ _ x1 x2 H)
+      ?(f_eval_pmap_same_in _ _ _ x1 x2 _ H)
+      ?(f_eval_pmap_same_out _ _ _ _ x1 x2 H);
+    repeat (match goal with
+            | [ H1: is_true (?i \in iota 0%N n) |- context[nth 0%Z x1 ?i] ] =>
+              move: (H) => /allP /(_ i H1) /eqP ->
+            | [ H1: is_true (?i < _) |- context[nth 0%Z x1 ?i]] =>
+              (have: (i \in iota 0%N n) by simplssr); let Hiota := fresh "Hiota" in intro Hiota
+            end).
+
+  Ltac intro_point_equality x_out1 x_out2 :=
+    match goal with
+    | [ H1: is_true ((?x_in, x_out1) \inm ?map),
+        H2: is_true ((?x_in, x_out2) \inm ?map),
+        H: is_true (f_is_single_valued_map ?map) |- _ ] =>
+      move: (H);
+      move => /f_is_single_valued_mapP /(_ x_in x_out1 x_out2 H1 H2)
+    end.
+
+  Ltac rewrite_point_tac x1 x2 tac :=
+    match goal with
+    | [ H: is_true (point_equality ?n x1 x2) |- _ ] => tac x1 x2 n H
+    | _ => intro_point_equality x1 x2; let H := fresh "H" in intro H; rewrite_point_tac x1 x2 tac
+    end.
+
+  Ltac rewrite_point x1 x2 := rewrite_point_tac x1 x2 rewrite_point_aux.
+
+  Ltac rewrite_point_H_tac H tac :=
+    match type of H with
+    | is_true (point_equality ?n ?x1 ?x2) => tac x1 x2 n H
+    end.
+
+  Ltac rewrite_point_H H := rewrite_point_H_tac H rewrite_point_aux.
+
+  Ltac rewrite_point_in Hyp x1 x2 := move: Hyp; rewrite_point x1 x2 => Hyp.
+
   Theorem f_apply_range_preserves_single_valued :
     forall n m p (pm1: PMap n m) (H1: f_is_single_valued_map pm1) (pm2: PMap m p) (H2: f_is_single_valued_map pm2),
       f_is_single_valued_map (f_apply_range_map pm1 pm2).
   Proof.
-    move => n m p pm1 H1 pm2 H2.
-    rewrite f_is_single_valued_mapP => x x_out1 x_out2.
+    intros. rewrite f_is_single_valued_mapP => x x_out1 x_out2.
     rewrite !f_apply_range_mapP => [[x_mid1 /andP[H11 H21]]] [x_mid2 /andP[H12 H22]].
-    rewrite ->f_is_single_valued_mapP in H1.
-    move => /(_ x x_mid1 x_mid2 H11 H12) in H1.
-    rewrite ->f_eval_pmap_same_in in H21; [ | apply H1 ].
-    rewrite ->f_is_single_valued_mapP in H2.
-    by move => /(_ x_mid2 x_out1 x_out2 H21 H22) in H2.
+    rewrite_point_in H21 x_mid1 x_mid2.
+    by intro_point_equality x_out1 x_out2.
   Qed.
 
   Theorem f_pw_aff_from_map_noneP :
@@ -375,10 +419,8 @@ Module Type FPresburgerImpl.
     move => n map.
     rewrite f_is_single_valued_mapP => x_in x_out1 x_out2 Hin1 Hin2.
     move => /f_map_from_pw_affP in Hin1. move => /f_map_from_pw_affP in Hin2.
-    rewrite /point_equality.
-    case => [ _ | //].
-    rewrite Hin1 in Hin2.
-      by move: Hin2 => /= [->].
+    rewrite /point_equality. simplssr.
+    rewrite Hin1 in Hin2. by case: Hin2 => ->.
   Qed.
 
   Theorem f_empty_set_rw :

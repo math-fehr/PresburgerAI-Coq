@@ -134,11 +134,17 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     forall n P x y, point_equality n x y ->
                @eval_pfunc n P x = @eval_pfunc n P y.
   Proof.
-    move => n P x y Heq.
-    rewrite /eval_pfunc.
-    rewrite -(f_eval_pset_same _ _ x y) => //.
-    by rewrite -(f_eval_pw_aff_same _ _ x y).
+    move => n P x y Heq. rewrite /eval_pfunc.
+    by rewrite_point x y.
   Qed.
+
+  Ltac rewrite_point_pfunc_aux x1 x2 n H :=
+    rewrite ?(eval_pfunc_same _ _ x1 x2 H);
+    rewrite_point_aux x1 x2 n H.
+
+  Ltac rewrite_point x1 x2 ::= rewrite_point_tac x1 x2 rewrite_point_pfunc_aux.
+
+  Ltac rewrite_point_H H ::= rewrite_point_H_tac H rewrite_point_pfunc_aux.
 
   Definition in_pfunc {n: nat} (P: PFunc n) (m: seq Z) (z: Z) :=
     z \inV (eval_pfunc P m).
@@ -315,9 +321,7 @@ Module PFuncImpl (FPI: FPresburgerImpl).
       + apply f_apply_map_to_pw_affP in H0.
         move: H0 => [[H0 _] // | [x_mid' [HInMap' Heval']]].
         move: Heval. rewrite /eval_pfunc. case_if.
-        * rewrite ->f_is_single_valued_mapP in H.
-          move: (H _ _ _ HInMap HInMap') => Hequal.
-            by rewrite (f_eval_pw_aff_same _ _ _ _ Hequal) Heval'.
+        * rewrite_point x_mid x_mid'. by rewrite Heval'.
         * exfalso.
           rewrite f_complement_setP in HInAssumed. move => /negP in HInAssumed. apply HInAssumed.
           apply f_get_domain_mapP.
@@ -330,9 +334,7 @@ Module PFuncImpl (FPI: FPresburgerImpl).
           by rewrite HInMap in H0.
           move: Heval. rewrite /eval_pfunc.
           case_if.
-        * rewrite ->f_is_single_valued_mapP in H.
-          move: (H _ _ _ HInMap HInMap') => Hequal.
-            by rewrite (f_eval_pw_aff_same _ _ _ _ Hequal) Heval'.
+        * rewrite_point x_mid x_mid'. by rewrite Heval'.
         * move => _.
           rewrite f_complement_setP in HInAssumed. move => /negP in HInAssumed. apply HInAssumed.
           apply f_get_domain_mapP.

@@ -47,6 +47,9 @@ Ltac simpl_seq :=
          | [ H: is_true (?x \notin ?y ++ ?z) |- _ ] =>
            let Hne := fresh "H" in
            rewrite mem_cat in H; move: H; move => /norP [Hne H]
+         | [ H: is_true (?x \in iota 0 ?n) |- _ ] =>
+           let H' := fresh "H" in rewrite mem_iota add0n in H; move => /andP in H; destruct H as [_ H']
+         | [ |- is_true (?x \in iota 0 ?n) ] => rewrite mem_iota add0n; apply /andP; split; [ apply leq0n | auto ]
          | _ => idtac
          end.
 
