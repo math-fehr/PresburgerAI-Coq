@@ -23,6 +23,10 @@ Fixpoint eval_finite_aff {dim: nat} (a: FiniteAff dim) (x: seq Z) :=
   | AMul c a => c * (eval_finite_aff a x)
   end.
 
+(* Equality between two points. Points are here represented by a list of
+   values, where only the first n values matters. If the list size is
+   smaller than n, it is filled with 0 *)
+
 Definition point_equality (n: nat) : rel (seq Z) :=
   fun x1 x2 => all (fun i => nth 0 x1 i == nth 0 x2 i) (iota 0 n).
 
