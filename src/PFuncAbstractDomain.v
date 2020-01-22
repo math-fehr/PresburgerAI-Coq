@@ -125,7 +125,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
 
   Definition gamma_seq_PFuncMap {p: Program} (pf: PFuncMap p) (x: seq Z * seq Z) :=
     let n := size (vars_in_program p) in
-    all (fun i => nth 0%Z x.2 i \inV (eval_pfunc (nth (constant_pfunc _ VTop) (sval pf) i) x.1)) (iota 0 n).
+    all (fun i => nth 0%Z x.2 i \in (eval_pfunc (nth (constant_pfunc _ VTop) (sval pf) i) x.1)) (iota 0 n).
 
   Theorem gamma_seq_PFuncMap_equality :
     forall p pf x y,
@@ -224,11 +224,11 @@ Module PFuncMap (FPI: FPresburgerImpl).
     foldl (fun acc val => f_intersect_set acc val) (f_universe_set _) [seq Assumed val | val <- pf].
 
   Theorem get_intersected_assumed_setP :
-    forall n pf x, x \ins (@get_intersected_assumed_set n pf) = all (fun pfunc => x \ins (Assumed pfunc)) pf.
+    forall n pf x, x \in (@get_intersected_assumed_set n pf) = all (fun pfunc => x \in (Assumed pfunc)) pf.
   Proof.
     move => n pf x. rewrite /get_intersected_assumed_set.
-    pose A := fun (s: PSet n) => (x \ins s).
-    have HA : forall s, A s = (x \ins s). by rewrite /A.
+    pose A := fun (s: PSet n) => (x \in s).
+    have HA : forall s, A s = (x \in s). by rewrite /A.
     rewrite -HA fold_intersection.
     - rewrite /A. simpl_pfunc. by rewrite all_map /=.
     - move => acc a. rewrite /A. by simpl_pfunc.
@@ -243,8 +243,8 @@ Module PFuncMap (FPI: FPresburgerImpl).
     forall p (pf: PFuncMap p) pfunc i,
       i < size (vars_in_program p) ->
       f_involves_dim_pfunc pfunc i ->
-      forall x, x \ins get_intersected_assumed_set_with_involves pf pfunc ->
-           forall default, x \ins (Assumed (nth default (sval pf) i)).
+      forall x, x \in get_intersected_assumed_set_with_involves pf pfunc ->
+           forall default, x \in (Assumed (nth default (sval pf) i)).
   Proof.
     move => p pf pfunc i Hi Hinvolves x Hin default.
     rewrite /get_intersected_assumed_set_with_involves in Hin.
@@ -265,18 +265,18 @@ Module PFuncMap (FPI: FPresburgerImpl).
     foldl (fun acc val => f_union_set acc val) (f_empty_set _) [seq pfunc_get_bot_set val | val <- pf ].
 
   Theorem get_unioned_bot_setP :
-    forall n pf x, x \ins (@get_unioned_bot_set n pf) = has (fun pfunc => x \ins (pfunc_get_bot_set pfunc)) pf.
+    forall n pf x, x \in (@get_unioned_bot_set n pf) = has (fun pfunc => x \in (pfunc_get_bot_set pfunc)) pf.
   Proof.
     move => n pf x.
-    pose A := fun (s: PSet n) => (x \ins s).
-    have HA : forall s, A s = (x \ins s). by rewrite /A.
+    pose A := fun (s: PSet n) => (x \in s).
+    have HA : forall s, A s = (x \in s). by rewrite /A.
     rewrite -HA fold_union /=.
     - rewrite /A. simpl_pfunc. by rewrite has_map.
     - move => acc a. rewrite /A. by simpl_pfunc.
   Qed.
 
   Theorem get_unioned_bot_set_pfuncmapP :
-    forall p pf x_in, (to_var_values_seq p x_in) \ins (get_unioned_bot_set (sval pf)) <-> forall x_out, ~ (In _ (@gamma_PFuncMap p pf) (x_in, x_out)).
+    forall p pf x_in, (to_var_values_seq p x_in) \in (get_unioned_bot_set (sval pf)) <-> forall x_out, ~ (In _ (@gamma_PFuncMap p pf) (x_in, x_out)).
   Proof.
     move => p [x_pf H_pf] x_in /=. rewrite /In /gamma_PFuncMap /gamma_seq_PFuncMap /=. move => /eqP in H_pf.
     set top_pfunc := {| Val := _ |}.
@@ -295,7 +295,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
       rewrite {1}/to_var_values_seq (nth_map "") in Hnotin => //.
       rewrite /x_out_map to_var_values_mapP /x_out in Hnotin => //.
       erewrite (nth_map top_pfunc) in Hnotin; last by rewrite H_pf.
-      move: Hnotin. case Heval: (eval_pfunc _ _) => [ // | n | ]. by rewrite /in_V eq_refl.
+      move: Hnotin. case Heval: (eval_pfunc _ _) => [ // | n | ]. by simpl_pfunc.
       move => _. exists (nth top_pfunc x_pf i). apply mem_nth. by rewrite H_pf.
         by rewrite pfunc_get_bot_setP Heval.
   Qed.
@@ -305,7 +305,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
 
   Theorem get_result_pfuncmapP :
     forall p pf x_in,
-      ~~(x_in \ins get_unioned_bot_set (sval pf)) ->
+      ~~(x_in \in get_unioned_bot_set (sval pf)) ->
       let x_out := @get_result_pfuncmap p pf x_in in
       In _ (gamma_seq_PFuncMap pf) (x_in, x_out).
   Proof.
@@ -315,7 +315,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
     set top_pfunc := {| Val := _ |}.
     erewrite (nth_map top_pfunc); last by case: (pf) => /= Hpf /eqP ->.
     case_if => [ /= | // ].
-    case Heval: (f_eval_pw_aff _ _) => [ v | ]. by rewrite /=.
+    case Heval: (f_eval_pw_aff _ _) => [ v | ]. by simpl_pfunc.
     rewrite get_unioned_bot_setP in Hnot_bot.
     have Hin: (nth top_pfunc (sval pf) i) \in sval pf. apply mem_nth. by case: (pf) => /= Hpf /eqP ->.
     move => /hasPn /(_ _ Hin) in Hnot_bot.
@@ -335,12 +335,12 @@ Module PFuncMap (FPI: FPresburgerImpl).
     forall p, let n := size (vars_in_program p) in
       forall (pf: PFuncMap p) x_in x_out,
         gamma_seq_PFuncMap pf (x_in, x_out) ->
-        ~~ (x_in \ins get_intersected_assumed_set (sval pf)) ||
-        ((x_in, x_out) \inm (pfuncmap_to_map pf)).
+        ~~ (x_in \in get_intersected_assumed_set (sval pf)) ||
+        ((x_in, x_out) \in (pfuncmap_to_map pf)).
   Proof.
     move => p n [pf Hpf_eq]. move: (Hpf_eq). move => /eqP in Hpf_eq. move => Hpf x_in x_out Hgamma.
     set top_pfunc := (constant_pfunc n VTop).
-    case Hintersected: (x_in \ins _); last first. by autossr.
+    case Hintersected: (x_in \in _); last first. by autossr.
     rewrite /= in Hintersected.
     rewrite /pfuncmap_to_map f_cast_mapP f_concat_mapP => i Hi.
     rewrite (nth_map top_pfunc); last first. by rewrite Hpf_eq.
@@ -430,8 +430,8 @@ Module PFuncMap (FPI: FPresburgerImpl).
     forall p pf pfunc x_in x_out,
       let x_in_seq := to_var_values_seq p x_in in
       let x_out_seq := to_var_values_seq p x_out in
-      x_in_seq \ins get_intersected_assumed_set_with_involves pf pfunc ->
-      (x_in_seq, x_out_seq) \inm (@pfuncmap_to_map_with_involves p pf pfunc) ->
+      x_in_seq \in get_intersected_assumed_set_with_involves pf pfunc ->
+      (x_in_seq, x_out_seq) \in (@pfuncmap_to_map_with_involves p pf pfunc) ->
       exists x_out', In _ (gamma_PFuncMap pf) (x_in, x_out') /\
                 (forall i, i < size (vars_in_program p) ->
                       f_involves_dim_pfunc pfunc i ->

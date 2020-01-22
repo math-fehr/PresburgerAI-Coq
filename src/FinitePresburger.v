@@ -1,7 +1,7 @@
 From Coq Require Import ssreflect ssrfun ssrbool.
 From PolyAI Require Export TotalMap ssrZ ssrstring Tactic.
 Local Set Warnings "-notation-overridden".
-From mathcomp Require Import ssrnat.
+From mathcomp Require Import ssrnat eqtype.
 
 Local Open Scope Z_scope.
 
@@ -48,45 +48,63 @@ Qed.
 (* Specification of a Presburger library with finite dimensions *)
 
 Module Type FPresburgerImpl.
-  Parameter PSet: nat -> eqType.
-  Parameter PMap: nat -> nat -> eqType.
-  Parameter PwAff: nat -> eqType.
+  Parameter PSet: nat -> Type.
+  Parameter eqPSet : forall n, PSet n -> PSet n -> bool.
+  Axiom eqPSetP : forall n, Equality.axiom (eqPSet n).
+  Canonical PSet_eqMixin (n: nat) := EqMixin (eqPSetP n).
+  Canonical PSet_eqType (n: nat) := Eval hnf in EqType (PSet n) (PSet_eqMixin n).
+
+  Parameter PMap: nat -> nat -> Type.
+  Parameter eqPMap : forall n m, PMap n m -> PMap n m -> bool.
+  Axiom eqPMapP : forall n m, Equality.axiom (eqPMap n m).
+  Canonical PMap_eqMixin (n m: nat) := EqMixin (eqPMapP n m).
+  Canonical PMap_eqType (n m: nat) := Eval hnf in EqType (PMap n m) (PMap_eqMixin n m).
+
+  Parameter PwAff: nat -> Type.
+  Parameter eqPwAff : forall n, PwAff n -> PwAff n -> bool.
+  Axiom eqPwAffP : forall n, Equality.axiom (eqPwAff n).
+  Canonical PwAff_eqMixin (n: nat) := EqMixin (eqPwAffP n).
+  Canonical PwAff_eqType (n: nat) := Eval hnf in EqType (PwAff n) (PwAff_eqMixin n).
 
   (* Check if a point is in a polyhedra *)
   Parameter f_eval_pset : forall n, PSet n -> seq Z -> bool.
   Arguments f_eval_pset {n}.
-  Notation "P \ins S" := (f_eval_pset S P) (at level 70, no associativity).
+
+  Definition pset_eqclass (n: nat) := PSet n.
+  Identity Coercion pset_of_eqclass : pset_eqclass >-> PSet.
+  Coercion pred_of_pset (n: nat) (p : pset_eqclass n) : {pred (seq Z)} := f_eval_pset p.
+  Canonical pset_predType (n: nat) := PredType (pred_of_pset n : PSet n -> pred (seq Z)).
 
   Axiom f_eval_pset_same : forall n (p: PSet n) x1 x2,
       point_equality n x1 x2 ->
-      (x1 \ins p) = (x2 \ins p).
+      (x1 \in p) = (x2 \in p).
 
   Parameter f_empty_set: forall n, PSet n.
-  Axiom f_empty_setP: forall n x, ~~(x \ins (f_empty_set n)).
+  Axiom f_empty_setP: forall n x, x \notin (f_empty_set n).
 
   Parameter f_universe_set: forall n, PSet n.
-  Axiom f_universe_setP: forall n x, x \ins (f_universe_set n).
+  Axiom f_universe_setP: forall n x, x \in (f_universe_set n).
 
   Parameter f_union_set: forall n, PSet n -> PSet n -> PSet n.
   Arguments f_union_set {n}.
   Axiom f_union_setP: forall n (p1 p2: PSet n) x,
-      x \ins (f_union_set p1 p2) = (x \ins p1) || (x \ins p2).
+      x \in (f_union_set p1 p2) = (x \in p1) || (x \in p2).
 
   Parameter f_intersect_set: forall n, PSet n -> PSet n -> PSet n.
   Arguments f_intersect_set {n}.
   Axiom f_intersect_setP: forall n (p1 p2: PSet n) x,
-      x \ins (f_intersect_set p1 p2) = (x \ins p1) && (x \ins p2).
+      x \in (f_intersect_set p1 p2) = (x \in p1) && (x \in p2).
 
   Parameter f_subtract_set: forall n, PSet n -> PSet n -> PSet n.
   Arguments f_subtract_set {n}.
   Axiom f_subtract_setP: forall n (p1 p2: PSet n) x,
-      x \ins (f_subtract_set p1 p2) = (x \ins p1) && ~~ (x \ins p2).
+      x \in (f_subtract_set p1 p2) = (x \in p1) && (x \notin p2).
 
   Definition f_complement_set {n: nat} :=
     f_subtract_set (f_universe_set n).
 
   Theorem f_complement_setP :
-    forall n p x, x \ins (@f_complement_set n p) = ~~ (x \ins p).
+    forall n p x, (x \in (@f_complement_set n p)) = (x \notin p).
   Proof.
     move => n p x. by rewrite /f_complement_set f_subtract_setP f_universe_setP.
   Qed.
@@ -95,97 +113,101 @@ Module Type FPresburgerImpl.
   Arguments f_is_subset_set {n}.
   Axiom f_is_subset_setP: forall n (p1 p2: PSet n),
       f_is_subset_set p1 p2 <->
-      forall x, x \ins p1 -> x \ins p2.
+      forall x, x \in p1 -> x \in p2.
 
   Parameter f_project_out_set: forall n, PSet n -> nat -> PSet n.
   Arguments f_project_out_set {n}.
   Axiom f_project_out_setP : forall n (p: PSet n) d x,
-        x \ins (f_project_out_set p d) <->
-        exists v, (set_nth 0 x d v) \ins p.
+        x \in (f_project_out_set p d) <->
+        exists v, (set_nth 0 x d v) \in p.
 
   Parameter f_involves_dim_set : forall n, PSet n -> nat -> bool.
   Arguments f_involves_dim_set {n}.
   Axiom f_involves_dim_setP :
     forall n (p: PSet n) d,
       ~~ (f_involves_dim_set p d) <->
-      forall x v, (x \ins p) = ((set_nth 0 x d v) \ins p).
+      forall x v, (x \in p) = ((set_nth 0 x d v) \in p).
 
   Axiom f_eval_pset_same_involves :
     forall n (p: PSet n) x1 x2,
       (forall d, (d < n)%N -> f_involves_dim_set p d -> nth 0 x1 d = nth 0 x2 d) ->
-      (x1 \ins p) = (x2 \ins p).
+      (x1 \in p) = (x2 \in p).
 
-  Parameter f_eval_pmap : forall n m, PMap n m -> seq Z -> seq Z -> bool.
+  Parameter f_eval_pmap : forall n m, PMap n m -> (seq Z * seq Z) -> bool.
   Arguments f_eval_pmap {n m}.
-  Notation "P \inm S" := (f_eval_pmap S P.1 P.2) (at level 70, no associativity).
+
+  Definition pmap_eqclass (n m: nat) := PMap n m.
+  Identity Coercion pmap_of_eqclass : pmap_eqclass >-> PMap.
+  Coercion pred_of_pmap (n m: nat) (p : pmap_eqclass n m) : {pred (seq Z * seq Z)} := f_eval_pmap p.
+  Canonical pmap_predType (n m: nat) := PredType (pred_of_pmap n m : PMap n m -> pred (seq Z * seq Z)).
 
   Axiom f_eval_pmap_same_in : forall n m (pm: PMap n m) x_in1 x_in2 x_out,
       point_equality n x_in1 x_in2 ->
-      ((x_in1, x_out) \inm pm) = ((x_in2, x_out) \inm pm).
+      ((x_in1, x_out) \in pm) = ((x_in2, x_out) \in pm).
   Axiom f_eval_pmap_same_out : forall n m (pm: PMap n m) x_in x_out1 x_out2,
       point_equality m x_out1 x_out2 ->
-      ((x_in, x_out1) \inm pm) = ((x_in, x_out2) \inm pm).
+      ((x_in, x_out1) \in pm) = ((x_in, x_out2) \in pm).
 
   Parameter f_empty_map: forall n m, PMap n m.
-  Axiom f_empty_mapP: forall n m x y, ~~((x,y) \inm (f_empty_map n m)).
+  Axiom f_empty_mapP: forall n m x y, (x,y) \notin (f_empty_map n m).
 
   Parameter f_universe_map: forall n m, PMap n m.
-  Axiom f_universe_mapP: forall n m x y, (x, y) \inm (f_empty_map n m).
+  Axiom f_universe_mapP: forall n m x y, (x, y) \in (f_empty_map n m).
 
   Parameter f_get_domain_map: forall n m, PMap n m -> PSet n.
   Arguments f_get_domain_map {n} {m}.
   Axiom f_get_domain_mapP: forall n m (map: PMap n m) x_in,
-      x_in \ins (f_get_domain_map map) <-> exists x_out, (x_in, x_out) \inm map.
+      x_in \in (f_get_domain_map map) <-> exists x_out, (x_in, x_out) \in map.
 
   Parameter f_id_map: forall n, PMap n n.
   Axiom f_id_mapP: forall n x1 x2,
-      (x1, x2) \inm (f_id_map n) = point_equality n x1 x2.
+      (x1, x2) \in (f_id_map n) = point_equality n x1 x2.
 
   Parameter f_union_map: forall n m, PMap n m -> PMap n m -> PMap n m.
   Arguments f_union_map {n m}.
   Axiom f_union_mapP: forall n m (p1 p2: PMap n m) x y,
-      (x, y) \inm (f_union_map p1 p2) = ((x, y) \inm p1) || ((x, y) \inm p2).
+      (x, y) \in (f_union_map p1 p2) = ((x, y) \in p1) || ((x, y) \in p2).
 
   Parameter f_intersect_map: forall n m, PMap n m -> PMap n m -> PMap n m.
   Arguments f_intersect_map {n m}.
   Axiom f_intersect_mapP: forall n m (p1 p2: PMap n m) x y,
-      (x, y) \inm (f_intersect_map p1 p2) = ((x, y) \inm p1) && ((x, y) \inm p2).
+      (x, y) \in (f_intersect_map p1 p2) = ((x, y) \in p1) && ((x, y) \in p2).
 
   Parameter f_intersect_domain_map: forall n m, PMap n m -> PSet m -> PMap n m.
   Arguments f_intersect_domain_map {n} {m}.
   Axiom f_intersect_domain_mapP: forall n m (map: PMap n m) pset x_in x_out,
-      (x_in, x_out) \inm (f_intersect_domain_map map pset) =
-      ((x_in, x_out) \inm map) && (x_in \ins pset).
+      (x_in, x_out) \in (f_intersect_domain_map map pset) =
+      ((x_in, x_out) \in map) && (x_in \in pset).
 
   Parameter f_intersect_range_map: forall n m, PMap n m -> PSet m -> PMap n m.
   Arguments f_intersect_range_map {n} {m}.
   Axiom f_intersect_range_mapP: forall n m (map: PMap n m) pset x_in x_out,
-      (x_in, x_out) \inm (f_intersect_range_map map pset) =
-      ((x_in, x_out) \inm map) && (x_out \ins pset).
+      (x_in, x_out) \in (f_intersect_range_map map pset) =
+      ((x_in, x_out) \in map) && (x_out \in pset).
 
   Parameter f_is_subset_map: forall n m, PMap n m -> PMap n m -> bool.
   Arguments f_is_subset_map {n m}.
   Axiom f_is_subset_mapP: forall n m (p1 p2: PMap n m),
       f_is_subset_map p1 p2 <->
-      forall x y, (x, y) \inm p1 -> (x, y) \inm p2.
+      forall x y, (x, y) \in p1 -> (x, y) \in p2.
 
   Parameter f_project_out_map_in: forall n m, PMap n m -> nat -> PMap n m.
   Arguments f_project_out_map_in {n m}.
   Axiom f_project_out_mapp_inP: forall n m (p: PMap n m) d x y,
-      (x, y) \inm (f_project_out_map_in p d) <->
-      exists v, (set_nth 0 x d v, y) \inm p.
+      (x, y) \in (f_project_out_map_in p d) <->
+      exists v, (set_nth 0 x d v, y) \in p.
 
   Parameter f_project_out_map_out: forall n m, PMap n m -> nat -> PMap n m.
   Arguments f_project_out_map_out {n m}.
   Axiom f_project_out_mapp_outP: forall n m (p: PMap n m) d x y,
-      (x, y) \inm (f_project_out_map_out p d) <->
-      exists v, (x, set_nth 0 y d v) \inm p.
+      (x, y) \in (f_project_out_map_out p d) <->
+      exists v, (x, set_nth 0 y d v) \in p.
 
   Parameter f_apply_range_map : forall n m p, PMap n m -> PMap m p -> PMap n p.
   Arguments f_apply_range_map {n m p}.
   Axiom f_apply_range_mapP : forall n1 n2 n3 (m1: PMap n1 n2) (m2: PMap n2 n3) x1 x3,
-      (x1, x3) \inm (f_apply_range_map m1 m2) <->
-      exists x2, ((x1, x2) \inm m1) && ((x2, x3) \inm m2).
+      (x1, x3) \in (f_apply_range_map m1 m2) <->
+      exists x2, ((x1, x2) \in m1) && ((x2, x3) \in m2).
 
   Parameter f_transitive_closure_map : forall n, PMap n n -> PMap n n.
   Arguments f_transitive_closure_map {n}.
@@ -201,7 +223,7 @@ Module Type FPresburgerImpl.
   Axiom f_is_single_valued_mapP :
     forall n m (pm: PMap n m),
       f_is_single_valued_map pm <->
-      (forall x v1 v2, (x, v1) \inm pm -> (x, v2) \inm pm -> point_equality m v1 v2).
+      (forall x v1 v2, (x, v1) \in pm -> (x, v2) \in pm -> point_equality m v1 v2).
 
   Parameter f_eval_pw_aff : forall n, PwAff n -> seq Z -> option Z.
   Arguments f_eval_pw_aff {n}.
@@ -222,7 +244,7 @@ Module Type FPresburgerImpl.
   Parameter f_get_domain_pw_aff : forall n, PwAff n -> PSet n.
   Arguments f_get_domain_pw_aff {n}.
   Axiom f_get_domain_pw_affP : forall n (p: PwAff n) x,
-      x \ins (f_get_domain_pw_aff p) = match f_eval_pw_aff p x with
+      x \in (f_get_domain_pw_aff p) = match f_eval_pw_aff p x with
                                        | Some v => true
                                        | None => false
                                        end.
@@ -231,7 +253,7 @@ Module Type FPresburgerImpl.
   Arguments f_intersect_domain {n}.
   Axiom f_intersect_domainP : forall n (p: PwAff n) (s: PSet n) x,
       f_eval_pw_aff (f_intersect_domain p s) x =
-      if f_eval_pset s x then
+      if x \in s then
         f_eval_pw_aff p x
       else
         None.
@@ -259,7 +281,7 @@ Module Type FPresburgerImpl.
   Arguments f_eq_set {n}.
   Axiom f_eq_setP :
     forall n (p1 p2: PwAff n) x,
-      f_eval_pset (f_eq_set p1 p2) x =
+      x \in (f_eq_set p1 p2) =
       match (f_eval_pw_aff p1 x, f_eval_pw_aff p2 x) with
       | (Some v1, Some v2) => v1 == v2
       | _ => false
@@ -269,7 +291,7 @@ Module Type FPresburgerImpl.
   Arguments f_ne_set {n}.
   Axiom f_ne_setP :
     forall n (p1 p2: PwAff n) x,
-      f_eval_pset (f_ne_set p1 p2) x =
+      x \in (f_ne_set p1 p2) =
       match (f_eval_pw_aff p1 x, f_eval_pw_aff p2 x) with
       | (Some v1, Some v2) => v1 != v2
       | _ => false
@@ -279,7 +301,7 @@ Module Type FPresburgerImpl.
   Arguments f_le_set {n}.
   Axiom f_le_setP :
     forall n (p1 p2: PwAff n) x,
-      f_eval_pset (f_le_set p1 p2) x =
+      x \in (f_le_set p1 p2) =
       match (f_eval_pw_aff p1 x, f_eval_pw_aff p2 x) with
       | (Some v1, Some v2) => v1 <=? v2
       | _ => false
@@ -290,7 +312,7 @@ Module Type FPresburgerImpl.
   Axiom f_indicator_functionP :
     forall n (p: PSet n) x,
       f_eval_pw_aff (f_indicator_function p) x =
-      if f_eval_pset p x then
+      if x \in p then
         Some 1
       else
         Some 0.
@@ -316,7 +338,7 @@ Module Type FPresburgerImpl.
   Arguments f_map_from_pw_aff {n}.
   Axiom f_map_from_pw_affP :
     forall n (p: PwAff n) x_in x_out,
-      (x_in, x_out) \inm (f_map_from_pw_aff p) <->
+      (x_in, x_out) \in (f_map_from_pw_aff p) <->
       f_eval_pw_aff p x_in = Some (nth 0 x_out 0).
 
   Parameter f_apply_map_to_pw_aff : forall n m (map: PMap n m), f_is_single_valued_map map -> PwAff m -> PwAff n.
@@ -324,15 +346,15 @@ Module Type FPresburgerImpl.
   Axiom f_apply_map_to_pw_affP :
     forall n m map pw_aff H x_in v,
       f_eval_pw_aff (@f_apply_map_to_pw_aff n m map H pw_aff) x_in = v
-      <-> (v = None /\ forall x_out, ~~((x_in, x_out) \inm map)) \/
-        (exists x_mid, (x_in, x_mid) \inm map /\ f_eval_pw_aff pw_aff x_mid = v).
+      <-> (v = None /\ forall x_out, (x_in, x_out) \notin map) \/
+        (exists x_mid, (x_in, x_mid) \in map /\ f_eval_pw_aff pw_aff x_mid = v).
 
   Parameter f_concat_map : forall n (s: seq (PMap n 1)), PMap n (size s).
   Arguments f_concat_map {n}.
   Axiom f_concat_mapP :
     forall n (s: seq (PMap n 1)) x_in x_out,
-      (x_in, x_out) \inm f_concat_map s
-      <-> (forall i, (i < n)%N -> (x_in, [::(nth 0 x_out i)]) \inm nth (f_empty_map n 1) s i).
+      (x_in, x_out) \in f_concat_map s
+      <-> (forall i, (i < n)%N -> (x_in, [::(nth 0 x_out i)]) \in nth (f_empty_map n 1) s i).
 
   Parameter f_pw_aff_from_map : forall n m (pm: PMap n m), f_is_single_valued_map pm -> seq (PwAff n).
   Arguments f_pw_aff_from_map {n} {m}.
@@ -343,7 +365,7 @@ Module Type FPresburgerImpl.
     forall n m (pm: PMap n m) H,
     forall x_in val,
     forall i, (i < m)%nat ->
-    (exists x_out, nth 0%Z x_out i = val /\ (x_in, x_out) \inm pm) <->
+    (exists x_out, nth 0%Z x_out i = val /\ (x_in, x_out) \in pm) <->
     (let pw_aff_i := nth (f_empty_pw_aff n) (f_pw_aff_from_map pm H) i in
      f_eval_pw_aff pw_aff_i x_in = Some val).
 
@@ -362,8 +384,8 @@ Module Type FPresburgerImpl.
 
   Ltac intro_point_equality x_out1 x_out2 :=
     match goal with
-    | [ H1: is_true ((?x_in, x_out1) \inm ?map),
-        H2: is_true ((?x_in, x_out2) \inm ?map),
+    | [ H1: is_true ((?x_in, x_out1) \in ?map),
+        H2: is_true ((?x_in, x_out2) \in ?map),
         H: is_true (f_is_single_valued_map ?map) |- _ ] =>
       move: (H);
       move => /f_is_single_valued_mapP /(_ x_in x_out1 x_out2 H1 H2)
@@ -401,13 +423,13 @@ Module Type FPresburgerImpl.
     forall x_in i, (i < m)%N ->
     let pw_aff_i := nth (f_empty_pw_aff n) (f_pw_aff_from_map pm H) i in
     f_eval_pw_aff pw_aff_i x_in = None <->
-    (~ exists x_out, (x_in, x_out) \inm pm).
+    (~ exists x_out, (x_in, x_out) \in pm).
   Proof.
     move => n m pm Hsingle x_in i Hi.
     split.
     - move => HNone [x_out Hin].
       move: (f_pw_aff_from_mapP n m pm Hsingle x_in (nth 0 x_out i) i Hi) => [H _].
-      have Hx_out: (exists x_out0, nth 0 x_out0 i = nth 0 x_out i /\ (x_in, x_out0) \inm pm). by exists x_out.
+      have Hx_out: (exists x_out0, nth 0 x_out0 i = nth 0 x_out i /\ (x_in, x_out0) \in pm). by exists x_out.
       apply H in Hx_out. rewrite HNone in Hx_out. by [].
     - move => Hnotin.
       case Heval: (f_eval_pw_aff _ _) => [val| //]. exfalso.
@@ -427,7 +449,7 @@ Module Type FPresburgerImpl.
   Qed.
 
   Theorem f_empty_set_rw :
-    forall n x, x \ins (f_empty_set n) = false.
+    forall n x, x \in (f_empty_set n) = false.
   Proof.
     move => n x.
       by rewrite (negbTE (f_empty_setP _ _)).
@@ -474,7 +496,7 @@ Module Type FPresburgerImpl.
 
   Theorem f_cast_mapP :
     forall n1 n2 m1 m2 Hn Hm p x,
-      (x \inm (@f_cast_map n1 n2 m1 m2 Hn Hm p)) = (x \inm p).
+      (x \in (@f_cast_map n1 n2 m1 m2 Hn Hm p)) = (x \in p).
   Proof.
     move => n1 n2 m1 m2 Hn Hm p x.
     rewrite /f_cast_map /eq_rect_r /eq_rect.

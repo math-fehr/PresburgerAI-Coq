@@ -37,14 +37,26 @@ Canonical V_eqType := Eval hnf in EqType V V_eqMixin.
 
 (* Some useful definitions and proofs dealing with V *)
 
-Definition in_V (n: Z) (v: V) :=
+Definition in_V (v: V) (n: Z) :=
   match v with
   | VTop => true
   | VVal n' => n == n'
   | VBot => false
   end.
 
-Notation "z \inV v" := (in_V z v) (at level 70, no associativity).
+Definition V_eqclass := V.
+Identity Coercion V_of_eqclass : V_eqclass >-> V.
+Coercion pred_of_V (p : V_eqclass) : {pred Z} := in_V p.
+Canonical V_predType := PredType (pred_of_V : V -> pred (Z)).
+
+Theorem in_VBot : forall n, n \notin VBot.
+Proof. by []. Qed.
+
+Theorem in_VTop : forall n, n \in VTop.
+Proof. by []. Qed.
+
+Theorem in_VVal : forall n m, (n \in VVal m) = (n == m).
+Proof. by []. Qed.
 
 Definition le_V (v1 v2: V) :=
   match (v1, v2) with
@@ -72,7 +84,7 @@ Proof.
 Qed.
 
 Theorem le_V_spec :
-  forall v1 v2, le_V v1 v2 <-> forall n, n \inV v1 -> n \inV v2.
+  forall v1 v2, le_V v1 v2 <-> forall n, n \in v1 -> n \in v2.
 Proof.
   move => v1 v2.
   split. by case v1; case v2 => // n n0; rewrite /le_V => /eqP -> //.
@@ -124,7 +136,7 @@ Module PFuncImpl (FPI: FPresburgerImpl).
   Arguments mkPFunc {n}.
 
   Definition eval_pfunc {n: nat} (P: PFunc n) (x: seq Z) :=
-    match (x \ins (Assumed P), f_eval_pw_aff (Val P) x) with
+    match (x \in (Assumed P), f_eval_pw_aff (Val P) x) with
     | (false, _ ) => VTop
     | (true, Some v) => VVal v
     | (true, None) => VBot
@@ -147,7 +159,7 @@ Module PFuncImpl (FPI: FPresburgerImpl).
   Ltac rewrite_point_H H ::= rewrite_point_H_tac H rewrite_point_pfunc_aux.
 
   Definition in_pfunc {n: nat} (P: PFunc n) (m: seq Z) (z: Z) :=
-    z \inV (eval_pfunc P m).
+    z \in (eval_pfunc P m).
 
   Definition constant_pfunc (n: nat) (v: V) :=
     match v with
@@ -184,7 +196,7 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     forall n {p1 p2: PFunc n} x, eval_pfunc (join_pfunc p1 p2) x = join_V (eval_pfunc p1 x) (eval_pfunc p2 x).
   Proof.
     move => n p1 p2 x. rewrite /join_pfunc /eval_pfunc /=. simpl_finite_presburger.
-    case: (x \ins (Assumed p1)); case: (x \ins (Assumed p2));
+    case: (x \in (Assumed p1)); case: (x \in (Assumed p2));
     case (f_eval_pw_aff (Val p2) x); case (f_eval_pw_aff (Val p1) x) => //=.
       by move => z z0; case (z =P z0) => [ -> | ] /=; rewrite /join_V; autossr.
   Qed.
@@ -205,8 +217,9 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     move => n p1 x z1 Hin1 p2 z2. move: Hin1.
     rewrite /in_pfunc /add_pfunc /eval_pfunc /=.
     simpl_finite_presburger.
-    case: (f_eval_pset (Assumed p1) x); case: (f_eval_pset (Assumed p2) x);
+    case: (x \in (Assumed p1)); case: (x \in f_eval_pset (Assumed p2));
       case: (f_eval_pw_aff (Val p2) x); case: (f_eval_pw_aff (Val p1) x) => //=.
+    setoid_rewrite in_VVal.
     by autossr.
   Qed.
 
@@ -221,7 +234,7 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     move => n p1 x z1 Hin1 p2 z2. move: Hin1.
     rewrite /in_pfunc /add_pfunc /eval_pfunc /=.
     simpl_finite_presburger.
-    case: (f_eval_pset (Assumed p1) x); case: (f_eval_pset (Assumed p2) x);
+    case: (x \in (Assumed p1)); case: (x \in (Assumed p2));
       case: (f_eval_pw_aff (Val p2) x); case: (f_eval_pw_aff (Val p1) x) => //=.
     move => a a0 /eqP -> /eqP ->. by case (a <=? a0).
   Qed.
@@ -231,23 +244,23 @@ Module PFuncImpl (FPI: FPresburgerImpl).
 
   Theorem intersect_assumedP :
     forall n p s x, eval_pfunc (@intersect_assumed n p s) x =
-               if x \ins s then eval_pfunc p x else VTop.
+               if x \in s then eval_pfunc p x else VTop.
   Proof.
     move => n p s x.
     rewrite /eval_pfunc.
     rewrite /intersect_assumed /=.
     simpl_finite_presburger.
-      by case: (x \ins s); case (x \ins Assumed p).
+      by case: (x \in s); case (x \in Assumed p).
   Qed.
 
   Definition pfunc_get_bot_set {n: nat} (p: PFunc n) :=
     f_intersect_set (Assumed p) (f_complement_set (f_get_domain_pw_aff (Val p))).
 
   Theorem pfunc_get_bot_setP :
-    forall n p x, x \ins (@pfunc_get_bot_set n p) = (eval_pfunc p x == VBot).
+    forall n p x, x \in (@pfunc_get_bot_set n p) = (eval_pfunc p x == VBot).
   Proof.
     move => n p x. rewrite /pfunc_get_bot_set /eval_pfunc. simpl_finite_presburger.
-    case: (x \ins Assumed p) => [ /= | // ].
+    case: (x \in Assumed p) => [ /= | // ].
       by case_match.
   Qed.
 
@@ -282,8 +295,8 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     have Heq_assumed: (forall d : nat, (d < n)%N -> f_involves_dim_set (Assumed p) d -> nth 0 x d = nth 0 y d).
     move => i Hi Hinvolves. rewrite Heq => //. rewrite /f_involves_dim_pfunc Hinvolves. autossr.
     rewrite (f_eval_pset_same_involves _ _ _ _ Heq_assumed).
-    case Hassumed_y: (y \ins Assumed p) => //.
-    have Hassumed_x: (x \ins Assumed p). by rewrite (f_eval_pset_same_involves _ _ _ _ Heq_assumed).
+    case Hassumed_y: (y \in Assumed p) => //.
+    have Hassumed_x: (x \in Assumed p). by rewrite (f_eval_pset_same_involves _ _ _ _ Heq_assumed).
     move: (f_eval_pw_aff_same_involves n (f_intersect_domain (Val p) (Assumed p)) x y) => Heq'.
     rewrite !f_intersect_domainP Hassumed_y Hassumed_x in Heq'.
     rewrite Heq' => //.
@@ -297,8 +310,8 @@ Module PFuncImpl (FPI: FPresburgerImpl).
 
   Theorem apply_map_to_pfuncP :
     forall n m map H pf x_in v,
-      v \inV eval_pfunc (@apply_map_to_pfunc n m map H pf) x_in
-      <-> exists x_mid, (x_in, x_mid) \inm map /\ (v \inV eval_pfunc pf x_mid).
+      v \in eval_pfunc (@apply_map_to_pfunc n m map H pf) x_in
+      <-> exists x_mid, (x_in, x_mid) \in map /\ (v \in eval_pfunc pf x_mid).
   Proof.
     move => n m map H pf x_in v.
     split => [ Heval | [x_mid [HInMap Heval]]].
@@ -310,13 +323,13 @@ Module PFuncImpl (FPI: FPresburgerImpl).
         rewrite ->f_apply_map_to_pw_affP in H1. move: H1 => [[H1 _] // | H1].
         case: H1 => x_mid [HInMap Heval].
         exists x_mid. split; auto.
-        rewrite /eval_pfunc Heval. case_if => //. by rewrite /=.
+        rewrite /eval_pfunc Heval. case_if => //. by rewrite in_VVal.
       + move: H0. move => /negbFE /f_get_domain_mapP [x_mid].
         simpl_finite_presburger.
         move => /andP[HInMap HNotAssumed].
         exists x_mid. split; auto. rewrite /eval_pfunc. by autossr.
     - rewrite /apply_map_to_pfunc /eval_pfunc /=.
-      case HInAssumed: (x_in \ins _) => //.
+      case HInAssumed: (x_in \in _) => //.
       case_match.
       + apply f_apply_map_to_pw_affP in H0.
         move: H0 => [[H0 _] // | [x_mid' [HInMap' Heval']]].
@@ -355,7 +368,8 @@ Module PFuncImpl (FPI: FPresburgerImpl).
 
   Canonical PFunc_eqType (n: nat) := Eval hnf in EqType (@PFunc n) (EqMixin (@eqPFuncP n)).
 
-  Hint Rewrite @constant_pfuncP @constant_var_pfuncP @join_pfuncP @join_V_leftP @join_V_rightP using by first [liassr | autossr] : pfuncrw.
+  Hint Rewrite @in_VBot @in_VTop @in_VVal @constant_pfuncP @constant_var_pfuncP
+       @join_pfuncP @join_V_leftP @join_V_rightP using by first [liassr | autossr] : pfuncrw.
   Hint Resolve @add_pfuncP @le_binop_pfuncP : core.
 
   Ltac simpl_pfunc_ := repeat (autorewrite with maprw; autorewrite with pfuncrw; autorewrite with prw; simplssr).
