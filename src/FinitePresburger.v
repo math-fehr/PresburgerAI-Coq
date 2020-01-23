@@ -348,23 +348,16 @@ Module Type FPresburgerImpl.
 
   Parameter f_map_witness : forall n, PMap n 1 -> PwAff n.
   Arguments f_map_witness {n}.
-  Axiom f_map_witnessP :
+  Axiom f_map_witness_some :
+    forall n m x_in x_out,
+      @f_eval_pw_aff n (f_map_witness m) x_in = Some x_out -> (x_in, [::x_out]) \in m.
+  Axiom f_map_witness_some_intro :
+    forall n m x_in x_out,
+      (x_in, x_out) \in m -> exists x_out', @f_eval_pw_aff n (f_map_witness m) x_in = Some x_out'.
+  Axiom f_map_witness_none :
     forall n m x_in,
-    (exists x_out, @f_eval_pw_aff n (f_map_witness m) x_in = Some x_out) <->
-    (exists x_out', (x_in, [::x_out']) \in m).
-
-  Theorem f_map_witness_none :
-    forall n m x_in, @f_eval_pw_aff n (f_map_witness m) x_in = None <->
-                forall x_out, (x_in, [::x_out]) \notin m.
-  Proof.
-    move => n m x_in. split => [ Heval x_out | ].
-    - apply /negP => Hin.
-      case: (f_map_witnessP n m x_in) => [_] /(_ (ex_intro _ x_out Hin)) [x_out' Heval']. by rewrite Heval in Heval'.
-    - move => Hnotin.
-      case Heval: (f_eval_pw_aff (f_map_witness m) x_in) => [ x_out | //].
-      case: (f_map_witnessP n m x_in). move => /(_ (ex_intro _ x_out Heval)) [x_out' Heval'] _.
-      move => /(_ x_out') in Hnotin. autossr.
-  Qed.
+      @f_eval_pw_aff n (f_map_witness m) x_in = None <->
+      forall x_out, (x_in, x_out) \notin m.
 
   Parameter f_apply_map_to_pw_aff : forall n m (map: PMap n m), f_is_single_valued_map map -> PwAff m -> PwAff n.
   Arguments f_apply_map_to_pw_aff {n m}.
