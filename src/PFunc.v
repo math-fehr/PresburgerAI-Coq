@@ -346,6 +346,60 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     mkPFunc (f_apply_map_to_pw_aff map H (Val pf))
             (f_complement_set (f_get_domain_map (f_intersect_range_map map (f_complement_set (Assumed pf))))).
 
+  Definition map_to_pfunc {n: nat} (map: PMap n 1) :=
+    let val := f_map_witness map in
+    let val_map := f_map_from_pw_aff val in
+    let top_map := f_subtract_map map val_map in
+    let top_set := f_get_domain_map top_map in
+    let assumed_set := f_complement_set top_set in
+    mkPFunc val assumed_set.
+
+  Theorem map_to_pfuncP :
+    forall n (map: PMap n 1) x_in x_out,
+      (x_out \in eval_pfunc (map_to_pfunc map) x_in) <->
+      ((x_in, [::x_out]) \in map) \/
+      (exists x_out1, exists x_out2, x_out1 != x_out2 /\
+                          ((x_in, [::x_out1]) \in map) /\
+                          ((x_in, [::x_out2]) \in map)).
+  Proof.
+    move => n map x_in x_out.
+    split.
+    - rewrite /map_to_pfunc /eval_pfunc.
+      simpl_pfunc. case Hin: (x_in \in _) => /= => [ _ | ].
+      + move: Hin => /f_get_domain_mapP [x_out2].
+        simpl_pfunc. move => /andP[Hin Hwitness].
+        have Heq: (point_equality 1 x_out2 [::nth 0%Z x_out2 0]). apply /allP. by case => //.
+        rewrite_point_in Hin x_out2 [::nth 0%Z x_out2 0].
+        move : (f_map_witness_some_intro _ _ _ _ Hin) => [x_out' Heval'].
+        move: (f_map_witness_some _ _ _ _ Heval') => Hin'.
+        rewrite Heval' in Hwitness.
+        right. exists x_out'. exists (nth 0 x_out2 0). auto.
+      + case_match; last by auto_pfunc.
+        simpl_pfunc. move => Heq. ssrsubst. left.
+          by apply f_map_witness_some.
+    - move => [ Hin | Hmultiple_in ].
+      + rewrite /map_to_pfunc /eval_pfunc /=. simpl_pfunc.
+        case Hsingle: (x_in \notin _) => //=.
+        move: (Hin) => /f_map_witness_some_intro [x_out' Heval]. rewrite Heval.
+        move: (f_map_witness_some _ _ _ _ Heval) => Hin'.
+        move => /negP in Hsingle. move => /f_get_domain_mapP in Hsingle.
+        have Hnotin: (forall x_out, ~ (x_in, x_out) \in f_subtract_map map (f_map_from_pw_aff (f_map_witness map))).
+          move => x_out'' Hin''. by eauto.
+        move => /(_ [::x_out]) in Hnotin.
+        rewrite f_subtract_mapP Hin /= in Hnotin.
+        move => /negP /negPn in Hnotin. rewrite f_map_from_pw_affP /= in Hnotin.
+        rewrite in_VVal. autossr.
+      + move: Hmultiple_in => [x_out1 [x_out2 [Hne [Hin1 Hin2]]]].
+        rewrite /eval_pfunc /map_to_pfunc /=. simpl_pfunc.
+        case_if => //.
+        move => /negP /f_get_domain_mapP in H. exfalso. apply H.
+        move: (f_map_witness_some_intro _ _ _ _ Hin1) => [x_out' Hin'].
+        case: (x_out1 =P x_out') => [ Heq | Hne'].
+        * exists [::x_out2]. simpl_pfunc. ssrsubst. by rewrite Hin'.
+        * exists [::x_out1]. simpl_pfunc. by rewrite Hin' eq_sym.
+  Qed.
+
+
   Theorem apply_map_to_pfuncP :
     forall n m map H pf x_in v,
       v \in eval_pfunc (@apply_map_to_pfunc n m map H pf) x_in
