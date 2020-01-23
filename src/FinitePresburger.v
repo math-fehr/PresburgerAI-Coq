@@ -338,8 +338,8 @@ Module Type FPresburgerImpl.
   Arguments f_map_from_pw_aff {n}.
   Axiom f_map_from_pw_affP :
     forall n (p: PwAff n) x_in x_out,
-      (x_in, x_out) \in (f_map_from_pw_aff p) =
-      f_eval_pw_aff p x_in == Some (nth 0 x_out 0).
+      ((x_in, x_out) \in (f_map_from_pw_aff p)) =
+      (f_eval_pw_aff p x_in == Some (nth 0 x_out 0)).
 
   Parameter f_apply_map_to_pw_aff : forall n m (map: PMap n m), f_is_single_valued_map map -> PwAff m -> PwAff n.
   Arguments f_apply_map_to_pw_aff {n m}.
@@ -443,7 +443,8 @@ Module Type FPresburgerImpl.
   Proof.
     move => n map.
     rewrite f_is_single_valued_mapP => x_in x_out1 x_out2 Hin1 Hin2.
-    move => /f_map_from_pw_affP in Hin1. move => /f_map_from_pw_affP in Hin2.
+    rewrite f_map_from_pw_affP in Hin1. move => /eqP in Hin1.
+    rewrite f_map_from_pw_affP in Hin2. move => /eqP in Hin2.
     rewrite /point_equality. simplssr.
     rewrite Hin1 in Hin2. by case: Hin2 => ->.
   Qed.
