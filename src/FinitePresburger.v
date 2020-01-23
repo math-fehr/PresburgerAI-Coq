@@ -152,7 +152,7 @@ Module Type FPresburgerImpl.
   Axiom f_empty_mapP: forall n m x y, (x,y) \notin (f_empty_map n m).
 
   Parameter f_universe_map: forall n m, PMap n m.
-  Axiom f_universe_mapP: forall n m x y, (x, y) \in (f_empty_map n m).
+  Axiom f_universe_mapP: forall n m x y, (x, y) \in (f_universe_map n m).
 
   Parameter f_get_domain_map: forall n m, PMap n m -> PSet n.
   Arguments f_get_domain_map {n} {m}.
