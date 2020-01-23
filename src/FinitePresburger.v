@@ -371,8 +371,8 @@ Module Type FPresburgerImpl.
   Arguments f_concat_map {n}.
   Axiom f_concat_mapP :
     forall n (s: seq (PMap n 1)) x_in x_out,
-      (x_in, x_out) \in f_concat_map s
-      <-> (forall i, (i < n)%N -> (x_in, [::(nth 0 x_out i)]) \in nth (f_empty_map n 1) s i).
+      ((x_in, x_out) \in f_concat_map s)
+      = all (fun i => (x_in, [::(nth 0 x_out i)]) \in nth (f_empty_map n 1) s i) (iota 0 n).
 
   Parameter f_pw_aff_from_map : forall n m (pm: PMap n m), f_is_single_valued_map pm -> seq (PwAff n).
   Arguments f_pw_aff_from_map {n} {m}.
@@ -531,7 +531,7 @@ Module Type FPresburgerImpl.
        @f_subtract_setP @f_subtract_mapP @f_complement_setP @f_apply_range_mapP
        @f_universe_mapP @f_id_mapP @f_union_mapP @f_intersect_mapP
        @f_pw_aff_from_affP @f_intersect_domainP @f_union_pw_affP @f_eq_setP @f_ne_setP @f_le_setP @f_indicator_functionP
-       @f_add_pw_affP @f_empty_pw_affP @f_cast_mapP
+       @f_add_pw_affP @f_empty_pw_affP @f_cast_mapP @f_concat_mapP
        using by first [liassr | autossr ] : prw.
 
   Hint Resolve @f_is_subset_setP @f_is_subset_mapP @f_project_out_setP @f_is_subset_mapP
