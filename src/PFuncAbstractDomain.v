@@ -324,7 +324,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
 
   Program Definition pfuncmap_to_map {p: Program} (pf: PFuncMap p) :
     PMap (size (vars_in_program p)) (size (vars_in_program p)) :=
-    let map := f_concat_map [seq f_map_from_pw_aff (Val x) | x <- sval pf] in
+    let map := f_concat_map [seq pfunc_to_map x | x <- sval pf] in
     f_cast_map (Logic.eq_refl _) _ map.
   Next Obligation.
     case: pf => x /eqP H /=.
@@ -332,47 +332,16 @@ Module PFuncMap (FPI: FPresburgerImpl).
   Defined.
 
   Theorem pfuncmap_to_mapP :
-    forall p, let n := size (vars_in_program p) in
-      forall (pf: PFuncMap p) x_in x_out,
-        gamma_seq_PFuncMap pf (x_in, x_out) ->
-        ~~ (x_in \in get_intersected_assumed_set (sval pf)) ||
-        ((x_in, x_out) \in (pfuncmap_to_map pf)).
+    forall p (pf: PFuncMap p) x_in x_out,
+      gamma_seq_PFuncMap pf (x_in, x_out) =
+      ((x_in, x_out) \in (pfuncmap_to_map pf)).
   Proof.
-    move => p n [pf Hpf_eq]. move: (Hpf_eq). move => /eqP in Hpf_eq. move => Hpf x_in x_out Hgamma.
-    set top_pfunc := (constant_pfunc n VTop).
-    case Hintersected: (x_in \in _); last first. by autossr.
-    rewrite /= in Hintersected.
-    rewrite /pfuncmap_to_map f_cast_mapP f_concat_mapP => i Hi.
-    rewrite (nth_map top_pfunc); last first. by rewrite Hpf_eq.
-    rewrite f_map_from_pw_affP /=.
-    rewrite /gamma_seq_PFuncMap /= /allP in Hgamma.
-    have Hiota : (i \in iota 0 (size (vars_in_program p))). rewrite mem_iota. apply /andP => //.
-    move => /allP /(_ i Hiota) in Hgamma. rewrite /eval_pfunc in Hgamma.
-    rewrite (get_intersected_assumed_setP n pf x_in) in Hintersected.
-    move => /allP in Hintersected. move: Hgamma.
-    rewrite Hintersected; last first. apply mem_nth. by rewrite Hpf_eq.
-    case_match => [ /= /eqP -> /= | // ].
-    by rewrite H.
-  Qed.
-
-  Theorem is_single_valued_pfunc_map_to_map :
-    forall p pf, f_is_single_valued_map (@pfuncmap_to_map p pf).
-  Proof.
-    move => p [pf Hpf_eq]. move: (Hpf_eq). move => /eqP in Hpf_eq. move => Hpf.
-    rewrite f_is_single_valued_mapP => x_in x_out1 x_out2.
-    rewrite /pfuncmap_to_map !f_cast_mapP.
-    rewrite !f_concat_mapP => Hin1 Hin2.
-    apply /allP => i Hi. apply /eqP. simplssr.
-    move => /(_ i H) in Hin1. move => /(_ i H) in Hin2.
-    erewrite nth_map in Hin1; last first. by rewrite Hpf_eq.
-    erewrite nth_map in Hin2; last first. by rewrite Hpf_eq.
-    rewrite f_map_from_pw_affP in Hin2. move => /eqP in Hin2.
-    rewrite f_map_from_pw_affP in Hin1. move => /eqP in Hin1.
-    rewrite Hin2 in Hin1.
-      by case: Hin1 => ->.
-    Unshelve.
-      by apply (constant_pfunc (size (vars_in_program p)) VTop).
-      by apply (constant_pfunc (size (vars_in_program p)) VTop).
+    move => p pf x_in x_out. rewrite /gamma_seq_PFuncMap /pfuncmap_to_map.
+    simpl_pfunc. set top_pfunc := {| Val := _ |}.
+    apply eq_in_all.
+    move => i Hiota.
+    erewrite nth_map; last by case: (pf) => /= [x_pf /eqP ->]; autossr.
+      by rewrite -pfunc_to_mapP.
   Qed.
 
 End PFuncMap.
