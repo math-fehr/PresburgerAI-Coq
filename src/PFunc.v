@@ -8,6 +8,11 @@ Local Open Scope Z_scope.
 
 Local Set Warnings "-notation-overridden".
 
+Ltac simpl_pfunc_ := repeat (autorewrite with maprw; autorewrite with pfuncrw; autorewrite with prw; simplssr).
+Ltac simpl_pfunc := reflect_ne_in simpl_pfunc_.
+
+Ltac auto_pfunc := intros; simpl_pfunc; autossr.
+
 (* V represent either an element in Z, no element, or all values in Z *)
 Inductive V :=
 | VTop
@@ -52,6 +57,9 @@ Canonical V_predType := PredType (pred_of_V : V -> pred (Z)).
 Theorem in_VBot : forall n, n \notin VBot.
 Proof. by []. Qed.
 
+Theorem in_VBot_false : forall n, n \in VBot = false.
+Proof. by []. Qed.
+
 Theorem in_VTop : forall n, n \in VTop.
 Proof. by []. Qed.
 
@@ -66,6 +74,8 @@ Definition le_V (v1 v2: V) :=
   | _ => false
   end.
 Hint Unfold le_V: PFuncHint.
+
+Hint Rewrite @in_VBot @in_VBot_false @in_VTop @in_VVal using by first [liassr | autossr] : pfuncrw.
 
 Theorem le_V_refl : forall v, (le_V v v).
 Proof.
@@ -123,6 +133,9 @@ Proof.
   case => [ | n1 | ]; case => [ | n2 | ] => //=; rewrite /join_V /le_V //.
   case (n1 =P n2); by autossr.
 Qed.
+
+Hint Rewrite @join_V_leftP @join_V_rightP using by first [liassr | autossr] : pfuncrw.
+
 
 Module PFuncImpl (FPI: FPresburgerImpl).
   Import FPI.
@@ -186,6 +199,8 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     by auto_finite_presburger.
   Qed.
 
+  Hint Rewrite @constant_pfuncP @constant_var_pfuncP using by first [liassr | autossr] : pfuncrw.
+
   Definition join_pfunc {n: nat} (p1 p2: PFunc n) :=
     let assumed_inter := f_intersect_set (Assumed p1) (Assumed p2) in
     let assumed_join := f_subtract_set assumed_inter (f_ne_set (Val p1) (Val p2)) in
@@ -200,6 +215,9 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     case (f_eval_pw_aff (Val p2) x); case (f_eval_pw_aff (Val p1) x) => //=.
       by move => z z0; case (z =P z0) => [ -> | ] /=; rewrite /join_V; autossr.
   Qed.
+
+  Hint Rewrite @join_pfuncP using by first [liassr | autossr] : pfuncrw.
+
 
   Definition binop_pfunc {n: nat} (f: PwAff n -> PwAff n -> PwAff n) (p1 p2: PFunc n) :=
     let assumed_join := f_intersect_set (Assumed p1) (Assumed p2) in
@@ -223,6 +241,8 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     by autossr.
   Qed.
 
+  Hint Resolve @add_pfuncP : core.
+
   Definition le_binop_pfunc {n: nat} :=
     binop_pfunc (fun p1 p2 => @f_indicator_function n (f_le_set p1 p2)).
 
@@ -238,6 +258,8 @@ Module PFuncImpl (FPI: FPresburgerImpl).
       case: (f_eval_pw_aff (Val p2) x); case: (f_eval_pw_aff (Val p1) x) => //=.
     move => a a0 /eqP -> /eqP ->. by case (a <=? a0).
   Qed.
+
+  Hint Resolve @le_binop_pfuncP : core.
 
   Definition intersect_assumed {n: nat} (p: PFunc n) (s: PSet n) :=
     mkPFunc (Val p) (f_intersect_set s (Assumed p)).
@@ -302,6 +324,22 @@ Module PFuncImpl (FPI: FPresburgerImpl).
     rewrite Heq' => //.
     - move => i Hi Hinvolves. rewrite Heq => //.
       rewrite /f_involves_dim_pfunc. autossr.
+  Qed.
+
+  Definition pfunc_to_map {n: nat} (pf: PFunc n) :=
+    let universe_map := f_universe_map n 1 in
+    let top_map := f_intersect_domain_map universe_map (f_complement_set (Assumed pf)) in
+    let val_map := f_map_from_pw_aff (Val pf) in
+    f_union_map val_map top_map.
+
+  Theorem pfunc_to_mapP :
+    forall n (pf: PFunc n) x_in x_out, (x_out \in eval_pfunc pf x_in) = ((x_in, [::x_out]) \in (pfunc_to_map pf)).
+  Proof.
+    move => n pf x_in x_out.
+    rewrite /pfunc_to_map. simpl_finite_presburger. rewrite /eval_pfunc.
+    case H_assumed: (x_in \in Assumed pf); last by simpl_pfunc.
+    case_match; simpl_pfunc => //.
+    apply /idP/idP; by autossr.
   Qed.
 
   Definition apply_map_to_pfunc {n m: nat} (map: PMap n m) (H: f_is_single_valued_map map) (pf: PFunc m) : PFunc n :=
@@ -370,11 +408,5 @@ Module PFuncImpl (FPI: FPresburgerImpl).
 
   Hint Rewrite @in_VBot @in_VTop @in_VVal @constant_pfuncP @constant_var_pfuncP
        @join_pfuncP @join_V_leftP @join_V_rightP using by first [liassr | autossr] : pfuncrw.
-  Hint Resolve @add_pfuncP @le_binop_pfuncP : core.
-
-  Ltac simpl_pfunc_ := repeat (autorewrite with maprw; autorewrite with pfuncrw; autorewrite with prw; simplssr).
-  Ltac simpl_pfunc := reflect_ne_in simpl_pfunc_.
-
-  Ltac auto_pfunc := intros; simpl_pfunc; autossr.
 
 End PFuncImpl.
