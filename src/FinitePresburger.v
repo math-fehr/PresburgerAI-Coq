@@ -173,6 +173,11 @@ Module Type FPresburgerImpl.
   Axiom f_intersect_mapP: forall n m (p1 p2: PMap n m) x y,
       (x, y) \in (f_intersect_map p1 p2) = ((x, y) \in p1) && ((x, y) \in p2).
 
+  Parameter f_subtract_map: forall n m, PMap n m -> PMap n m -> PMap n m.
+  Arguments f_subtract_map {n m}.
+  Axiom f_subtract_mapP: forall n m (p1 p2: PMap n m) x,
+      x \in (f_subtract_map p1 p2) = (x \in p1) && (x \notin p2).
+
   Parameter f_intersect_domain_map: forall n m, PMap n m -> PSet n -> PMap n m.
   Arguments f_intersect_domain_map {n} {m}.
   Axiom f_intersect_domain_mapP: forall n m (map: PMap n m) pset x_in x_out,
