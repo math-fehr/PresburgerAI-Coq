@@ -350,8 +350,9 @@ Module PFuncMap (FPI: FPresburgerImpl).
     move => /allP /(_ i Hiota) in Hgamma. rewrite /eval_pfunc in Hgamma.
     rewrite (get_intersected_assumed_setP n pf x_in) in Hintersected.
     move => /allP in Hintersected. move: Hgamma.
-    rewrite Hintersected. case_match => [ /= /eqP -> // | //].
-    apply mem_nth. by rewrite Hpf_eq.
+    rewrite Hintersected; last first. apply mem_nth. by rewrite Hpf_eq.
+    case_match => [ /= /eqP -> /= | // ].
+    by rewrite H.
   Qed.
 
   Theorem is_single_valued_pfunc_map_to_map :
@@ -365,8 +366,8 @@ Module PFuncMap (FPI: FPresburgerImpl).
     move => /(_ i H) in Hin1. move => /(_ i H) in Hin2.
     erewrite nth_map in Hin1; last first. by rewrite Hpf_eq.
     erewrite nth_map in Hin2; last first. by rewrite Hpf_eq.
-    move => /f_map_from_pw_affP in Hin2.
-    move => /f_map_from_pw_affP in Hin1.
+    rewrite f_map_from_pw_affP in Hin2. move => /eqP in Hin2.
+    rewrite f_map_from_pw_affP in Hin1. move => /eqP in Hin1.
     rewrite Hin2 in Hin1.
       by case: Hin1 => ->.
     Unshelve.
