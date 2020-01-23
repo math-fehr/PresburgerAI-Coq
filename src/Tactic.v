@@ -58,6 +58,7 @@ Ltac simpl_bool :=
          | [ |- context[_ && true] ] => rewrite Bool.andb_true_r
          | [ |- context[_ && false] ] => rewrite Bool.andb_false_r
          | [ |- context[_ || true] ] => rewrite Bool.orb_true_r
+         | [ |- context[_ || false] ] => rewrite Bool.orb_false_r
          | _ => rewrite /=
          end.
 
@@ -70,10 +71,17 @@ Ltac divide_hypotheses :=
          | _ => idtac
          end.
 
+Ltac bigsubst :=
+  subst ; match goal with
+          | [ H1: ?a = Some ?s1, H2: ?a = Some ?s2 |- _ ] => move: (H1); rewrite H2 => [[Heq]]; bigsubst
+          | [ H: Some ?a = Some ?b |- _ ] => case: H => H; bigsubst
+          | _ => idtac
+          end.
+
 Ltac ssrsubst :=
   repeat match goal with
          | [ H: is_true (?x == ?y) |- _ ] => move => /eqP in H
-         | _ => subst
+         | _ => bigsubst
          end.
 
 Ltac remove_SS :=
@@ -96,12 +104,6 @@ Ltac intro_ne :=
   | [ |- _ <> _ ] => intro
   | _ => idtac
   end.
-
-Ltac bigsubst :=
-  subst ; match goal with
-          | [ H1: ?a = Some ?s1, H2: ?a = Some ?s2 |- _ ] => move: (H1); rewrite H2 => [[Heq]]; bigsubst
-          | _ => idtac
-          end.
 
 Ltac case_if :=
   match goal with
