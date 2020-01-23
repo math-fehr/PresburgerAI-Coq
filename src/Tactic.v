@@ -84,6 +84,11 @@ Ltac ssrsubst :=
          | _ => bigsubst
          end.
 
+Ltac solve_contra :=
+  match goal with
+  | [ H1: is_true ?b, H2: is_true (~~ ?b) |- _ ] => by rewrite H1 in H2
+  end.
+
 Ltac remove_SS :=
   repeat match goal with
          | [ H: context[?x.+1 == ?y.+1] |- _ ] => rewrite eqSS in H
@@ -118,6 +123,6 @@ Ltac case_match :=
 Ltac simplssr_ := rewrite_is_true; simpl_seq; simpl_bool; simpleq.
 Ltac simplssr := repeat (reflect_ne_in simplssr_).
 Ltac autossr :=
-  first [ solve [ simplssr ; intros ; reflect_ne ; ssrsubst ; simplssr ; first [ by auto | divide_hypotheses ; ssrsubst ; simplssr ; by auto ] ] | idtac ].
+  first [ solve [ try (solve_contra) ; simplssr ; intros ; reflect_ne ; ssrsubst ; simplssr ; first [ by auto | divide_hypotheses ; ssrsubst ; simplssr ; (try solve_contra); by auto ] ] | idtac ].
 
 Ltac liassr := remove_SS ; to_coq_nat ; intros ; intro_ne ; subst ; first [lia | omega ].
