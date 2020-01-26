@@ -123,22 +123,44 @@ Section PMapAbstractDomain.
       by apply (Hle (x.1, x_mid)).
   Qed.
 
-  Theorem pmap_transitive_closure_ge_step :
-    forall a, le a (transitive_closure_map a).
+  Definition pmap_compose_transitive_closure (p1 p2: PMap) :=
+    map_apply_range (transitive_closure_map p1) p2.
+
+  Theorem pmap_compose_transitive_closure_id :
+    forall a, le (pmap_compose_transitive_closure a a) (pmap_compose_transitive_closure a id_map).
   Proof.
-    move => a. by apply gamma_pmap_monotone, transitive_closure_map_ge_step.
+    move => a.
+    apply gamma_pmap_monotone.
+    eapply is_subset_map_trans. apply transitive_closure_map_eq_compose.
+    apply is_subset_map_spec => x y Heval.
+    apply (pmap_compose_relation_spec y); auto_map.
+    rewrite /Ensembles.In /gamma_pmap. by rewrite id_map_spec.
   Qed.
 
-  Theorem pmap_transitive_closure_ge_id :
-    forall a, le id_map (transitive_closure_map a).
+  Theorem pmap_compose_transitive_closure_ge_id :
+    forall a, le id_map (pmap_compose_transitive_closure a id_map).
   Proof.
-    move => a. by apply gamma_pmap_monotone, transitive_closure_map_ge_id.
+    move => a. apply gamma_pmap_monotone, is_subset_map_spec => x y HIn.
+    rewrite id_map_spec in HIn. ssrsubst.
+    apply map_apply_range_spec.
+    exists y. split; auto_presburger.
+    move: (@transitive_closure_map_ge_id _ _ _ PI a) => /is_subset_map_spec. apply.
+    by auto_presburger.
   Qed.
 
-  Theorem pmap_transitive_closure_ge_compose :
-    forall a, le (map_apply_range (transitive_closure_map a) a) (transitive_closure_map a).
+  Theorem pmap_compose_transitive_closure_bot :
+    forall a, pmap_compose_transitive_closure a bot = bot.
   Proof.
-    move => a. by apply gamma_pmap_monotone, transitive_closure_map_eq_compose.
+    rewrite /pmap_compose_transitive_closure => a.
+    by rewrite map_apply_range_bot.
+  Qed.
+
+  Theorem pmap_compose_transitive_closure_le :
+    forall a a1 a2, le a1 a2 ->
+               le (pmap_compose_transitive_closure a a1) (pmap_compose_transitive_closure a a2).
+  Proof.
+    move => a a1 a2 Hle.
+      by apply pmap_compose_relation_le.
   Qed.
 
   Instance adom_relational_pmap : adom_relational adom_pmap :=
@@ -154,10 +176,11 @@ Section PMapAbstractDomain.
       compose_relation_quotient_right := pmap_compose_relation_quotient_right;
       compose_relation_quotient_left := pmap_compose_relation_quotient_left;
 
-      transitive_closure := transitive_closure_map;
-      transitive_closure_ge_id := pmap_transitive_closure_ge_id;
-      transitive_closure_ge_step := pmap_transitive_closure_ge_step;
-      transitive_closure_eq_compose := pmap_transitive_closure_ge_compose;
+      compose_transitive_closure := pmap_compose_transitive_closure;
+      compose_transitive_closure_id := pmap_compose_transitive_closure_id;
+      compose_transitive_closure_ge_id := pmap_compose_transitive_closure_ge_id;
+      compose_transitive_closure_bot := pmap_compose_transitive_closure_bot;
+      compose_transitive_closure_le := pmap_compose_transitive_closure_le;
     }.
 
   Definition pmap_set_out_var_const (m: PMap) (v: string) (c: Z) :=
@@ -457,16 +480,35 @@ Section PMapAbstractDomain.
             by apply pmap_affect_variables_compose_le.
   Qed.
 
+  Theorem pmap_transfer_inst_compose_transitive_closure :
+    forall inst a comp_a,
+        le (pmap_tf_inst inst (pmap_compose_transitive_closure comp_a a))
+           (pmap_compose_transitive_closure comp_a (pmap_tf_inst inst a)).
+  Proof.
+    intros. by apply pmap_tf_inst_compose_le.
+  Qed.
+
+  Theorem pmap_transfer_term_compose_transitive_closure :
+      forall term a a' comp_a bb,
+        (a', bb) \in (pmap_tf_term term (compose_transitive_closure comp_a a)) ->
+                     exists a'', (a'', bb) \in pmap_tf_term term a /\ le a' (pmap_compose_transitive_closure comp_a a'').
+  Proof.
+    intros. by apply pmap_tf_term_compose_le.
+  Qed.
+
+
   Instance tf_relational_pmap : transfer_function_relational adom_relational_pmap prog :=
     {
       transfer_inst := pmap_tf_inst;
       transfer_inst_sound := pmap_tf_inst_sound;
       transfer_inst_compose := pmap_tf_inst_compose_le;
+      transfer_inst_compose_transitive_closure := pmap_transfer_inst_compose_transitive_closure;
 
       transfer_term := pmap_tf_term;
       transfer_term_sound := pmap_tf_term_sound;
       transfer_term_only_successors := pmap_tf_term_only_successors;
       transfer_term_compose := pmap_tf_term_compose_le;
+      transfer_term_compose_transitive_closure := pmap_transfer_term_compose_transitive_closure;
     }.
 
 

@@ -23,15 +23,17 @@ Class adom_relational {concrete_state abstract_state: eqType} {p: Program}
     compose_relation_quotient_left : forall a1 a2 a3,
       le a1 a2 -> le (compose_relation a1 a3) (compose_relation a2 a3);
 
-    (* Compute an overapproximation of a reflexive-transitive closure *)
-    transitive_closure : abstract_state -> abstract_state;
-    transitive_closure_ge_step : forall a, le a (transitive_closure a);
-    transitive_closure_ge_id : forall a, le id_relation (transitive_closure a);
-    transitive_closure_eq_compose : forall a, le (compose_relation (transitive_closure a) a) (transitive_closure a);
+    compose_transitive_closure : abstract_state -> abstract_state -> abstract_state;
+    compose_transitive_closure_id : forall a, le (compose_transitive_closure a a) (compose_transitive_closure a id_relation);
+    compose_transitive_closure_ge_id : forall a, le id_relation (compose_transitive_closure a id_relation);
+    compose_transitive_closure_bot : forall a, compose_transitive_closure a bot = bot;
+    compose_transitive_closure_le :
+      forall a a1 a2, le a1 a2 ->
+                 le (compose_transitive_closure a a1) (compose_transitive_closure a a2);
   }.
 
-Hint Rewrite @compose_bot : airw.
-Hint Resolve @compose_bot @transitive_closure_ge_step transitive_closure_ge_id transitive_closure_eq_compose @id_relation_spec : core.
+Hint Rewrite @compose_bot @compose_transitive_closure_bot : airw.
+Hint Resolve @compose_bot @compose_transitive_closure_bot (*@transitive_closure_ge_step transitive_closure_ge_id transitive_closure_eq_compose *) @id_relation_spec : core.
 
 Section RelationalAbstractDomainTheorems.
 

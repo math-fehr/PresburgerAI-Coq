@@ -399,6 +399,16 @@ Module PFuncImpl (FPI: FPresburgerImpl).
         * exists [::x_out1]. simpl_pfunc. by rewrite Hin' eq_sym.
   Qed.
 
+  Theorem map_to_pfunc_le :
+    forall n map1 map2 x,
+      f_is_subset_map map1 map2 ->
+      le_V (eval_pfunc (@map_to_pfunc n map1) x) (eval_pfunc (@map_to_pfunc n map2) x).
+  Proof.
+    move => n map1 map2 x /f_is_subset_mapP Hsubset.
+    rewrite le_V_spec => v. rewrite !map_to_pfuncP.
+    move => [HIn | [x_out1 [x_out2 [Hneg_x [HIn1 HIn2]]]]]; auto.
+    right. exists x_out1. exists x_out2. auto.
+  Qed.
 
   Theorem apply_map_to_pfuncP :
     forall n m map H pf x_in v,

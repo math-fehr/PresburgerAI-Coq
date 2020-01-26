@@ -393,6 +393,57 @@ Section AbstractInterpreter.
 
   Hint Resolve compose_relation_in_program_edges_edges_invariant_kept : core.
 
+    Program Definition compose_transitive_closure_in_program_edges (ps: ProgramStructure) (stateE: ASEdges) (relation: ab) :=
+      td_pointwise_un_op_in_seq stateE (fun m => td_pointwise_un_op m (compose_transitive_closure relation)) (bbs_in_program ps).
+
+    Theorem compose_transitive_closure_in_program_edges_spec (ps: ProgramStructure) (stateE: ASEdges) (relation: ab) (in_id out_id: bbid) :
+      compose_transitive_closure_in_program_edges ps stateE relation in_id out_id =
+      if (in_id \in bbs_in_program ps) then compose_transitive_closure relation (stateE in_id out_id) else stateE in_id out_id.
+    Proof.
+      rewrite td_pointwise_un_op_in_seq_spec.
+      case: (in_id \in bbs_in_program ps) => [ /= | // ].
+      rewrite /eq_rect. case (compose_transitive_closure_in_program_edges_obligation_1 relation).
+        by auto_ai.
+    Qed.
+
+    Hint Rewrite compose_transitive_closure_in_program_edges_spec using first [ liassr ; autossr ] : airw.
+
+    Theorem compose_transitive_closure_in_program_edges_edges_invariant_kept (ps: ProgramStructure) (stateE: ASEdges):
+      edges_invariant stateE ->
+      forall relation, edges_invariant (compose_transitive_closure_in_program_edges ps stateE relation).
+    Proof.
+      move => [Hinvariant_some Hinvariant_none] relation.
+      split => [ in_id in_bb Hin_bb out_id Houtnotsucc | in_id Hin_bb out_id].
+      - move => /(_ in_id in_bb Hin_bb out_id Houtnotsucc) in Hinvariant_some.
+        simpl_ai. case: (in_id \in bbs_in_program ps) => //.
+          by rewrite Hinvariant_some.
+      - move => /(_ in_id Hin_bb out_id) in Hinvariant_none.
+        simpl_ai. rewrite Hinvariant_none. simpl_ai.
+          by case_if.
+    Qed.
+
+    Hint Resolve compose_transitive_closure_in_program_edges_edges_invariant_kept : core.
+
+    Program Definition compose_transitive_closure_in_program_values (ps: ProgramStructure) (stateV: ASValues) (relation: ab) :=
+      td_pointwise_un_op_in_seq stateV (fun m => td_pointwise_un_op m (compose_transitive_closure relation)) (bbs_in_program ps).
+
+  Theorem compose_transitive_closure_in_program_values_spec (ps: ProgramStructure) (stateV: ASValues) (relation: ab) (bb_id: bbid) (pos: nat) :
+    compose_transitive_closure_in_program_values ps stateV relation bb_id pos =
+    if (bb_id \in bbs_in_program ps) then compose_transitive_closure relation (stateV bb_id pos) else stateV bb_id pos.
+  Proof.
+    rewrite td_pointwise_un_op_in_seq_spec.
+    case: (bb_id \in bbs_in_program ps) => [ | // ].
+    rewrite /eq_rect. case (compose_transitive_closure_in_program_values_obligation_1 relation).
+    by auto_ai.
+  Qed.
+
+  Hint Rewrite compose_transitive_closure_in_program_values_spec : airw.
+
+  Program Definition compose_transitive_closure_in_program (ps: ProgramStructure) (state: AS) (relation: ab) :=
+    let stateV := compose_transitive_closure_in_program_values ps state.1 relation in
+    let stateE := compose_transitive_closure_in_program_edges ps state.2 relation in
+    (stateV, stateE).
+
   Program Definition compose_relation_in_program_values (ps: ProgramStructure) (stateV: ASValues) (relation: ab) :=
     td_pointwise_un_op_in_seq stateV (fun m => td_pointwise_un_op m (compose_relation relation)) (bbs_in_program ps).
 
@@ -413,17 +464,20 @@ Section AbstractInterpreter.
     let stateE := compose_relation_in_program_edges ps state.2 relation in
     (stateV, stateE).
 
-  Definition compute_loop_effect (ps: ProgramStructure) (stateE: ASEdges) (header_id: bbid) :=
+  Definition compute_loop_effect_without_transitive (ps: ProgramStructure) (stateE: ASEdges) (header_id: bbid) :=
+    join_edges_cond stateE (fun bb_id => bb_id \in (bbs_in_program ps)) header_id.
+
+  (*Definition compute_loop_effect (ps: ProgramStructure) (stateE: ASEdges) (header_id: bbid) :=
     let loop_sym_effect := join_edges_cond stateE (fun bb_id => bb_id \in (bbs_in_program ps)) header_id in
-    transitive_closure loop_sym_effect.
+    transitive_closure loop_sym_effect.*)
 
   Definition compute_loop_enter (ps: ProgramStructure) (stateE: ASEdges) (header_id: bbid) :=
     join_edges_cond stateE (fun bb_id => bb_id \notin (bbs_in_program ps)) header_id.
 
-  Definition compute_loop_effect_with_enter (ps: ProgramStructure) (stateE: ASEdges) (header_id: bbid) :=
+  (*Definition compute_loop_effect_with_enter (ps: ProgramStructure) (stateE: ASEdges) (header_id: bbid) :=
     let loop_effect := compute_loop_effect ps stateE header_id in
     let entering_loop := join_edges_cond stateE (fun bb_id => bb_id \notin (bbs_in_program ps)) header_id in
-    compose_relation entering_loop loop_effect.
+    compose_relation entering_loop loop_effect.*)
 
   (*  ____                                       *)
   (* |  _ \ _ __ ___   __ _ _ __ __ _ _ __ ___   *)
@@ -450,9 +504,9 @@ Section AbstractInterpreter.
         let state2 := abstract_interpret_program body state1 in
         (*let loop_effect_with_enter := compute_loop_effect_with_enter ps state2.2 header_id in
         compose_relation_in_program ps state2 loop_effect_with_enter*)
-        let loop_effect := compute_loop_effect ps state2.2 header_id in
+        let loop_effect := compute_loop_effect_without_transitive ps state2.2 header_id in
         let loop_enter := compute_loop_enter ps state2.2 header_id in
-        let state3 := compose_relation_in_program ps state2 loop_effect in
+        let state3 := compose_transitive_closure_in_program ps state2 loop_effect in
         compose_relation_in_program ps state3 loop_enter
       end
     end.
@@ -543,10 +597,10 @@ Section AbstractInterpreter.
       simpl_ai.
       rewrite compose_relation_in_program_values_spec Hin in Hin2.
       apply transfer_term_compose in Hin2. move: Hin2 => [a'' [Hin2 Hle]] /=.
-      rewrite compose_relation_in_program_values_spec Hin in Hin2.
-      apply transfer_term_compose in Hin2. move: Hin2 => [a''' [Hin2 Hle']] /=.
+      rewrite compose_transitive_closure_in_program_values_spec Hin in Hin2.
+      apply transfer_term_compose_transitive_closure in Hin2. move: Hin2 => [a''' [Hin2 Hle']] /=.
       eapply AbstractDomain.le_trans. exact Hle. apply compose_relation_le.
-      eapply AbstractDomain.le_trans. exact Hle'. apply compose_relation_le.
+      eapply AbstractDomain.le_trans. exact Hle'. apply compose_transitive_closure_le.
       move: Hin. rewrite in_cons => /orP [/eqP Heq | Hin].
       + bigsubst.
         rewrite abstract_interpret_program_edge_in_unchanged; auto.
@@ -587,7 +641,7 @@ Section AbstractInterpreter.
       move: HheaderSome. case Hheader : (p header) => [ bb_header | //] _ bb Hbb inst Hinst.
       simpl_ai.
       eapply AbstractDomain.le_trans. by apply transfer_inst_compose. apply compose_relation_le.
-      eapply AbstractDomain.le_trans. by apply transfer_inst_compose. apply compose_relation_le.
+      eapply AbstractDomain.le_trans. by apply transfer_inst_compose_transitive_closure. apply compose_transitive_closure_le.
       move: Hin. rewrite in_cons => /orP [/eqP Heq | Hin].
       + bigsubst.
         rewrite !abstract_interpret_program_value_unchanged; auto.
@@ -620,17 +674,16 @@ Section AbstractInterpreter.
       + subst. case (@idP (in_id \in bbs_in_program (Loop header body))) => [Hin_in | /negP /= Hin_notin]; simplssr.
         * rewrite abstract_interpret_program_value_unchanged => //.
           rewrite abstract_interpret_inst_list_0_unchanged. simpl_map.
-          rewrite /compute_loop_effect_with_enter /compute_loop_effect.
+          rewrite /compute_loop_effect_without_transitive.
           apply compose_relation_le.
-          eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, join_sound_l.
-          eapply AbstractDomain.le_trans; last first. apply compose_relation_id.
-          eapply AbstractDomain.le_trans; last first. apply transitive_closure_eq_compose.
-          auto_ai.
-        * rewrite /state' /compute_loop_effect_with_enter /compute_loop_effect.
+          eapply AbstractDomain.le_trans; last first. apply compose_transitive_closure_le, join_sound_l.
+          eapply AbstractDomain.le_trans; last first. apply compose_transitive_closure_id.
+          apply compose_transitive_closure_le.
+          by auto_ai.
+        * rewrite /state' /compute_loop_effect_without_transitive.
           simpl_ai.
-          eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, compose_relation_quotient_right, join_sound_l.
-          eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, compose_relation_id.
-          eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, transitive_closure_ge_id.
+          eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, compose_transitive_closure_le, join_sound_l.
+          eapply AbstractDomain.le_trans; last first. apply compose_relation_quotient_right, compose_transitive_closure_ge_id.
           eapply AbstractDomain.le_trans; last first. apply compose_relation_id.
           eapply AbstractDomain.le_trans; last first. apply join_edges_cond_spec. rewrite in_cons. apply /norP. split. apply H. exact Hin_notin.
           by auto_ai.
@@ -639,7 +692,7 @@ Section AbstractInterpreter.
           have Hinvariant2 : (edges_invariant (set_input_to_identity state header).2) by [].
           eapply abstract_interpret_bb_edges_invariant_kept in Hinvariant2; last first. apply Hheader.
           move: (Hind Hsoundbody bb_id Hbbid_in _ Hinvariant2 in_id) => Hgoal.
-          by apply compose_relation_le.
+          by apply compose_transitive_closure_le.
         * have Hinvariant' : (edges_invariant state'.2).
             by apply abstract_interpret_program_edges_invariant_kept, abstract_interpret_bb_edges_invariant_kept => //.
           move => /allP /(_ bb_id Hbbid_in) /allP /(_ in_id) in Hnaturalloop.
