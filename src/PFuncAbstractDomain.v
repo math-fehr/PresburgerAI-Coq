@@ -16,6 +16,31 @@ Module PFuncMap (FPI: FPresburgerImpl).
   Definition to_var_values_seq (p: Program) (R: RegisterMap) :=
     [ seq R v | v <- vars_in_program p ].
 
+  Theorem to_var_values_seqP :
+    forall p R v, v \in vars_in_program p ->
+      nth 0%Z (to_var_values_seq p R) (index v (vars_in_program p)) = R v.
+  Proof.
+    move => p R v Hin.
+    rewrite (nth_map ""); last by rewrite index_mem.
+    by rewrite nth_index.
+  Qed.
+
+  Theorem to_var_values_seq_update_neq :
+    forall p R v c i, i != index v (vars_in_program p) ->
+      nth 0%Z (to_var_values_seq p (v !-> c; R)) i =
+      nth 0%Z (to_var_values_seq p R) i.
+  Proof.
+    move => p R v c i Hindex.
+    case Hi: (size (vars_in_program p) <= i).
+      rewrite !nth_default => [ // | | ]; by rewrite size_map.
+    rewrite leqNgt in Hi. move => /negb_false_iff in Hi.
+    rewrite !(nth_map ""); try (by []).
+    apply t_update_neq.
+    apply /eqP => Hv. subst. rewrite index_uniq in Hindex; autossr.
+      by move => /eqP in Hindex.
+      by apply uniq_vars_in_program.
+  Qed.
+
   Fixpoint to_var_values_map_ (p: Program) (pairs: seq (string_eqType * Z)) :=
     match pairs with
     | [::] => TDefault 0%Z
@@ -57,7 +82,6 @@ Module PFuncMap (FPI: FPresburgerImpl).
     let vars := vars_in_program p in
     to_var_values_map_ p (zip vars s).
 
-
   Theorem to_var_values_mapP :
     forall p s i, i < size (vars_in_program p) ->
              (to_var_values_map p s) (nth "" (vars_in_program p) i) =
@@ -89,11 +113,50 @@ Module PFuncMap (FPI: FPresburgerImpl).
   Qed.
 
   Theorem to_var_values_map_equality :
-    forall p s, point_equality (size (vars_in_program p)) (to_var_values_seq p (to_var_values_map p s)) s.
+    forall p s, point_equality (size (vars_in_program p)) s (to_var_values_seq p (to_var_values_map p s)).
   Proof.
     move => p s. apply /allP => i Hiota. simplssr.
     rewrite /to_var_values_seq (nth_map "") => //.
     by rewrite to_var_values_mapP.
+  Qed.
+
+  Theorem to_var_values_map_equality_sym :
+    forall p s, point_equality (size (vars_in_program p)) (to_var_values_seq p (to_var_values_map p s)) s.
+  Proof.
+    move => p s. rewrite point_equality_sym.
+    apply to_var_values_map_equality.
+  Qed.
+
+  Hint Resolve to_var_values_map_equality to_var_values_map_equality_sym : core.
+
+  Ltac rewrite_to_var_values_map_equality p s :=
+    move: (to_var_values_map_equality p s);
+    let Htmp := fresh "tmp" in
+    intros Htmp;
+    rewrite_point_H Htmp;
+    move: Htmp => _.
+
+  Ltac rewrite_to_var_values_map_equality_sym p s :=
+    move: (to_var_values_map_equality_sym p s);
+    let Htmp := fresh "tmp" in
+    intros Htmp;
+    rewrite_point_H Htmp;
+    move: Htmp => _.
+
+  Theorem to_var_values_seq_update :
+    forall p v c x,
+      v \in vars_in_program p ->
+      point_equality (size (vars_in_program p)) (to_var_values_seq p (v !-> c; to_var_values_map p x))
+                     (set_nth 0%Z x (index v (vars_in_program p)) c).
+  Proof.
+    move => p v c x Hv_in. apply /allP => i Hiota.
+    rewrite (nth_map ""); last by autossr.
+    rewrite nth_set_nth /=.
+    case: (i =P index v (vars_in_program p)) => Hi.
+    - subst. rewrite nth_index; auto_map.
+    - rewrite t_update_neq; last first. apply /eqP => Hv. subst.
+        rewrite index_uniq in Hi. by []. by simplssr. by apply uniq_vars_in_program.
+      rewrite to_var_values_mapP; by autossr.
   Qed.
 
   Definition PFuncMap (p: Program) :=
@@ -439,11 +502,9 @@ Module PFuncMap (FPI: FPresburgerImpl).
       have Heq: (point_equality 1 x_out [::nth 0%Z x_out 0]). apply /allP. by case.
       rewrite_point_H Heq.
       rewrite f_extract_dimension_mapP => [[x_out']].
-      rewrite f_apply_range_mapP => [[[x_mid] /andP [_ Hin']]].
-      move: Hin'.
-      move: (to_var_values_map_equality p x_mid). rewrite point_equality_sym => Hx_mid.
-      move: (to_var_values_map_equality p x_out'). rewrite point_equality_sym => Hx_out'.
-      rewrite_point_H Hx_out'. rewrite_point_H Hx_mid.
+      rewrite f_apply_range_mapP => [[[x_mid] /andP [_]]].
+      rewrite_to_var_values_map_equality p x_mid.
+      rewrite_to_var_values_map_equality p x_out'.
       rewrite -pfuncmap_to_mapP => HIn.
       move: (gamma_bot_PFuncMap p (to_var_values_map p x_mid, to_var_values_map p x_out')).
       by move => /(_ HIn).
@@ -480,11 +541,9 @@ Module PFuncMap (FPI: FPresburgerImpl).
       rewrite -!pfuncmap_to_mapP in Ha1 *.
       move => /(_ (to_var_values_map p x_mid, to_var_values_map p x_out')) in Hle.
       rewrite /In /gamma /= /gamma_PFuncMap /= in Hle.
-      move: (to_var_values_map_equality p x_mid) => Heq_mid.
-      move: (to_var_values_map_equality p x_out') => Heq_out'.
-      rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid, x_out')) in Hle; eauto.
+      rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid, x_out')) in Hle; simpl; auto.
       move => /(_ Ha1) in Hle.
-      rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid, x_out')) in Hle; eauto.
+      rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid, x_out')) in Hle; simpl; auto.
     - right. exists x_out1. exists x_out2. split; auto.
       move: HIn1 => /f_extract_dimension_mapP [x_out1' [/f_apply_range_mapP [x_mid1 /andP [Ha1 Ha1'] Hnth1]]].
       move: HIn2 => /f_extract_dimension_mapP [x_out2' [/f_apply_range_mapP [x_mid2 /andP [Ha2 Ha2'] Hnth2]]].
@@ -493,21 +552,17 @@ Module PFuncMap (FPI: FPresburgerImpl).
         rewrite f_apply_range_mapP. exists x_mid1. apply /andP. split; auto.
         move => /(_ (to_var_values_map p x_mid1, to_var_values_map p x_out1')) in Hle.
         rewrite /In /gamma /= /gamma_PFuncMap /= in Hle.
-        move: (to_var_values_map_equality p x_mid1) => Heq_mid.
-        move: (to_var_values_map_equality p x_out1') => Heq_out1'.
-        rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid1, x_out1')) in Hle; eauto.
+        rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid1, x_out1')) in Hle; simpl; eauto.
         rewrite -pfuncmap_to_mapP in Ha1'. move => /(_ Ha1') in Hle.
-        rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid1, x_out1')) in Hle; eauto.
+        rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid1, x_out1')) in Hle; simpl; eauto.
           by rewrite -pfuncmap_to_mapP.
       + apply /f_extract_dimension_mapP. exists x_out2'. split; auto.
         rewrite f_apply_range_mapP. exists x_mid2. apply /andP. split; auto.
         move => /(_ (to_var_values_map p x_mid2, to_var_values_map p x_out2')) in Hle.
         rewrite /In /gamma /= /gamma_PFuncMap /= in Hle.
-        move: (to_var_values_map_equality p x_mid2) => Heq_mid.
-        move: (to_var_values_map_equality p x_out2') => Heq_out2'.
-        rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid2, x_out2')) in Hle; eauto.
+        rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid2, x_out2')) in Hle; simpl; eauto.
         rewrite -pfuncmap_to_mapP in Ha2'. move => /(_ Ha2') in Hle.
-        rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid2, x_out2')) in Hle; eauto.
+        rewrite (gamma_seq_PFuncMap_equality _ _ _ (x_mid2, x_out2')) in Hle; simpl; eauto.
           by rewrite -pfuncmap_to_mapP.
   Qed.
 
@@ -527,10 +582,9 @@ Module PFuncMap (FPI: FPresburgerImpl).
       rewrite -!pfuncmap_to_mapP in Ha *.
       move => /(_ (x_in, to_var_values_map p x_mid)) in Hle.
       rewrite /In /gamma /= /gamma_PFuncMap /= in Hle.
-      move: (to_var_values_map_equality p x_mid) => Heq_out'.
-      rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid)) in Hle; eauto; last by apply point_equality_refl.
+      rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid)) in Hle; simpl; auto; last by apply point_equality_refl.
       move => /(_ Ha) in Hle.
-      rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid)) in Hle; eauto; last by apply point_equality_refl.
+      rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid)) in Hle; simpl; auto; last by apply point_equality_refl.
     - right. exists x_out1. exists x_out2. split; auto.
       move: HIn1 => /f_extract_dimension_mapP [x_out1' [/f_apply_range_mapP [x_mid1 /andP [Ha1 Ha1'] Hnth1]]].
       move: HIn2 => /f_extract_dimension_mapP [x_out2' [/f_apply_range_mapP [x_mid2 /andP [Ha2 Ha2'] Hnth2]]].
@@ -539,19 +593,17 @@ Module PFuncMap (FPI: FPresburgerImpl).
         rewrite f_apply_range_mapP. exists x_mid1. apply /andP. split; auto.
         move => /(_ (x_in, to_var_values_map p x_mid1)) in Hle.
         rewrite /In /gamma /= /gamma_PFuncMap /= in Hle.
-        move: (to_var_values_map_equality p x_mid1) => Heq_mid.
-        rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid1)) in Hle; eauto; last by apply point_equality_refl.
+        rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid1)) in Hle; simpl; auto; last by apply point_equality_refl.
         rewrite -pfuncmap_to_mapP in Ha1. move => /(_ Ha1) in Hle.
-        rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid1)) in Hle; eauto; last by apply point_equality_refl.
+        rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid1)) in Hle; simpl; auto; last by apply point_equality_refl.
           by rewrite -pfuncmap_to_mapP.
       + apply /f_extract_dimension_mapP. exists x_out2'. split; auto.
         rewrite f_apply_range_mapP. exists x_mid2. apply /andP. split; auto.
         move => /(_ (x_in, to_var_values_map p x_mid2)) in Hle.
         rewrite /In /gamma /= /gamma_PFuncMap /= in Hle.
-        move: (to_var_values_map_equality p x_mid2) => Heq_mid.
-        rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid2)) in Hle; eauto; last by apply point_equality_refl.
+        rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid2)) in Hle; simpl; auto; last by apply point_equality_refl.
         rewrite -pfuncmap_to_mapP in Ha2. move => /(_ Ha2) in Hle.
-        rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid2)) in Hle; eauto; last by apply point_equality_refl.
+        rewrite (gamma_seq_PFuncMap_equality _ _ _ (to_var_values_seq p x_in, x_mid2)) in Hle; simpl; auto; last by apply point_equality_refl.
           by rewrite -pfuncmap_to_mapP.
   Qed.
 
@@ -573,12 +625,7 @@ Module PFuncMap (FPI: FPresburgerImpl).
     rewrite -pfuncmap_to_mapP.
     move: (id_relation_PFuncMapP p (to_var_values_map p y)).
     rewrite /In /gamma_PFuncMap /= => Hgamma.
-    move: (to_var_values_map_equality p x) => Heqx.
-    move: (to_var_values_map_equality p y) => Heqy.
-    erewrite gamma_seq_PFuncMap_equality.
-    - apply Hgamma.
-    - by rewrite point_equality_sym.
-    - by rewrite point_equality_sym.
+    erewrite gamma_seq_PFuncMap_equality; eauto; simpl; auto.
   Qed.
 
   Theorem compose_transitive_closure_ge_id_PFuncMap :
@@ -644,11 +691,9 @@ Module PFuncMap (FPI: FPresburgerImpl).
     move => p pf pf1 pf2 Hle [x_in x_out].
     apply (map_to_pfuncmap_le).
     apply f_apply_range_map_le.
-    apply f_is_subset_mapP => x y HIn.
-    move: (to_var_values_map_equality p x). rewrite point_equality_sym => Hx.
-    move: (to_var_values_map_equality p y). rewrite point_equality_sym => Hy.
-    move: HIn.
-    rewrite_point_H Hx. rewrite_point_H Hy.
+    apply f_is_subset_mapP => x y.
+    rewrite_to_var_values_map_equality p x.
+    rewrite_to_var_values_map_equality p y.
     rewrite -!pfuncmap_to_mapP => HIn.
     rewrite /le /Included in Hle.
     by apply (Hle (to_var_values_map p x, to_var_values_map p y)).
@@ -673,5 +718,221 @@ Module PFuncMap (FPI: FPresburgerImpl).
       compose_transitive_closure_bot := (compose_transitive_closure_bot_PFuncMap p);
       compose_transitive_closure_le := (compose_transitive_closure_le_PFuncMap p);
     }.
+
+  Program Definition transfer_inst_const_PFuncMap {p: Program} (pf: PFuncMap p) (v: vid) (c: Z) : PFuncMap p :=
+    let id := index v (vars_in_program p) in
+    if id >= (size (vars_in_program p)) then
+      sval pf
+    else
+      let bot_set := get_unioned_bot_set (sval pf) in
+      let const_pfunc := constant_pfunc _ (VVal c) in
+      let const_pfunc_val := f_intersect_domain (Val const_pfunc) (f_complement_set bot_set) in
+      let const_pfunc' := mkPFunc const_pfunc_val (Assumed const_pfunc) in
+      set_nth (constant_pfunc _ VTop) pf id const_pfunc'.
+  Next Obligation.
+    case_if.
+    - by case: pf => x_pf /= /eqP ->.
+    - rewrite size_set_nth.
+      case: pf => x_pf /= /eqP ->. apply /eqP.
+      apply /maxn_idPr.
+      move => /negb_true_iff in H.
+        by rewrite ltnNge.
+  Qed.
+
+  Theorem transfer_inst_PFuncMap_not_in_program :
+    forall p v c (pf: PFuncMap p),
+      index v (vars_in_program p) >= (size (vars_in_program p)) ->
+      transfer_inst_const_PFuncMap pf v c = pf.
+  Proof.
+    move => p v c pf H.
+    rewrite /transfer_inst_const_PFuncMap.
+      by apply val_inj; rewrite /= H.
+  Qed.
+
+  Theorem transfer_inst_const_PFuncMap_exists :
+    forall p (pf: PFuncMap p) v c x_in x_out,
+      In _ (gamma (transfer_inst_const_PFuncMap pf v c)) (x_in, x_out) ->
+      exists c', In _ (gamma pf) (x_in, (v !-> c'; x_out)).
+  Proof.
+    move => p pf v c x_in x_out HIn.
+    case Hindex: (index v (vars_in_program p) >= (size (vars_in_program p))).
+    - exists (x_out v). rewrite transfer_inst_PFuncMap_not_in_program in HIn => //.
+      apply /allP => i Hiota /=. rewrite /to_var_values_seq.
+      setoid_rewrite t_update_same.
+      by move => /allP /(_ i Hiota) in HIn.
+    - rewrite /transfer_inst_const_PFuncMap /= in HIn.
+      set pfunc := (nth (constant_pfunc _ VTop) (sval pf) (index v (vars_in_program p))).
+      exists (match eval_pfunc pfunc (to_var_values_seq p x_in) with | VVal z => z | _ => 0%Z end).
+      apply /allP => i Hiota. move: HIn => /allP /(_ i Hiota) /=.
+      rewrite Hindex nth_set_nth /=.
+      case: (i =P index v (vars_in_program p)) => Hi.
+      + subst. move => HIn. rewrite /eval_pfunc in HIn. move: HIn. simpl_pfunc.
+        case_if => //. rewrite in_VVal => /eqP Hc.
+        rewrite -/pfunc. case_match => //.
+        * rewrite (nth_map "") => //.
+          rewrite nth_index. by simpl_pfunc.
+          by rewrite index_mem in H.
+        * move => /negP in H0. rewrite get_unioned_bot_setP in H0.
+          move => /negP /hasPn /(_ pfunc) in H0.
+          move => /eqP in H1. rewrite -pfunc_get_bot_setP in H1. rewrite H1 in H0.
+          rewrite mem_nth in H0. by move => /(_ is_true_true) in H0.
+          by case: (pf) => x_pf /= /eqP ->.
+      + rewrite /to_var_values_seq. rewrite (nth_map ""); last by autossr.
+        rewrite (nth_map ""); last by autossr.
+        rewrite t_update_neq => //.
+        apply /negP => /eqP Hv. subst.
+        rewrite index_uniq in Hi; try (by autossr).
+        by apply uniq_vars_in_program.
+  Qed.
+
+  Theorem transfer_inst_const_PFuncMapP :
+    forall p (pf: PFuncMap p) v c x_in x_out,
+      In _ (gamma pf) (x_in, x_out) ->
+      In _ (gamma (transfer_inst_const_PFuncMap pf v c)) (x_in, (v !-> c; x_out)).
+  Proof.
+    move => p pf v c x_in x_out HIn. move: (HIn) => HIn'.
+    apply /allP => i Hiota /=. move => /allP /(_ i Hiota) /= in HIn.
+    case Hindex: (size (vars_in_program p) <= index v (vars_in_program p)).
+    - rewrite /to_var_values_seq !(nth_map "") in HIn *; try (by autossr).
+      rewrite t_update_neq => [// | ].
+      apply /eqP => Hv. subst.
+      rewrite index_uniq in Hindex; simplssr => //. by rewrite leqNgt H in Hindex.
+      by apply uniq_vars_in_program.
+    - rewrite nth_set_nth /=.
+      case: (i =P index v (vars_in_program p)) => Hi. subst.
+      + rewrite /eval_pfunc. simpl_pfunc.
+        have ->: (to_var_values_seq p x_in \notin get_unioned_bot_set (sval pf)).
+          apply /negP. rewrite get_unioned_bot_set_pfuncmapP.
+          by move => /(_ x_out HIn').
+        rewrite (nth_map "") => //. rewrite t_update_eq_hyp. auto_pfunc.
+        rewrite nth_index => [ // | ].
+        by rewrite -index_mem.
+      + rewrite !(nth_map "") in HIn *; try by autossr.
+        rewrite t_update_neq => [ // | ].
+        apply /eqP => Hv. subst.
+        rewrite index_uniq in Hi => //. by autossr.
+        by apply uniq_vars_in_program.
+  Qed.
+
+  Theorem transfer_inst_const_PFuncMap_index :
+    forall p (pf: PFuncMap p) v c x_in x_out,
+      v \in vars_in_program p ->
+      In _ (gamma (transfer_inst_const_PFuncMap pf v c)) (x_in, x_out) ->
+      x_out v = c.
+  Proof.
+    move => p pf v c x_in x_out Hindex HIn.
+    move: (Hindex). rewrite -index_mem => Hindex_lt.
+    have Hiota: (index v (vars_in_program p)) \in iota 0 (size (vars_in_program p)) by simplssr.
+    move: HIn => /allP /(_ (index v (vars_in_program p)) Hiota) /=.
+    rewrite leqNgt Hindex_lt /= nth_set_nth /= eq_refl. rewrite /eval_pfunc. simpl_pfunc.
+    case_if => [ | //].
+    rewrite in_VVal => /eqP <-.
+    by rewrite to_var_values_seqP.
+  Qed.
+
+  Hint Resolve transfer_inst_const_PFuncMap_index : core.
+
+  Definition transfer_inst_PFuncMap {p: Program} (inst: Inst) (pf: PFuncMap p) :=
+    match inst with
+    | Const v c => transfer_inst_const_PFuncMap pf v c
+    | _ => pf
+    end.
+
+  Theorem transfer_inst_PFuncMapP :
+    forall p inst R R', inst_step inst R R' ->
+      forall (pf: PFuncMap p) R_begin, In _ (gamma pf) (R_begin, R) ->
+        In _ (gamma (transfer_inst_PFuncMap inst pf)) (R_begin, R').
+  Proof.
+    move => p inst R R' Hinst pf R_begin HIn.
+    case: inst Hinst => [ res c | res opc op1 op2 Hop1 Hop2 ] Hinst.
+    - inversion Hinst. subst.
+      eapply transfer_inst_const_PFuncMapP; eauto.
+    - admit.
+  Admitted.
+
+  Theorem transfer_inst_const_extract_dimension_apply_range_same :
+    forall p (pf: PFuncMap p) (x_in: RegisterMap) x_out res c (map: PMap (size (vars_in_program p)) _) i,
+      res \in (vars_in_program p) ->
+      i <> index res (vars_in_program p) ->
+      (to_var_values_seq p x_in, [:: x_out]) \in
+        (f_extract_dimension_map (f_apply_range_map map (pfuncmap_to_map pf)) i) ->
+        (to_var_values_seq p x_in, [:: x_out]) \in
+        (f_extract_dimension_map (f_apply_range_map map (pfuncmap_to_map (transfer_inst_const_PFuncMap pf res c))) i).
+    move => p pf x_in x_out res c map i Hres Hi_index.
+    move => /f_extract_dimension_mapP [x_out' [H_in_pf Hnth_xout']].
+    apply f_extract_dimension_mapP.
+    exists (set_nth 0%Z x_out' (index res (vars_in_program p)) c).
+    split; last first. rewrite nth_set_nth Hnth_xout' /=. autossr.
+    move: H_in_pf. rewrite_to_var_values_map_equality p x_out'.
+    move => /f_apply_range_mapP [x_mid /andP [Hin_map Hin_pf]].
+    apply f_apply_range_mapP. exists x_mid. apply /andP. split; auto.
+    rewrite -!pfuncmap_to_mapP in Hin_pf *.
+    move: Hin_map. rewrite_to_var_values_map_equality p x_mid. move => Hin_map.
+    move: (transfer_inst_const_PFuncMapP p pf res c (to_var_values_map p x_mid) (to_var_values_map p x_out')) => Htransfer.
+    erewrite gamma_seq_PFuncMap_equality in Hin_pf; first apply Htransfer in Hin_pf; simpl; auto; last by apply point_equality_refl.
+    rewrite /In /gamma /= /gamma_PFuncMap /= in Hin_pf.
+    erewrite gamma_seq_PFuncMap_equality; first apply Hin_pf; simpl; auto.
+    rewrite point_equality_sym. by apply to_var_values_seq_update.
+  Qed.
+
+  Theorem transfer_inst_extract_dimension_apply_range_res :
+    forall p (pf: PFuncMap p) (x_in: RegisterMap) x_out res c (map: PMap (size (vars_in_program p)) _),
+      res \in (vars_in_program p) ->
+      let i := index res (vars_in_program p) in
+      (to_var_values_seq p x_in, [:: x_out]) \in
+        (f_extract_dimension_map (f_apply_range_map map (pfuncmap_to_map pf)) i) ->
+        (to_var_values_seq p x_in, [:: c]) \in
+        (f_extract_dimension_map (f_apply_range_map map (pfuncmap_to_map (transfer_inst_const_PFuncMap pf res c))) i).
+  Proof.
+    move => p pf x_in x_out res c map Hres_in i.
+    move => /f_extract_dimension_mapP [x_out' [H_in_pf Hnth_xout']].
+    apply f_extract_dimension_mapP.
+    exists (set_nth 0%Z x_out' (index res (vars_in_program p)) c).
+    split; last by rewrite nth_set_nth /= eq_refl.
+    move: H_in_pf. rewrite_to_var_values_map_equality p x_out'.
+    move => /f_apply_range_mapP [x_mid /andP [Hin_map Hin_pf]].
+    apply f_apply_range_mapP. exists x_mid. apply /andP. split; auto.
+    rewrite -!pfuncmap_to_mapP in Hin_pf *.
+    move: Hin_map. rewrite_to_var_values_map_equality p x_mid. move => Hin_map.
+    move: (transfer_inst_const_PFuncMapP p pf res c (to_var_values_map p x_mid) (to_var_values_map p x_out')) => Htransfer.
+    erewrite gamma_seq_PFuncMap_equality in Hin_pf; first apply Htransfer in Hin_pf; simpl; auto; last by apply point_equality_refl.
+    rewrite /In /gamma /= /gamma_PFuncMap /= in Hin_pf.
+    erewrite gamma_seq_PFuncMap_equality; first apply Hin_pf; simpl; auto.
+    rewrite point_equality_sym. by apply to_var_values_seq_update.
+  Qed.
+
+
+  Theorem transfer_inst_compose_PFuncMapP :
+    forall p inst (pf comp_pf: PFuncMap p),
+      le (transfer_inst_PFuncMap inst (compose_relation comp_pf pf))
+         (compose_relation comp_pf (transfer_inst_PFuncMap inst pf)).
+  Proof.
+    move => p [ res c | res opc op1 op2 Hop1 Hop2 ] pf comp_pf [x_in x_out] HIn.
+    - case Hindex: (res \in (vars_in_program p)); last first.
+        rewrite -index_mem ltnNge in Hindex. move => /negb_false_iff in Hindex.
+        by rewrite /transfer_inst_PFuncMap !transfer_inst_PFuncMap_not_in_program in HIn *.
+      move: (HIn) => /transfer_inst_const_PFuncMap_exists [c' HIn'].
+      apply /allP => i Hiota. move: (HIn') => /allP /(_ i Hiota) /=.
+      rewrite !(nth_map 0); try (by rewrite size_iota; autossr).
+      rewrite map_to_pfuncP. move => [Heval | [x_out1 [x_out2 [Hx_ne [HIn1 HIn2]]]]].
+      + rewrite map_to_pfuncP. left.
+        rewrite nth_iota in Heval *; last by autossr. rewrite add0n in Heval *.
+        case: (i =P index res (vars_in_program p)) => Hi.
+        * subst. rewrite to_var_values_seqP => //.
+          rewrite (transfer_inst_const_PFuncMap_index p _ res c x_in x_out Hindex HIn).
+          by eapply transfer_inst_extract_dimension_apply_range_res; eauto.
+        * rewrite to_var_values_seq_update_neq in Heval; last by apply /eqP.
+          by apply transfer_inst_const_extract_dimension_apply_range_same.
+      + rewrite map_to_pfuncP.
+        case: (i =P index res (vars_in_program p)) => Hi.
+        * left. subst. rewrite to_var_values_seqP => //.
+          rewrite nth_iota in HIn1 HIn2 *; last by autossr. rewrite add0n in HIn1 HIn2 *.
+          rewrite (transfer_inst_const_PFuncMap_index p _ res c x_in x_out Hindex HIn).
+          by eapply transfer_inst_extract_dimension_apply_range_res; eauto.
+        * right. exists x_out1. exists x_out2. split; auto.
+          rewrite nth_iota in HIn1 HIn2 *; last by autossr.
+            by split; apply transfer_inst_const_extract_dimension_apply_range_same => //.
+    - admit.
+  Admitted.
 
 End PFuncMap.
