@@ -45,6 +45,15 @@ Proof.
   move => i Hi. by rewrite eq_refl.
 Qed.
 
+Theorem point_equality_refl_hyp (s1 s2: seq Z) :
+  s1 = s2 ->
+  forall n, point_equality n s1 s2.
+Proof.
+  move => -> n. by apply point_equality_refl.
+Qed.
+
+Hint Resolve point_equality_refl : core.
+
 (* Specification of a Presburger library with finite dimensions *)
 
 Module Type FPresburgerImpl.
