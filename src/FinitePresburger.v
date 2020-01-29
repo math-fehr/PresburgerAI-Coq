@@ -173,6 +173,18 @@ Module Type FPresburgerImpl.
   Axiom f_get_domain_mapP: forall n m (map: PMap n m) x_in,
       x_in \in (f_get_domain_map map) <-> exists x_out, (x_in, x_out) \in map.
 
+  Theorem f_get_domain_mapPn: forall n m (map: PMap n m) x_in,
+      x_in \notin (f_get_domain_map map) <-> forall x_out, (x_in, x_out) \notin map.
+  Proof.
+    move => n m map x_in. split.
+    - move => /negP /f_get_domain_mapP => H x_out.
+      apply /negP => Hin.
+      eauto.
+    - move => Hnotin. apply /negP /f_get_domain_mapP. move => [x_out Hin].
+      move => /(_ x_out) in Hnotin.
+      by autossr.
+  Qed.
+
   Parameter f_id_map: forall n, PMap n n.
   Axiom f_id_mapP: forall n x1 x2,
       (x1, x2) \in (f_id_map n) = point_equality n x1 x2.
