@@ -54,6 +54,19 @@ Qed.
 
 Hint Resolve point_equality_refl : core.
 
+Theorem point_equality_trans :
+  forall s2 s1 s3 n,
+    point_equality n s1 s2 ->
+    point_equality n s2 s3 ->
+    point_equality n s1 s3.
+Proof.
+  move => s2 s1 s3 n /allP Heq12 /allP Heq23.
+  apply /allP => i Hiota. apply /eqP.
+  move => /(_ i Hiota) /eqP in Heq12.
+  move => /(_ i Hiota) /eqP in Heq23.
+  by rewrite Heq12.
+Qed.
+
 (* Specification of a Presburger library with finite dimensions *)
 
 Module Type FPresburgerImpl.
