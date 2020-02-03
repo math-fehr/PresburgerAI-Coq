@@ -66,6 +66,17 @@ Proof. by []. Qed.
 Theorem in_VVal : forall n m, (n \in VVal m) = (n == m).
 Proof. by []. Qed.
 
+Theorem VBot_or_in :
+  forall v, v <> VBot <-> exists n, n \in v.
+Proof.
+  move => v. split.
+  - case: v => [ _ | n _ | // ]; auto.
+    - by exists 0.
+    - exists n. by rewrite in_VVal.
+  - move => [n].
+    by case: v => //.
+Qed.
+
 Definition le_V (v1 v2: V) :=
   match (v1, v2) with
   | (_, VTop) => true
