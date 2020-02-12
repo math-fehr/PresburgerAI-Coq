@@ -77,6 +77,17 @@ Proof.
     by case: v => //.
 Qed.
 
+Theorem VTopP :
+  forall v, (forall n, n \in v) <-> v = VTop.
+Proof.
+  move => v. split => [ Hall | HVTop ].
+  - destruct v. auto.
+    + move => /(_ (n+1)) /eqP in Hall.
+      move => /Z.add_move_l in Hall. by rewrite Z.sub_diag in Hall.
+    + by move => /(_ 0) in Hall.
+  - by rewrite HVTop => n.
+Qed.
+
 Definition le_V (v1 v2: V) :=
   match (v1, v2) with
   | (_, VTop) => true
@@ -408,6 +419,48 @@ Module PFuncImpl (FPI: FPresburgerImpl).
         case: (x_out1 =P x_out') => [ Heq | Hne'].
         * exists [::x_out2]. simpl_pfunc. ssrsubst. by rewrite Hin'.
         * exists [::x_out1]. simpl_pfunc. by rewrite Hin' eq_sym.
+  Qed.
+
+  Theorem map_to_pfunc_exists :
+    forall n (map: PMap n 1) x_in x_out,
+      (x_out \in eval_pfunc (map_to_pfunc map) x_in) ->
+      exists x_out', (x_in, [::x_out']) \in map.
+  Proof.
+    move => n map x_in x_out.
+    move => /map_to_pfuncP [Hin | [x_out1 [x_out2 [_ [Hin1 _]]]]]; eauto.
+  Qed.
+
+  Theorem map_to_pfunc_notin_assumed_intros :
+    forall n (map: PMap n 1) x_in,
+      x_in \notin Assumed (map_to_pfunc map) ->
+      exists x_out1 x_out2, x_out1 <> x_out2 /\ (x_in, [::x_out1]) \in map /\ (x_in, [::x_out2]) \in map.
+  Proof.
+    move => n map x_in.
+    rewrite /map_to_pfunc /= f_complement_setP => /negbNE /f_get_domain_mapP => [[x_out]].
+    rewrite f_subtract_mapP. move => /andP [Hin_map]. rewrite f_map_from_pw_affP => Hwitness.
+    move: (Hin_map) => /f_map_witness_some_intro [x_out' Hin].
+    exists (nth 0%Z x_out 0). exists x_out'.
+    rewrite Hin in Hwitness. rewrite inj_eq in Hwitness; last by move => x1 x2; case.
+    split. apply /eqP. autossr.
+    split; last first. by apply f_map_witness_some.
+    have Hequality: (point_equality 1 [:: nth 0 x_out 0] x_out) by rewrite /point_equality /= eq_refl.
+    by rewrite_point_H Hequality.
+  Qed.
+
+  Theorem map_to_pfunc_notin_assumed :
+    forall n (map: PMap n 1) x_in x_out1 x_out2,
+      x_out1 <> x_out2 ->
+      (x_in, [::x_out1]) \in map ->
+      (x_in, [::x_out2]) \in map ->
+      x_in \notin Assumed (map_to_pfunc map).
+  Proof.
+    move => n map x_in x_out1 x_out2 Hout_ne Hin1 Hin2.
+    have: eval_pfunc (map_to_pfunc map) x_in = VTop; last first.
+      rewrite /map_to_pfunc /eval_pfunc. case_if. case_match => //. auto.
+    apply VTopP => z.
+    apply map_to_pfuncP. right.
+    exists x_out1. exists x_out2. split. by apply /eqP.
+    split; auto.
   Qed.
 
   Theorem map_to_pfunc_le :
